@@ -5,12 +5,12 @@
   /* Seconds for rc utility communication timeout default */
   "rc_timeout": 0.5,
 
-  /* Path to rdm daemon if not found in $PATH */
-  "rdm_path": "",
-
   /* max number of jump steps */
   "jump_limit": 10,
 
    /* Supported source file types */
-  "file_types": ["source.c", "source.c++", "source.c++.11"]
+  "file_types": ["source.c", "source.c++", "source.c++.11"],
+
+  /* Statusbar indicator key - sorting is done alphabetically */
+  "status_key": "rtags_status_indicator"
 }
