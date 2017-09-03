@@ -36,10 +36,11 @@ It is an unstable plugin. There are a number of limitations:
 
 * You have to run `rdm` daemon manually. Better run it before Sublime starts, because plugin creates persistent connection to daemon
 * There is no `rdm`'s project management yet. So it's your responsibility to setup project, pass compilation commands (with `rc --compile gcc main.c` or `rc -J`). For more info see [LLVM codebase](http://clang.llvm.org/docs/JSONCompilationDatabase.html), [rtags README](https://github.com/Andersbakken/rtags/blob/master/README.org), [Bear project](https://github.com/rizsotto/Bear/blob/master/README.md).
+* It is recommended to install [rtags via homebrew](http://braumeister.org/repos/Homebrew/homebrew-core/formula/rtags) and then follow the instructions on how to run rdm
 
 So, the typical workflow is:
 
- 1. Start `rdm`
+ 1. Start `rdm` (unless already started via launchd or brew services)
  2. Supply it with _JSON compilation codebase_ via `rc -J` or several `rc -c` calls.
  3. Start _Sublime Text 3_
 
@@ -104,3 +105,8 @@ If you need auto-completion to trigger upon `.`, `->` or `::` add following to "
     }
   ]
 ```
+
+# Further reading
+
+For a typical setup of a larger codebase built via autotools, check out [Simplify development by adding RTags to your text editor](https://mesosphere.com/blog/simplify-development-by-adding-rtags-to-your-text-editor/).
+
