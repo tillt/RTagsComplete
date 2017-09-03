@@ -29,6 +29,7 @@ Make sure you Install `rtags`:
 * Find usages (Find symbol references, Find virtual function re-implementations)
 * Symbol information
 * Code completion
+* File compilation results after save - shows errors and fixits
 
 # Usage
 
@@ -88,6 +89,9 @@ Customize settings via "Preferences - Package Settings - SublimeRtags - Settings
 
   /* Supported source file types */
   "file_types": ["source.c", "source.c++", "source.c++.11"],
+
+  /* Statusbar indicator key - sorting is done alphabetically */
+  "status_key": "rtags_status_indicator"
 }
 ```
 
