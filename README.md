@@ -32,7 +32,7 @@ Make sure you Install `rtags`:
 
 # Usage
 
-It is a very unstable plugin. There are a number of limitations:
+It is an unstable plugin. There are a number of limitations:
 
 * You have to run `rdm` daemon manually. Better run it before Sublime starts, because plugin creates persistent connection to daemon
 * There is no `rdm`'s project management yet. So it's your responsibility to setup project, pass compilation commands (with `rc --compile gcc main.c` or `rc -J`). For more info see [LLVM codebase](http://clang.llvm.org/docs/JSONCompilationDatabase.html), [rtags README](https://github.com/Andersbakken/rtags/blob/master/README.org), [Bear project](https://github.com/rizsotto/Bear/blob/master/README.md).
