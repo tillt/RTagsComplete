@@ -47,6 +47,52 @@ class NavigationHelper(object):
         self.history = collections.deque()
 
 
+class ProgressIndicator():
+
+    def __init__(self):
+        self.addend = 1
+        self.size = 8
+        self.last_view = None
+        self.window = None
+        self.busy = False
+        self.status_key = settings.get('status_key', 'rtags_status_indicator')
+
+    def set_busy(self, busy):
+        if self.busy == busy:
+            return
+        self.busy = busy
+        sublime.set_timeout(lambda: self.run(1), 0)
+
+    def run(self, i):
+        if self.window is None:
+            self.window = sublime.active_window()
+        active_view = self.window.active_view()
+
+        if self.last_view is not None and active_view != self.last_view:
+            self.last_view.erase_status(self.status_key)
+            self.last_view = None
+
+        if not self.busy:
+            active_view.set_status(self.status_key, "RTags reindexing done")
+            sublime.set_timeout(lambda: active_view.erase_status(self.status_key), 5000)
+            return
+
+        before = i % self.size
+        after = (self.size - 1) - before
+
+        active_view.set_status(self.status_key, 'RTags reindexing [%s=%s]' % (' ' * before, ' ' * after))
+        if self.last_view is None:
+            self.last_view = active_view
+
+        if not after:
+            self.addend = -1
+        if not before:
+            self.addend = 1
+        i += self.addend
+
+        sublime.set_timeout(lambda: self.run(i), 100)
+
+
 class RConnectionThread(threading.Thread):
 
     def notify(self):
@@ -367,6 +413,7 @@ def init():
 
     globals()['navigation_helper'] = NavigationHelper()
     globals()['rc_thread'] = RConnectionThread()
+    globals()['progress_indicator'] = ProgressIndicator()
     rc_thread.start()
     settings.add_on_change('rc_path', update_settings)
 
