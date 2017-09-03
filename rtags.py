@@ -150,8 +150,10 @@ class RConnectionThread(threading.Thread):
                                         file.attrib["name"],
                                         error.attrib["line"],
                                         error.attrib["message"]))
+                    view = sublime.active_window().active_view()
                     if (len(errors) > 0):
-                        sublime.active_window().active_view().run_command('rtags_fixit', {'errors': errors})
+                        view.run_command('rtags_fixit', {'errors': errors})
+                    progress_indicator.set_busy(False)
                 buffer = ''
                 start_tag = ''
         self.p = None
@@ -334,8 +336,13 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         # do nothing if not called from supported code
         if not supported_file_type(v):
             return
-        # run rc --check-reindex to reindex just saved files
-        run_rc(['-x'], None, v.file_name())
+        # rdm's file watcher will trigger a reindex if needed, hence
+        # all we do here is check if we are currently indexing
+        out, err = run_rc(['--is-indexing'], None)
+        if out.decode().strip() == "1":
+            progress_indicator.set_busy(True)
+        # there is no need to manually trigger reindexing as
+        # this is done automagically by rdm's file watcher
 
     def on_post_text_command(self, view, command_name, args):
         # do nothing if not called from supported code
