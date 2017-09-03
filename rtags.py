@@ -215,12 +215,6 @@ class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
             pass
 
 
-class RtagsSymbolNameCommand(RtagsBaseCommand):
-
-    def _query(self, *args, **kwargs):
-        return self.view.substr(self.view.word(self.view.sel()[0]))
-
-
 class RtagsLocationCommand(RtagsBaseCommand):
 
     def _query(self, *args, **kwargs):
