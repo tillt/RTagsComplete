@@ -178,14 +178,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
     def _validate(self, stdout, stderr):
         if stdout != b'Not indexed\n':
             return True
-
-        self.view.window().show_quick_panel(
-            ["Not indexed"],
-            None,
-            sublime.MONOSPACE_FONT,
-            -1,
-            None)
-
+        self.view.show_popup("<nbsp/>Not indexed<nbsp/>")
         return False
 
     def _action(self, stdout, stderr):
