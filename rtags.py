@@ -327,10 +327,6 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
 
 class RtagsNavigationListener(sublime_plugin.EventListener):
-    # def on_modified(self, view):
-    #   if view.scope_name(0).split()[0] in ('source.c++',
-    #                                               'source.c'):
-    #     navigation_helper.flag =
 
     def on_post_save(self, v):
         # do nothing if not called from supported code
