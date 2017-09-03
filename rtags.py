@@ -202,10 +202,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         items = list(map(lambda x: x.decode('utf-8'), stdout.splitlines()))
         self.last_references = items
 
-        def out_to_items(item):
-            (file, line, _, usage) = re.findall(reg, item)[0]
-            return [usage.strip(), "{}:{}".format(file.split('/')[-1], line)]
-        items = list(map(out_to_items, items))
+        items = list(map(self.out_to_items, items))
 
         # if there is only one result no need to show it to user
         # just do navigation directly
@@ -216,6 +213,10 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         self.view.window().show_quick_panel(
             items, self.on_select, sublime.MONOSPACE_FONT, -1, self.on_highlight)
 
+    def out_to_items(self, item):
+        (file, line, _, usage) = re.findall(reg, item)[0]
+        return [usage.strip(), "{}:{}".format(file.split('/')[-1], line)]
+
 
 class RtagsFixitCommand(RtagsBaseCommand):
 
@@ -223,11 +224,7 @@ class RtagsFixitCommand(RtagsBaseCommand):
         items = args["errors"]
         self.last_references = items
 
-        def out_to_items(item):
-            (file, line, _, usage) = re.findall(reg, item)[0]
-            return [usage.strip(), "{}:{}".format(file.split('/')[-1], line)]
-
-        items = list(map(out_to_items, items))
+        items = list(map(self.out_to_items, items))
 
         self.view.window().show_quick_panel(
             items,
@@ -270,15 +267,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
         items = list(filter(self.filter_items, items))
 
-        def out_to_items(item):
-            (title, info) = re.findall(self.inforeg, item)[0]
-            return [info.strip(), title.strip()]
-
-        def out_file_to_items(item):
-            (file, line, _, usage) = re.findall(reg, item)[0]
-            return [usage.strip(), "{}:{}".format(file.split('/')[-1], line)]
-
-        items = list(map(out_to_items, items))
+        items = list(map(self.out_to_items, items))
         self.last_references = items
 
         self.view.window().show_quick_panel(
