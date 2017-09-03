@@ -93,6 +93,19 @@ class RConnectionThread(threading.Thread):
                         navigation_helper.flag == NavigationHelper.NAVIGATION_REQUESTED):
                     # notify about event
                     sublime.set_timeout(self.notify, 10)
+
+                if (tree.tag == 'checkstyle'):
+                    errors = []
+                    for file in tree.findall('file'):
+                        for error in file.findall('error'):
+                            if (error.attrib["severity"] == "fixit" or error.attrib["severity"] == "error"):
+                                errors.append(
+                                    "{}:{}:0:{}".format(
+                                        file.attrib["name"],
+                                        error.attrib["line"],
+                                        error.attrib["message"]))
+                    if (len(errors) > 0):
+                        sublime.active_window().active_view().run_command('rtags_fixit', {'errors': errors})
                 buffer = ''
                 start_tag = ''
         self.p = None
@@ -202,6 +215,26 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         # else show all available options
         self.view.window().show_quick_panel(
             items, self.on_select, sublime.MONOSPACE_FONT, -1, self.on_highlight)
+
+
+class RtagsFixitCommand(RtagsBaseCommand):
+
+    def run(self, edit, **args):
+        items = args["errors"]
+        self.last_references = items
+
+        def out_to_items(item):
+            (file, line, _, usage) = re.findall(reg, item)[0]
+            return [usage.strip(), "{}:{}".format(file.split('/')[-1], line)]
+
+        items = list(map(out_to_items, items))
+
+        self.view.window().show_quick_panel(
+            items,
+            None,
+            sublime.MONOSPACE_FONT,
+            -1,
+            self.on_highlight)
 
 
 class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
