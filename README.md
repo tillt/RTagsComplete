@@ -83,9 +83,6 @@ Customize settings via "Preferences - Package Settings - SublimeRtags - Settings
   /* Seconds for rc utility communication timeout default */
   "rc_timeout": 0.5,
 
-  /* Path to rdm daemon if not found in $PATH */
-  "rdm_path": "",
-
   /* Max number of jump steps */
   "jump_limit": 10,
 
