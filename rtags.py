@@ -14,6 +14,8 @@ settings = None
 RC_PATH = ''
 rc_timeout = 0.5
 auto_complete = True
+# fixits and errors - this is still in super early pre alpha state
+fixits = False
 
 
 def run_rc(switches, input=None, *args):
@@ -138,7 +140,7 @@ class RConnectionThread(threading.Thread):
                     # notify about event
                     sublime.set_timeout(self.notify, 10)
 
-                if (tree.tag == 'checkstyle'):
+                if (fixits and tree.tag == 'checkstyle'):
                     errors = []
                     for file in tree.findall('file'):
                         for error in file.findall('error'):
@@ -330,6 +332,11 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         # do nothing if not called from supported code
         if not supported_file_type(v):
             return
+
+        # do nothing if we dont want to support fixits
+        if not fixits:
+            return
+
         # rdm's file watcher will trigger a reindex if needed, hence
         # all we do here is check if we are currently indexing
         out, err = run_rc(['--is-indexing'], None)
@@ -416,6 +423,7 @@ def update_settings():
     globals()['RC_PATH'] = settings.get('rc_path', 'rc')
     globals()['rc_timeout'] = settings.get('rc_timeout', 0.5)
     globals()['auto_complete'] = settings.get('auto_complete', 'yes') in suppose_true
+    globals()['fixits'] = settings.get('fixits', 'no') in suppose_true
 
 
 def init():
