@@ -12,19 +12,16 @@ import xml.etree.ElementTree as etree
 settings = None
 # path to rc utility
 RC_PATH = ''
+rc_timeout = 0.5
 
 
 def run_rc(switches, input=None, *args):
-    timeout = 0.5
-    if settings != None:
-        timeout = settings.get('rc_timeout', timeout)
-
     p = subprocess.Popen([RC_PATH] + switches + list(args),
                          stderr=subprocess.PIPE,
                          stdout=subprocess.PIPE,
                          stdin=subprocess.PIPE)
     print(' '.join(p.args))
-    return p.communicate(input=input, timeout=timeout)
+    return p.communicate(input=input, timeout=rc_timeout)
 
 # TODO refactor somehow to remove global vars
 
@@ -409,6 +406,7 @@ def update_settings():
     globals()['settings'] = sublime.load_settings(
         'RtagsComplete.sublime-settings')
     globals()['RC_PATH'] = settings.get('rc_path', 'rc')
+    globals()['rc_timeout'] = settings.get('rc_timeout', 0.5)
 
 
 def init():
