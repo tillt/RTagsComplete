@@ -407,7 +407,7 @@ def supported_file_type(view):
 
 def update_settings():
     globals()['settings'] = sublime.load_settings(
-        'sublime-rtags.sublime-settings')
+        'RtagsComplete.sublime-settings')
     globals()['RC_PATH'] = settings.get('rc_path', 'rc')
 
 
