@@ -13,6 +13,7 @@ settings = None
 # path to rc utility
 RC_PATH = ''
 rc_timeout = 0.5
+auto_complete = True
 
 
 def run_rc(switches, input=None, *args):
@@ -356,6 +357,11 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
                                  row + 1, col + 1)
 
     def on_query_completions(self, v, prefix, location):
+
+        # check if autocompletion was disabled for this plugin
+        if not auto_complete:
+            return [];
+
         switches = ['-l']  # rc's auto-complete switch
         self.view = v
         # libcland does auto-complete _only_ at whitespace and punctuation chars
@@ -403,10 +409,13 @@ def supported_file_type(view):
 
 
 def update_settings():
+    suppose_true = ['true', 'True', 'yes', 'Yes', 'totally']
+
     globals()['settings'] = sublime.load_settings(
         'RtagsComplete.sublime-settings')
     globals()['RC_PATH'] = settings.get('rc_path', 'rc')
     globals()['rc_timeout'] = settings.get('rc_timeout', 0.5)
+    globals()['auto_complete'] = settings.get('auto_complete', 'yes') in suppose_true
 
 
 def init():
@@ -415,8 +424,13 @@ def init():
     globals()['navigation_helper'] = NavigationHelper()
     globals()['rc_thread'] = RConnectionThread()
     globals()['progress_indicator'] = ProgressIndicator()
+
     rc_thread.start()
+
     settings.add_on_change('rc_path', update_settings)
+    settings.add_on_change('rc_timeout', update_settings)
+    settings.add_on_change('auto_complete', update_settings)
+    settings.add_on_change('fixits', update_settings)
 
 
 def plugin_loaded():
