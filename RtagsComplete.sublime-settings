@@ -8,15 +8,18 @@
   /* max number of jump steps */
   "jump_limit": 10,
 
-   /* Supported source file types */
+  /* Supported source file types */
   "file_types": ["source.c", "source.c++", "source.c++.11"],
 
-  /* Statusbar indicator key - sorting is done alphabetically */
-  "status_key": "rtags_status_indicator",
+  /* Statusbar progress indicator key - sorting is done alphabetically */
+  "status_key": "000000_rtags_status",
 
-  /* */
-  "auto_complete": false,
+  /* Statusbar results key - sorting is done alphabetically */
+  "results_key": "000001_rtags_status",
 
-  /* */
-  "fixits": false
+  /* Enable autocompletion */
+  "auto_complete": true,
+
+  /* Enable displaying fixits, warnings and errors */
+  "fixits": true
 }

@@ -3,6 +3,8 @@
 
 Sublime Text 3 C/C++ code completion, navigation plugin. It is based on [rtags](https://github.com/Andersbakken/rtags).
 
+This is a fork of the original [sublime-rtags](https://github.com/rampage644/sublime-rtags) by Sergei Turukin. New features have been added and merging those back into the orignal sublime-rtags has become a bottleneck this fork avoids.
+
 # Installation
 
 Make sure you Install `rtags`:
@@ -33,9 +35,9 @@ Make sure you Install `rtags`:
 
 # Usage
 
-It is an unstable plugin. There are a number of limitations:
+It is an unstable plugin. There are a number of limitations which may or may not apply to your setup:
 
-* You have to run `rdm` daemon manually. Better run it before Sublime starts, because plugin creates persistent connection to daemon
+* You may have to run `rdm` daemon manually. Better run it before Sublime starts, because plugin creates persistent connection to daemon
 * There is no `rdm`'s project management yet. So it's your responsibility to setup project, pass compilation commands (with `rc --compile gcc main.c` or `rc -J`). For more info see [LLVM codebase](http://clang.llvm.org/docs/JSONCompilationDatabase.html), [rtags README](https://github.com/Andersbakken/rtags/blob/master/README.org), [Bear project](https://github.com/rizsotto/Bear/blob/master/README.md).
 * It is recommended to install [rtags via homebrew](http://braumeister.org/repos/Homebrew/homebrew-core/formula/rtags) and then follow the instructions on how to run rdm
 
@@ -92,8 +94,17 @@ Customize settings via "Preferences - Package Settings - SublimeRtags - Settings
   /* Supported source file types */
   "file_types": ["source.c", "source.c++", "source.c++.11"],
 
-  /* Statusbar indicator key - sorting is done alphabetically */
-  "status_key": "rtags_status_indicator"
+  /* Statusbar progress indicator key - sorting is done alphabetically */
+  "status_key": "000000_rtags_status",
+
+  /* Statusbar results key - sorting is done alphabetically */
+  "results_key": "000001_rtags_status",
+
+  /* Enable autocompletion */
+  "auto_complete": true,
+
+  /* Enable displaying fixits, warnings and errors */
+  "fixits": true
 }
 ```
 
