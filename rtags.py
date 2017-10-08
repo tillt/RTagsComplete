@@ -10,6 +10,7 @@ Enhanced code by Till Toenshoff.
 """
 
 import collections
+import logging
 import re
 import sublime
 import sublime_plugin
@@ -19,23 +20,36 @@ import threading
 import xml.etree.ElementTree as etree
 
 from concurrent import futures
-from threading import RLock
+from datetime import datetime
 from os import path
+from threading import RLock
 
-# Nasty globals - need to go away!
 
-# sublime-rtags settings
+# RtagsComplete settings
 settings = None
 
 # Path to rc utility.
 RC_PATH = ''
-
-rc_timeout = 0.5
+RC_TIMEOUT = 0.5
 
 auto_complete = True
 
-# fixits and errors - this is still in super early pre alpha state
-fixits = False
+
+log = logging.getLogger("RTags")
+log.setLevel(logging.DEBUG)
+log.propagate = False
+
+formatter_default = logging.Formatter(
+    '[%(name)s:%(levelname)s]: %(message)s')
+formatter_verbose = logging.Formatter(
+    '[%(name)s:%(levelname)s]:[%(filename)s]:[%(funcName)s]:'
+    '[%(threadName)s]: %(message)s')
+
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(formatter_default)
+if not log.hasHandlers():
+    log.addHandler(ch)
 
 
 def run_rc(switches, input=None, quote=True, *args):
@@ -44,8 +58,8 @@ def run_rc(switches, input=None, quote=True, *args):
                          stdout=subprocess.PIPE,
                          stdin=subprocess.PIPE)
     if quote:
-        print(' '.join(p.args))
-    return p.communicate(input=input, timeout=rc_timeout)
+        log.debug(' '.join(p.args))
+    return p.communicate(input=input, timeout=RC_TIMEOUT)
 
 
 def rc_is_indexing():
@@ -144,97 +158,118 @@ class ProgressIndicator():
 
 class RConnectionThread(threading.Thread):
 
-    def notify(self):
-        sublime.active_window().active_view().run_command('rtags_location',
-                                                          {'switches': navigation_helper.switches})
-
-    def run(self):
-        self.p = subprocess.Popen([RC_PATH, '-m', '--silent-query'],
-                                  stderr=subprocess.STDOUT, stdout=subprocess.PIPE)
-        # `rc -m` will feed stdout with xml like this:
-        #
-        # <?xml version="1.0" encoding="utf-8"?>
-        #  <checkstyle>
-        #   <file name="/home/ramp/tmp/pthread_simple.c">
-        #    <error line="54" column="5" severity="warning" message="implicit declaration of function 'sleep' is invalid in C99"/>
-        #    <error line="59" column="5" severity="warning" message="implicit declaration of function 'write' is invalid in C99"/>
-        #    <error line="60" column="5" severity="warning" message="implicit declaration of function 'lseek' is invalid in C99"/>
-        #    <error line="78" column="7" severity="warning" message="implicit declaration of function 'read' is invalid in C99"/>
-        #   </file>
-        #  </checkstyle>
-        # <?xml version="1.0" encoding="utf-8"?>
-        # <progress index="1" total="1"></progress>
-        #
-        # So we need to split xml chunks somehow
-        # Will start by looking for opening tag (<checkstyle, <progress)
-        # and parse accumulated xml when we encounter closing tag
-        # TODO deal with < /> style tags
-        rgxp = re.compile(r'<(\w+)')
-        buffer = ''  # xml to be parsed
-        start_tag = ''
-
-        for line in iter(self.p.stdout.readline, b''):
-            line = line.decode('utf-8')
-            self.p.poll()
-
-            if not start_tag:
-                start_tag = re.findall(rgxp, line)
-                start_tag = start_tag[0] if len(start_tag) else ''
-
-            buffer += line
-
-            if '</{}>'.format(start_tag) in line:
-                tree = etree.fromstring(buffer)
-                # OK, we received some chunk
-                # check if it is progress update
-                if (tree.tag == 'progress' and
-                        tree.attrib['index'] == tree.attrib['total'] and
-                        navigation_helper.flag == NavigationHelper.NAVIGATION_REQUESTED):
-                    # notify about event
-                    sublime.set_timeout(self.notify, 10)
-
-                if fixits and (tree.tag == 'checkstyle'):
-                    key = 0
-
-                    mapping = {
-                        'warning': 'warning',
-                        'error': 'error',
-                        'fixit': 'error'
-                    }
-
-                    issues = {
-                        'warning': [],
-                        'error': []
-                    }
-
-                    for file in tree.findall('file'):
-                        for error in file.findall('error'):
-                            if error.attrib["severity"] in mapping.keys():
-                                issue = {}
-                                issue['line'] = int(error.attrib["line"])
-                                issue['column'] = int(error.attrib["column"])
-                                if 'length' in error.attrib:
-                                    issue['length'] = int(error.attrib["length"])
-                                else:
-                                    issue['length'] = -1
-                                issue['message'] = error.attrib["message"]
-
-                                issues[mapping[error.attrib["severity"]]].append(issue)
-
-                        sublime.active_window().active_view().run_command(
-                            'rtags_fixit',
-                            {
-                                'filename': file.attrib["name"],
-                                'issues': issues
-                            })
-
-                buffer = ''
-                start_tag = ''
-
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self.killing = False
         self.p = None
 
+    def notify(self):
+        sublime.active_window().active_view().run_command(
+            'rtags_location',
+            {'switches': navigation_helper.switches})
+
+    # `rc -m` will feed stdout with xml like this:
+    #
+    # <?xml version="1.0" encoding="utf-8"?>
+    #  <checkstyle>
+    #   <file name="/home/ramp/tmp/pthread_simple.c">
+    #    <error line="54" column="5" severity="warning" message="implicit declaration of function 'sleep' is invalid in C99"/>
+    #    <error line="59" column="5" severity="warning" message="implicit declaration of function 'write' is invalid in C99"/>
+    #    <error line="60" column="5" severity="warning" message="implicit declaration of function 'lseek' is invalid in C99"/>
+    #    <error line="78" column="7" severity="warning" message="implicit declaration of function 'read' is invalid in C99"/>
+    #   </file>
+    #  </checkstyle>
+    # <?xml version="1.0" encoding="utf-8"?>
+    # <progress index="1" total="1"></progress>
+    #
+    # So we need to split xml chunks somehow
+    # Will start by looking for opening tag (<checkstyle, <progress)
+    # and parse accumulated xml when we encounter closing tag
+    # TODO deal with < /> style tags
+
+    def run(self):
+        started_at = datetime.now()
+
+        log.debug("Restarting rc communication")
+
+        with subprocess.Popen(
+            [RC_PATH, '-m', '--silent-query'],
+            stderr=subprocess.STDOUT,
+            stdout=subprocess.PIPE) as p:
+
+            self.p = p
+
+            rgxp = re.compile(r'<(\w+)')
+            buffer = ''  # xml to be parsed
+            start_tag = ''
+
+            for line in iter(self.p.stdout.readline, b''):
+                line = line.decode('utf-8')
+                self.p.poll()
+
+                if not start_tag:
+                    start_tag = re.findall(rgxp, line)
+                    start_tag = start_tag[0] if len(start_tag) else ''
+
+                buffer += line
+
+                if '</{}>'.format(start_tag) in line:
+                    tree = etree.fromstring(buffer)
+                    # OK, we received some chunk
+                    # check if it is progress update
+                    if (tree.tag == 'progress' and
+                            tree.attrib['index'] == tree.attrib['total'] and
+                            navigation_helper.flag == NavigationHelper.NAVIGATION_REQUESTED):
+                        # notify about event
+                        sublime.set_timeout(self.notify, 10)
+
+                    if  tree.tag == 'checkstyle':
+                        key = 0
+
+                        mapping = {
+                            'warning': 'warning',
+                            'error': 'error',
+                            'fixit': 'error'
+                        }
+
+                        issues = {
+                            'warning': [],
+                            'error': []
+                        }
+
+                        for file in tree.findall('file'):
+                            for error in file.findall('error'):
+                                if error.attrib["severity"] in mapping.keys():
+                                    issue = {}
+                                    issue['line'] = int(error.attrib["line"])
+                                    issue['column'] = int(error.attrib["column"])
+                                    if 'length' in error.attrib:
+                                        issue['length'] = int(error.attrib["length"])
+                                    else:
+                                        issue['length'] = -1
+                                    issue['message'] = error.attrib["message"]
+
+                                    issues[mapping[error.attrib["severity"]]].append(issue)
+
+                            sublime.active_window().active_view().run_command(
+                                'rtags_fixit',
+                                {
+                                    'filename': file.attrib["name"],
+                                    'issues': issues
+                                })
+
+                    buffer = ''
+                    start_tag = ''
+        self.p = None
+
+        log.debug("RTags client ran for {} seconds".format((datetime.now() - started_at).seconds))
+        log.debug("RTags communication thread is quitting")
+
     def stop(self):
+        log.debug("We were asked to stop")
+
         if self.is_alive():
+            self.killing = True
             self.p.kill()
             self.p = None
 
@@ -323,9 +358,11 @@ class FixitsController():
 
     PHANTOMS_TAG = "rtags_phantoms"
 
-    def __init__(self):
+    def __init__(self, supported):
+        self.supported = supported
         self.regions = {}
         self.issues = None
+        self.waiting = False
         self.filename = None
         self.view = None
         self.results_key = settings.get('results_key', 'rtags_result_indicator')
@@ -418,12 +455,6 @@ class FixitsController():
                 "",
                 FixitsController.CATEGORY_FLAGS[category])
 
-    #def show_fixit(self, category, region):
-    #    self.view.show_popup(
-    #        self.as_html(self.templates[category]['popup'], region['message']),
-    #        sublime.HIDE_ON_MOUSE_MOVE_AWAY,
-    #        region['region'].a)
-
     def clear_phantoms(self):
         if not self.view:
             return
@@ -447,7 +478,6 @@ class FixitsController():
         phantoms += list(map(lambda p: issue_to_phantom('warning', p), issues['warning']))
 
         self.phantom_set.update(phantoms)
-
 
     def update_regions(self, issues):
 
@@ -505,14 +535,18 @@ class FixitsController():
         self.filename = None
 
     def update(self, filename, issues):
-        print("got indexing results for {}".format(filename))
+        log.debug("Got indexing results for {}".format(filename))
+
+        if not self.supported:
+            log.debug("Fixits are disabled")
+            return
 
         if not self.view:
-            print("there is no view")
+            log.warning("There is no view")
             return
 
         if filename != self.filename:
-            print("got update for {} which is not {}".format(filename, self.filename))
+            log.warning("Got update for {} which is not {}".format(filename, self.filename))
             return
 
         self.update_results(issues)
@@ -523,9 +557,35 @@ class FixitsController():
 
     def expect(self, view):
         self.clear()
+
+        if not self.supported:
+            log.debug("Fixits are disabled")
+            return
+
+        if not rc_thread.is_alive():
+            if self.waiting:
+                sublime.error_message(
+                    "Something went wrong with the rtags communication."
+                    " We won't be able to show any errors/warnings/fixits"
+                    " after re-index.")
+                return
+
+            self.waiting = True
+            globals()['rc_thread'] = RConnectionThread()
+            rc_thread.start()
+            sublime.set_timeout(lambda: self.expect(view), 100)
+            return
+
+        self.waiting = False
+
+        run_rc(['-x'], None, True, view.file_name())
+        progress_indicator.start(view)
         self.filename = view.file_name()
-        print("expecting indexing results for {}".format(self.filename))
+
+        log.debug("Expecting indexing results for {}".format(self.filename))
+
         self.view = view
+
 
     #def hover_region(self, view, point):
     #    if self.view != view:
@@ -773,19 +833,14 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not supported_view(view):
             return
 
-        fixits_controller.clear()
-        fixits_controller.expect(view)
-
-        # Run rc --check-reindex to reindex just saved files.
-        run_rc(['-x'], None, True, view.file_name())
-
         # Do nothing if we dont want to support fixits.
-        if not fixits:
+        if not fixits_controller.supported:
+            logging.debug("Fixits are disabled")
+            # Run rc --check-reindex to reindex just saved files.
+            run_rc(['-x'], None, True, view.file_name())
             return
 
-        progress_indicator.start(view)
-
-        #sublime.set_timeout(lambda: self.check_for_indexing(view), 0)
+        fixits_controller.expect(view)
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
@@ -809,21 +864,21 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
     def completion_done(self, future):
         if not future.done():
-            print("completion_failed")
+            log.warning("Completion failed")
             return
-
-        print("completion_done")
 
         (view, completion_job_id, suggestions) = future.result()
 
+        log.debug("Finished completion job {} for view {}".format(completion_job_id, view))
+
         # Has the view changed since triggering completion?
         if view != self.view:
-            print("completion done for switched view")
+            log.debug("Completion done for switched view")
             return
 
         # Did we have a different completion in mind?
         if completion_job_id != self.completion_job_id:
-            print("completion done for outdated request")
+            log.debug("Completion done for wrong completion")
             return
 
         self.suggestions = suggestions
@@ -861,7 +916,8 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
             return self.suggestions, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS
 
         # We do need to trigger a new completion.
-        print("completion on view {}".format(view))
+        log.debug("Completion job {} triggered on view {}".format(completion_job_id, view))
+
         self.view = view
         self.completion_job_id = completion_job_id
         text = get_view_text(view)
@@ -879,28 +935,42 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
 
 def update_settings():
+    log.info("Settings updated")
+
     globals()['settings'] = sublime.load_settings(
         'RtagsComplete.sublime-settings')
+
     globals()['RC_PATH'] = settings.get('rc_path', 'rc')
-    globals()['rc_timeout'] = settings.get('rc_timeout', 0.5)
+    globals()['RC_TIMEOUT'] = settings.get('rc_timeout', 0.5)
     globals()['auto_complete'] = settings.get('auto_complete', True)
-    globals()['fixits'] = settings.get('fixits', False)
+
+    if settings.get('verbose_log', True):
+        log.info("Enabled verbose logging")
+        ch.setFormatter(formatter_verbose)
+        ch.setLevel(logging.DEBUG)
+    else:
+        log.info("Enabled normal logging")
+        ch.setFormatter(formatter_default)
+        ch.setLevel(logging.INFO)
 
 
 def init():
     update_settings()
 
-    globals()['navigation_helper'] = NavigationHelper()
     globals()['rc_thread'] = RConnectionThread()
+    globals()['navigation_helper'] = NavigationHelper()
     globals()['progress_indicator'] = ProgressIndicator()
-    globals()['fixits_controller'] = FixitsController()
+    globals()['fixits_controller'] = FixitsController(settings.get('fixits', False))
 
     rc_thread.start()
 
     settings.add_on_change('rc_path', update_settings)
     settings.add_on_change('rc_timeout', update_settings)
     settings.add_on_change('auto_complete', update_settings)
-    settings.add_on_change('fixits', update_settings)
+    settings.add_on_change('verbose_log', update_settings)
+
+    # TODO(tillt): Allow fixit settings to get live-updated.
+    #settings.add_on_change('fixits', update_settings)
 
 
 def plugin_loaded():
