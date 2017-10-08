@@ -325,10 +325,12 @@ class FixitsController():
 
     def __init__(self):
         self.regions = {}
+        self.issues = None
         self.filename = None
         self.view = None
         self.results_key = settings.get('results_key', 'rtags_result_indicator')
         self.templates = {}
+        self.navigation_items = None
 
         names = ["phantom", "popup"]
 
@@ -349,6 +351,54 @@ class FixitsController():
         padded = template.replace('{', '{{').replace('}', '}}')
         substituted = padded.replace('[', '{').replace(']', '}')
         return substituted.format(message)
+
+
+    def on_select(self, res):
+        (file, line, col) = self.navigation_items[res]
+        view = self.view.window().open_file(
+            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+
+
+    def on_highlight(self, res):
+        (file, line, col) = self.navigation_items[res]
+        view = self.view.window().open_file(
+            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
+
+
+    def show_selector(self, view):
+        if not supported_view(view):
+            return
+
+        if view.file_name() != self.filename:
+            return
+
+        def issue_to_panel_item(issue):
+            return [
+                issue['message'],
+                "{}:{}:{}".format(self.filename.split('/')[-1], issue['line'], issue['column'])]
+
+        items = list(map(issue_to_panel_item, self.issues['error']))
+        items += list(map(issue_to_panel_item, self.issues['warning']))
+
+        def issue_to_navigation_item(issue):
+            return [self.filename, issue['line'], issue['column']]
+
+        self.navigation_items = list(map(issue_to_navigation_item, self.issues['error']))
+        self.navigation_items += list(map(issue_to_navigation_item, self.issues['warning']))
+
+        # If there is only one result no need to show it to user
+        # just do navigation directly.
+        if len(items) == 1:
+            self.on_select(0)
+            return
+
+        view.window().show_quick_panel(
+            items,
+            self.on_select,
+            sublime.MONOSPACE_FONT,
+            -1,
+            self.on_highlight)
+
 
     def category_key(self, category):
         return "rtags-{}-mark".format(category)
@@ -450,6 +500,7 @@ class FixitsController():
         self.clear_regions()
         self.clear_phantoms()
         self.regions = {}
+        self.issues = None
         self.view = None
         self.filename = None
 
@@ -468,6 +519,7 @@ class FixitsController():
         self.update_regions(issues)
         self.update_phantoms(issues)
         self.show_regions()
+        self.issues = issues
 
     def expect(self, view):
         self.clear()
@@ -612,7 +664,17 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             return
 
         self.view.window().show_quick_panel(
-            items, self.on_select, sublime.MONOSPACE_FONT, -1, self.on_highlight)
+            items,
+            self.on_select,
+            sublime.MONOSPACE_FONT,
+            -1,
+            self.on_highlight)
+
+
+class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
+
+    def run(self, edit):
+        fixits_controller.show_selector(self.view)
 
 
 class RtagsFixitCommand(RtagsBaseCommand):
@@ -721,7 +783,9 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not fixits:
             return
 
-        sublime.set_timeout(lambda: self.check_for_indexing(view), 100)
+        progress_indicator.start(view)
+
+        #sublime.set_timeout(lambda: self.check_for_indexing(view), 0)
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
