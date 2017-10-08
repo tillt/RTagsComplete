@@ -55,6 +55,7 @@ Keybindings inspired by `Qt Creator`.
 + Symbol information - `Ctrl+Shift+i`
 + Use `Alt+/` explicitly for auto-completion
 + Mouse _button8_ to go backwards (mouse wheel left)
++ Error, fixit and warning navigation - `Ctrl-Shift-e`
 
 # Customization
 
@@ -69,6 +70,7 @@ Customize your own keybindings via "Preferences - Package Settings - SublimeRtag
   {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--symbol-info"]} },
   {"keys": ["f2"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-f"]} },
   {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
+  {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" }
 ]
 ```
 
