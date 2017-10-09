@@ -1,13 +1,13 @@
 
 # About
 
-Sublime Text 3 C/C++ code completion, navigation plugin. It is based on [rtags](https://github.com/Andersbakken/rtags).
+Sublime Text 3 C/C++ code completion, navigation plugin. It is based on [RTags](https://github.com/Andersbakken/rtags).
 
 This is a fork of the original [sublime-rtags](https://github.com/rampage644/sublime-rtags) by Sergei Turukin. New features have been added and merging those back into the orignal sublime-rtags has become a bottleneck this fork avoids.
 
 # Installation
 
-Make sure you Install `rtags`:
+Make sure you installed RTags:
 
     git clone https://github.com/Andersbakken/rtags
     cd rtags
@@ -30,8 +30,11 @@ Make sure you Install `rtags`:
 * Symbol navigation (Goto definition/declaration)
 * Find usages (Find symbol references, Find virtual function re-implementations)
 * Symbol information
+![Symbol Info Example](site/images/symbol_info.png)
 * Code completion
-* File compilation results after save - shows errors and fixits
+![Completion Example](site/images/completion.png)
+* File compilation results after save - shows errors and warnings inline
+![Fixits Example](site/images/fixits.png)
 
 # Usage
 
@@ -49,7 +52,7 @@ So, the typical workflow is:
 
 # Default keybindings
 
-Keybindings inspired by `Qt Creator`.
+Keybindings were originally inspired by Qt Creator.
 
 + Symbol navigation - `F2`
 + Find usages - `Ctrl+Shift+u`
@@ -63,7 +66,7 @@ Keybindings inspired by `Qt Creator`.
 
 ### Keybindings
 
-Customize your own keybindings via "Preferences - Package Settings - SublimeRtags - Key Bindings - User"
+Customize your own keybindings via "Preferences - Package Settings - RtagsComplete - Key Bindings - User"
 
 ```
 [
@@ -78,7 +81,7 @@ Customize your own keybindings via "Preferences - Package Settings - SublimeRtag
 
 ### Settings
 
-Customize settings via "Preferences - Package Settings - SublimeRtags - Settings - User"
+Customize settings via "Preferences - Package Settings - RtagsComplete - Settings - User"
 
 ```
 {

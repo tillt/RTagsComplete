@@ -12,20 +12,20 @@
                 "children":
                 [
                     {
-                        "caption": "RtagsComplete",
+                        "caption": "RTagsComplete",
                         "children":
                         [
                             {
                                 "command": "open_file", "args":
                                 {
-                                    "file": "${packages}/RtagsComplete/RtagsComplete.sublime-settings"
+                                    "file": "${packages}/RTagsComplete/RTagsComplete.sublime-settings"
                                 },
                                 "caption": "Settings – Default"
                             },
                             {
                                 "command": "open_file", "args":
                                 {
-                                    "file": "${packages}/User/RtagsComplete.sublime-settings"
+                                    "file": "${packages}/User/RTagsComplete.sublime-settings"
                                 },
                                 "caption": "Settings – User"
                             },
@@ -34,7 +34,7 @@
                             {
                                 "command": "open_file",
                                 "args": {
-                                    "file": "${packages}/RtagsComplete/Default (OSX).sublime-keymap",
+                                    "file": "${packages}/RTagsComplete/Default (OSX).sublime-keymap",
                                     "platform": "OSX"
                                 },
                                 "caption": "Key Bindings – Default"
@@ -42,7 +42,7 @@
                             {
                                 "command": "open_file",
                                 "args": {
-                                    "file": "${packages}/RtagsComplete/Default (Linux).sublime-keymap",
+                                    "file": "${packages}/RTagsComplete/Default (Linux).sublime-keymap",
                                     "platform": "Linux"
                                 },
                                 "caption": "Key Bindings – Default"
@@ -50,7 +50,7 @@
                             {
                                 "command": "open_file",
                                 "args": {
-                                    "file": "${packages}/RtagsComplete/Default (Windows).sublime-keymap",
+                                    "file": "${packages}/RTagsComplete/Default (Windows).sublime-keymap",
                                     "platform": "Windows"
                                 },
                                 "caption": "Key Bindings – Default"

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""RtagsComplete plugin for Sublime Text 3.
+"""RTagsComplete plugin for Sublime Text 3.
 
 Provides completion suggestions and much more for C/C++ languages
 based on rtags.
@@ -25,13 +25,13 @@ from os import path
 from threading import RLock
 
 
-# RtagsComplete settings
+# RTagsComplete settings
 settings = None
-
 # Path to rc utility.
 RC_PATH = ''
+# Timeout for common rc incocations.
 RC_TIMEOUT = 0.5
-
+# Enable RTagsComplete autocompletion.
 auto_complete = True
 
 
@@ -343,8 +343,8 @@ class CompletionJob():
 
 
 class FixitsController():
-    THEMES_PATH = "RtagsComplete/themes/Default"
-    PACKAGE_PATH = "Packages/RtagsComplete"
+    THEMES_PATH = "RTagsComplete/themes/Default"
+    PACKAGE_PATH = "Packages/RTagsComplete"
 
     CATEGORY_WARNING = "warning"
     CATEGORY_ERROR = "error"
@@ -369,7 +369,7 @@ class FixitsController():
         self.templates = {}
         self.navigation_items = None
 
-        names = ["phantom", "popup"]
+        names = ["phantom"]
 
         for category in FixitsController.CATEGORIES:
             self.templates[category] = {}
@@ -795,11 +795,6 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
 class RtagsNavigationListener(sublime_plugin.EventListener):
 
-    def check_for_indexing(self, view):
-        # Check if we are currently indexing.
-        if rc_is_indexing():
-            progress_indicator.start(view)
-
     def cursor_pos(self, view, pos=None):
         if not pos:
             pos = view.sel()
@@ -825,12 +820,14 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
 
     def on_modified_async(self, view):
         if not supported_view(view):
+            log.debug("Unsupported view")
             return
         fixits_controller.clear(view)
 
     def on_post_save_async(self, view):
         # Do nothing if not called from supported code.
         if not supported_view(view):
+            log.debug("Unsupported view")
             return
 
         # Do nothing if we dont want to support fixits.
@@ -845,6 +842,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
         if not supported_view(view):
+            log.debug("Unsupported view")
             return
 
         # If view get 'clean' after undo check if we need reindex.
@@ -969,8 +967,11 @@ def init():
     settings.add_on_change('auto_complete', update_settings)
     settings.add_on_change('verbose_log', update_settings)
 
-    # TODO(tillt): Allow fixit settings to get live-updated.
+    # TODO(tillt): Allow "fixits" setting to get live-updated.
     #settings.add_on_change('fixits', update_settings)
+
+    # TODO(tillt): Allow "verbose_log" settings to get live-updated.
+    #settings.add_on_change('verbose_log', update_settings)
 
 
 def plugin_loaded():
@@ -980,7 +981,5 @@ def plugin_loaded():
 def plugin_unloaded():
     # Stop progress indicator.
     progress_indicator.stop()
-    # Remove region markers.
-    fixits_controller.clear()
     # Stop `rc -m` thread.
     sublime.set_timeout(rc_thread.stop, 100)
