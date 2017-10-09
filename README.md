@@ -27,13 +27,20 @@ Make sure you installed RTags:
 
 # Features
 
-* Symbol navigation (Goto definition/declaration)
-* Find usages (Find symbol references, Find virtual function re-implementations)
-* Symbol information
+## Symbol navigation (Goto definition/declaration)
+
+## Find usages (Find symbol references, Find virtual function re-implementations)
+
+## Symbol information
+
 ![Symbol Info Example](site/images/symbol_info.png)
-* Code completion
+
+## Code completion
+
 ![Completion Example](site/images/completion.png)
-* File compilation results after save - shows errors and warnings inline
+
+## File compilation results after save - shows errors and warnings inline
+
 ![Fixits Example](site/images/fixits.png)
 
 # Usage
