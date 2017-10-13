@@ -142,6 +142,7 @@ class ProgressIndicator():
     def run(self, i):
         if self.stopping or not self.busy or not rc_is_indexing():
             self.busy = False
+            self.stopping = False
             if self.view:
                 self.view.erase_status(self.status_key)
             return
