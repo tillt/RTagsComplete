@@ -448,11 +448,12 @@ class FixitsController():
             self.view.erase_regions(self.category_key(key));
 
     def show_regions(self):
+        scope_names = {'error': 'region.redish', 'warning': 'region.yellowish'}
         for category, regions in self.regions.items():
             self.view.add_regions(
                 self.category_key(category),
                 [region['region'] for region in regions],
-                "invalid.illegal",
+                scope_names[category],
                 "",
                 FixitsController.CATEGORY_FLAGS[category])
 
