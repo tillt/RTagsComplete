@@ -214,6 +214,13 @@ class RConnectionThread(threading.Thread):
 
                 buffer += line
 
+                if "Can't seem to connect to server" in line:
+                    log.error(line);
+                    if sublime.ok_cancel_dialog(
+                        "Can't seem to connect to server. Make sure RTags `rdm` is running, then retry.",
+                        "Retry"):
+                        self.run()
+
                 if '</{}>'.format(start_tag) in line:
                     tree = etree.fromstring(buffer)
                     # OK, we received some chunk
