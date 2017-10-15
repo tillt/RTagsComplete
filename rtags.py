@@ -651,8 +651,6 @@ class FixitsController():
         self.clear_phantoms()
         self.regions = {}
         self.issues = None
-        self.view = None
-        self.filename = None
 
     def update(self, filename, issues):
         log.debug("Got indexing results for {}".format(filename))
@@ -675,11 +673,13 @@ class FixitsController():
         self.show_regions()
         self.issues = issues
 
-    def indexing_callback(self):
+    def indexing_callback(self, filename, view):
+        self.filename = filename
+        self.view = view
         # For some bizarre reason a reindexed file that does not have any
         # fixits or warnings will not return anything in `rc -m`, hence
         # we need to force such result again via `rc --diagnose`.
-        run_rc(['--diagnose'], None, False, self.filename)
+        run_rc(['--diagnose'], None, False, filename)
 
     def reindex(self, view, saved):
         self.clear()
@@ -723,7 +723,9 @@ class FixitsController():
                 text,
                 True);
 
-        progress_indicator.start(view, self.indexing_callback)
+        progress_indicator.start(
+            view,
+            lambda view=view,filename=self.filename: self.indexing_callback(filename, view))
 
         log.debug("Expecting indexing results for {}".format(self.filename))
 
