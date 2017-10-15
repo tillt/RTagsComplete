@@ -70,14 +70,23 @@ class IdleController:
     def trigger(self, view):
         if not self.auto_reindex:
             return
+
         self.counter = 0
         self.view = view
+
         if not self.active:
+            self.active = True
             self.run()
 
+    def sleep(self):
+        self.active = False
+
     def run(self):
-        self.active = True
+        if not self.active:
+            return
+
         self.counter += 1
+
         if self.counter >= self.counter_threshold:
             log.debug("Threshold reached, reindexing unsaved file")
             self.active = False
@@ -935,6 +944,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             return
 
         fixits_controller.reindex(view, True)
+        idle_controller.sleep()
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
