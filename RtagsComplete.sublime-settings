@@ -1,6 +1,6 @@
 {
   /* Path to rc utility if not found in $PATH */
-  "rc_path": "/home/ramp/bin/rc",
+  "rc_path": "/usr/local/bin/rc",
 
   /* Seconds for rc utility communication timeout default */
   "rc_timeout": 0.5,
@@ -20,6 +20,12 @@
   /* Enable autocompletion */
   "auto_complete": true,
 
+  /* Autocompletion triggers on top of those already used (and needed) */
+  "triggers" : [ ".", "->", "::", " ", "  ", "(", "[" ],
+
   /* Enable displaying fixits, warnings and errors */
-  "fixits": true
+  "fixits": true,
+
+  /* Enable enhanced, rather verbose logging for troubleshooting */
+  "verbose_log": true
 }
