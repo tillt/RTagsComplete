@@ -3,10 +3,15 @@
 """RTagsComplete plugin for Sublime Text 3.
 
 Provides completion suggestions and much more for C/C++ languages
-based on rtags.
+based on RTags.
 
 Original code by Sergei Turukin.
-Enhanced code by Till Toenshoff.
+Hacked with plenty of new features by Till Toenshoff.
+Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
+
+Note from Till;
+This code is in most places ugly as hell - I never claimed
+to be a Python coder -- but hey, it works for me.
 """
 
 import collections
@@ -50,6 +55,66 @@ ch.setLevel(logging.INFO)
 ch.setFormatter(formatter_default)
 if not log.hasHandlers():
     log.addHandler(ch)
+
+class PosStatus:
+    """Enum class for position status.
+    Stolen from EasyClangComplete
+
+    Attributes:
+        COMPLETION_NEEDED (int): completion needed
+        COMPLETION_NOT_NEEDED (int): completion not needed
+        WRONG_TRIGGER (int): trigger is wrong
+    """
+    COMPLETION_NEEDED = 0
+    COMPLETION_NOT_NEEDED = 1
+    WRONG_TRIGGER = 2
+
+def get_pos_status(point, view):
+    """Check if the cursor focuses a valid trigger.
+    Stolen from EasyClangComplete
+
+    Args:
+        point (int): position of the cursor in the file as defined by subl
+        view (sublime.View): current view
+        settings (TYPE): Description
+
+    Returns:
+        PosStatus: status for this position
+    """
+    trigger_length = 1
+
+    word_on_the_left = view.substr(view.word(point - trigger_length))
+    if word_on_the_left.isdigit():
+        # don't autocomplete digits
+        log.debug("trying to autocomplete digit, are we? Not allowed.")
+        return PosStatus.WRONG_TRIGGER
+
+    log.debug("word on left: {}".format(word_on_the_left))
+
+    # slightly counterintuitive `view.substr` returns ONE character
+    # to the right of given point.
+    curr_char = view.substr(point - trigger_length)
+    wrong_trigger_found = False
+    for trigger in settings.get('triggers'):
+        # compare to the last char of a trigger
+        if curr_char == trigger[-1]:
+            trigger_length = len(trigger)
+            prev_char = view.substr(point - trigger_length)
+            if prev_char == trigger[0]:
+                log.debug("matched trigger '%s'.", trigger)
+                return PosStatus.COMPLETION_NEEDED
+            else:
+                log.debug("wrong trigger '%s%s'.", prev_char, curr_char)
+                wrong_trigger_found = True
+
+    if wrong_trigger_found:
+        # no correct trigger found, but a wrong one fired instead
+        log.debug("wrong trigger fired")
+        return PosStatus.WRONG_TRIGGER
+
+    # if nothing fired we don't need to do anything
+    log.debug("no completions needed")
+    return PosStatus.COMPLETION_NOT_NEEDED
 
 
 def run_rc(switches, input=None, quote=True, *args):
@@ -122,28 +187,38 @@ class ProgressIndicator():
     def __init__(self):
         self.size = 8
         self.view = None
-        self.busy = False
         self.stopping = False
+        self.indexing_done_callback = None
+        self.running = False
         self.status_key = settings.get('status_key', 'rtags_status_indicator')
 
-    def start(self, view):
-        if self.view != view:
-            self.stop()
-        self.busy = True
+    def start(self, view, callback):
+        if self.running:
+            log.debug("Indicator already active")
+            return
+        log.debug("Starting indicator")
         self.view = view
-        sublime.set_timeout(lambda: self.run(1), 0)
+        self.running = True
+        self.indexing_done_callback = callback
+        sublime.set_timeout(lambda: self.run(1), 100)
 
     def stop(self):
-        if not self.busy:
-            return;
+        log.debug("Stopping indicator")
         self.stopping = True
-        sublime.set_timeout(lambda: self.run(1), 0)
+        self.view = None
 
     def run(self, i):
-        if self.stopping or not self.busy or not rc_is_indexing():
-            self.busy = False
+        if self.stopping or not rc_is_indexing():
+            log.debug("Stopping {}, indexing {}".format(self.stopping, rc_is_indexing()))
+            self.running = False
+            self.stopping = False
             if self.view:
                 self.view.erase_status(self.status_key)
+            log.debug("Indexing done")
+
+            if self.indexing_done_callback:
+                # Let the originator know that we are done.
+                self.indexing_done_callback()
             return
 
         from random import sample
@@ -190,10 +265,10 @@ class RConnectionThread(threading.Thread):
     def run(self):
         started_at = datetime.now()
 
-        log.debug("Restarting rc communication")
+        log.debug("Restarting RTags communication")
 
         with subprocess.Popen(
-            [RC_PATH, '-m', '--silent-query'],
+            [RC_PATH, '-m'],
             stderr=subprocess.STDOUT,
             stdout=subprocess.PIPE) as p:
 
@@ -212,6 +287,13 @@ class RConnectionThread(threading.Thread):
                     start_tag = start_tag[0] if len(start_tag) else ''
 
                 buffer += line
+
+                if "Can't seem to connect to server" in line:
+                    log.error(line);
+                    if sublime.ok_cancel_dialog(
+                        "Can't seem to connect to server. Make sure RTags `rdm` is running, then retry.",
+                        "Retry"):
+                        self.run()
 
                 if '</{}>'.format(start_tag) in line:
                     tree = etree.fromstring(buffer)
@@ -363,6 +445,7 @@ class FixitsController():
         self.regions = {}
         self.issues = None
         self.waiting = False
+        self.expecting = False
         self.filename = None
         self.view = None
         self.results_key = settings.get('results_key', 'rtags_result_indicator')
@@ -443,21 +526,24 @@ class FixitsController():
     def clear_regions(self):
         if not self.view:
             return
+        log.debug("Clearing regions from view")
         for key in self.regions.keys():
             self.view.erase_regions(self.category_key(key));
 
     def show_regions(self):
+        scope_names = {'error': 'region.redish', 'warning': 'region.yellowish'}
         for category, regions in self.regions.items():
             self.view.add_regions(
                 self.category_key(category),
                 [region['region'] for region in regions],
-                "invalid.illegal",
+                scope_names[category],
                 "",
                 FixitsController.CATEGORY_FLAGS[category])
 
     def clear_phantoms(self):
         if not self.view:
             return
+        log.debug("Clearing phantoms from view")
         self.view.erase_phantoms(FixitsController.PHANTOMS_TAG)
 
     def update_phantoms(self, issues):
@@ -501,6 +587,7 @@ class FixitsController():
     def clear_results(self):
         if not self.view:
             return
+        log.debug("Clearing results from view")
         self.view.erase_status(self.results_key)
 
     def update_results(self, issues):
@@ -523,8 +610,8 @@ class FixitsController():
             return
 
         # Skip of we wanted to clear a specific view but never drew onto it.
-        if view and (view != self.view):
-            return
+        #if view and (view != self.view):
+        #    return
 
         self.clear_results()
         self.clear_regions()
@@ -555,6 +642,12 @@ class FixitsController():
         self.show_regions()
         self.issues = issues
 
+    def indexing_callback(self):
+        # For some bizarre reason a reindexed file that does not have any
+        # fixits or warnings will not return anything in `rc -m`, hence
+        # we need to force such result again via `rc --diagnose`.
+        run_rc(['--diagnose'], None, False, self.filename)
+
     def expect(self, view):
         self.clear()
 
@@ -565,7 +658,7 @@ class FixitsController():
         if not rc_thread.is_alive():
             if self.waiting:
                 sublime.error_message(
-                    "Something went wrong with the rtags communication."
+                    "Something went wrong with the RTags communication."
                     " We won't be able to show any errors/warnings/fixits"
                     " after re-index.")
                 return
@@ -577,42 +670,17 @@ class FixitsController():
             return
 
         self.waiting = False
-
-        run_rc(['-x'], None, True, view.file_name())
-        progress_indicator.start(view)
         self.filename = view.file_name()
-
-        log.debug("Expecting indexing results for {}".format(self.filename))
-
         self.view = view
 
+        # We do this manually even though rtags SHOULD watch
+        # all our files and reindex accordingly. However on macOS
+        # this feature is broken.
+        # See https://github.com/Andersbakken/rtags/issues/1052
+        run_rc(['-x'], None, True, view.file_name())
+        progress_indicator.start(view, self.indexing_callback)
 
-    #def hover_region(self, view, point):
-    #    if self.view != view:
-    #        return
-
-    #    for category, regions in self.regions.items():
-    #        for region in regions:
-    #            if region['region'].contains(point):
-    #                self.show_fixit(category, region)
-    #                return
-
-    #def cursor_region(self, view, row, col):
-    #    if not row:
-    #        return
-
-    #    if self.view != view:
-    #        return
-
-    #    start = view.text_point(row, 0)
-    #    end = view.line(start).b
-    #    cursor_region = sublime.Region(start, end)
-
-    #    for category, regions in self.regions.items():
-    #        for region in regions:
-    #            if cursor_region.contains(region['region']):
-    #                self.show_fixit(category, region)
-    #                return
+        log.debug("Expecting indexing results for {}".format(self.filename))
 
 
 class RtagsBaseCommand(sublime_plugin.TextCommand):
@@ -805,26 +873,14 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             pos = pos[0].a
         return view.rowcol(pos)
 
-    #def on_hover(self, view, point, hover_zone):
-    #     # Do nothing if not called from supported code.
-    #     if not supported_file_type(view):
-    #         return
-    #     fixits_controller.hover_region(view, point)
-
-    #def on_selection_modified(self, view):
-    #    # Do nothing if not called from supported code.
-    #    if not supported_file_type(view):
-    #        return
-    #    (row, col) = self.cursor_pos(view)
-    #    fixits_controller.cursor_region(view, row, col)
-
     def on_modified_async(self, view):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
         fixits_controller.clear(view)
 
-    def on_post_save_async(self, view):
+    def on_post_save(self, view):
+        log.debug("Post save triggered")
         # Do nothing if not called from supported code.
         if not supported_view(view):
             log.debug("Unsupported view")
@@ -834,6 +890,10 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not fixits_controller.supported:
             logging.debug("Fixits are disabled")
             # Run rc --check-reindex to reindex just saved files.
+            # We do this manually even though rtags SHOULD watch
+            # all our files and reindex accordingly. However on macOS
+            # this feature is broken.
+            # See https://github.com/Andersbakken/rtags/issues/1052
             run_rc(['-x'], None, True, view.file_name())
             return
 
@@ -892,7 +952,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
             'api_completions_only': False,
             'next_competion_if_showing': False})
 
-    def on_query_completions(self, view, prefix, location):
+    def on_query_completions(self, view, prefix, locations):
         # Check if autocompletion was disabled for this plugin.
         if not auto_complete:
             return []
@@ -901,9 +961,24 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         if not supported_view(view):
             return []
 
+        log.debug("Completion prefix: {}".format(prefix))
+
         # libclang does auto-complete _only_ at whitespace and punctuation chars
         # so "rewind" location to that character
-        trigger_position = location[0] - len(prefix)
+        trigger_position = locations[0] - len(prefix)
+
+        pos_status = get_pos_status(trigger_position, view)
+
+        if pos_status == PosStatus.WRONG_TRIGGER:
+            # We are at a wrong trigger, remove all completions from the list.
+            log.debug("Wrong trigger")
+            log.debug("Hiding default completions")
+            return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
+        if pos_status == PosStatus.COMPLETION_NOT_NEEDED:
+            log.debug("Completion not needed")
+            log.debug("Showing default completions")
+            return None
 
         # Render some unique identifier for us to match a completion request
         # to its original query.
@@ -911,6 +986,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         # If we already have a completion for this position, show that.
         if self.completion_job_id == completion_job_id:
+            log.debug("We already got a completion for this position available.")
             return self.suggestions, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS
 
         # We do need to trigger a new completion.
@@ -981,5 +1057,7 @@ def plugin_loaded():
 def plugin_unloaded():
     # Stop progress indicator.
     progress_indicator.stop()
+    # Clear any regions, status and phantoms.
+    fixits_controller.clear()
     # Stop `rc -m` thread.
     sublime.set_timeout(rc_thread.stop, 100)
