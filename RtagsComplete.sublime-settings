@@ -17,7 +17,7 @@
   /* Statusbar results key - sorting is done alphabetically */
   "results_key": "000001_rtags_status",
 
-  /* Enable autocompletion */
+  /* Enable auto-completion */
   "auto_complete": true,
 
   /* Autocompletion triggers on top of those already used (and needed) */
@@ -27,5 +27,11 @@
   "fixits": true,
 
   /* Enable enhanced, rather verbose logging for troubleshooting */
-  "verbose_log": true
+  "verbose_log": true,
+
+  /* Enable auto-reindex unsaved file */
+  "auto_reindex": true,
+
+  /* Seconds of idle-time before auto-reindex is triggered */
+  "auto_reindex_threshold": 30
 }

@@ -56,6 +56,37 @@ ch.setFormatter(formatter_default)
 if not log.hasHandlers():
     log.addHandler(ch)
 
+
+class IdleController:
+
+    def __init__(self, auto_reindex, threshold, period):
+        self.counter = 0
+        self.auto_reindex = auto_reindex
+        self.counter_threshold = threshold / period
+        self.period = period * 1000.0
+        self.active = False
+        self.view = None
+
+    def trigger(self, view):
+        if not self.auto_reindex:
+            return
+        self.counter = 0
+        self.view = view
+        if not self.active:
+            self.run()
+
+    def run(self):
+        self.active = True
+        self.counter += 1
+        if self.counter >= self.counter_threshold:
+            log.debug("Threshold reached, reindexing unsaved file")
+            self.active = False
+            fixits_controller.reindex(self.view, False)
+            return
+
+        sublime.set_timeout(lambda: self.run(), self.period)
+
+
 class PosStatus:
     """Enum class for position status.
     Stolen from EasyClangComplete
@@ -86,10 +117,8 @@ def get_pos_status(point, view):
     word_on_the_left = view.substr(view.word(point - trigger_length))
     if word_on_the_left.isdigit():
         # don't autocomplete digits
-        log.debug("trying to autocomplete digit, are we? Not allowed.")
+        log.debug("Trying to auto-complete digit, are we? Not allowed.")
         return PosStatus.WRONG_TRIGGER
-
-    log.debug("word on left: {}".format(word_on_the_left))
 
     # slightly counterintuitive `view.substr` returns ONE character
     # to the right of given point.
@@ -101,19 +130,19 @@ def get_pos_status(point, view):
             trigger_length = len(trigger)
             prev_char = view.substr(point - trigger_length)
             if prev_char == trigger[0]:
-                log.debug("matched trigger '%s'.", trigger)
+                log.debug("Matched trigger '%s'.", trigger)
                 return PosStatus.COMPLETION_NEEDED
             else:
-                log.debug("wrong trigger '%s%s'.", prev_char, curr_char)
+                log.debug("Wrong trigger '%s%s'.", prev_char, curr_char)
                 wrong_trigger_found = True
 
     if wrong_trigger_found:
         # no correct trigger found, but a wrong one fired instead
-        log.debug("wrong trigger fired")
+        log.debug("Wrong trigger fired")
         return PosStatus.WRONG_TRIGGER
 
     # if nothing fired we don't need to do anything
-    log.debug("no completions needed")
+    log.debug("No completions needed")
     return PosStatus.COMPLETION_NOT_NEEDED
 
 
@@ -466,24 +495,20 @@ class FixitsController():
                 with open(filepath, 'rb') as file:
                     self.templates[category][name] = file.read().decode('utf-8')
 
-
     def as_html(self, template, message):
         padded = template.replace('{', '{{').replace('}', '}}')
         substituted = padded.replace('[', '{').replace(']', '}')
         return substituted.format(message)
-
 
     def on_select(self, res):
         (file, line, col) = self.navigation_items[res]
         view = self.view.window().open_file(
             '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
 
-
     def on_highlight(self, res):
         (file, line, col) = self.navigation_items[res]
         view = self.view.window().open_file(
             '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
-
 
     def show_selector(self, view):
         if not supported_view(view):
@@ -518,7 +543,6 @@ class FixitsController():
             sublime.MONOSPACE_FONT,
             -1,
             self.on_highlight)
-
 
     def category_key(self, category):
         return "rtags-{}-mark".format(category)
@@ -648,7 +672,7 @@ class FixitsController():
         # we need to force such result again via `rc --diagnose`.
         run_rc(['--diagnose'], None, False, self.filename)
 
-    def expect(self, view):
+    def reindex(self, view, saved):
         self.clear()
 
         if not self.supported:
@@ -673,11 +697,23 @@ class FixitsController():
         self.filename = view.file_name()
         self.view = view
 
-        # We do this manually even though rtags SHOULD watch
-        # all our files and reindex accordingly. However on macOS
-        # this feature is broken.
-        # See https://github.com/Andersbakken/rtags/issues/1052
-        run_rc(['-x'], None, True, view.file_name())
+        if saved:
+            # We do this manually even though rtags SHOULD watch
+            # all our files and reindex accordingly. However on macOS
+            # this feature is broken.
+            # See https://github.com/Andersbakken/rtags/issues/1052
+            run_rc(
+                ['-x'],
+                None,
+                True,
+                self.filename)
+        else:
+            text = get_view_text(view)
+            run_rc(
+                ['-V', self.filename, '--unsaved-file', "{}:{}".format(self.filename, len(text))],
+                text,
+                True);
+
         progress_indicator.start(view, self.indexing_callback)
 
         log.debug("Expecting indexing results for {}".format(self.filename))
@@ -873,11 +909,12 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             pos = pos[0].a
         return view.rowcol(pos)
 
-    def on_modified_async(self, view):
+    def on_modified(self, view):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
         fixits_controller.clear(view)
+        idle_controller.trigger(view)
 
     def on_post_save(self, view):
         log.debug("Post save triggered")
@@ -897,7 +934,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             run_rc(['-x'], None, True, view.file_name())
             return
 
-        fixits_controller.expect(view)
+        fixits_controller.reindex(view, True)
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
@@ -1034,6 +1071,10 @@ def init():
     globals()['rc_thread'] = RConnectionThread()
     globals()['navigation_helper'] = NavigationHelper()
     globals()['progress_indicator'] = ProgressIndicator()
+    globals()['idle_controller'] = IdleController(
+        settings.get('auto_reindex', False),
+        settings.get('auto_reindex_threshold', 30),
+        5)
     globals()['fixits_controller'] = FixitsController(settings.get('fixits', False))
 
     rc_thread.start()
