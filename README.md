@@ -1,9 +1,35 @@
 
+```
+      ___       ___          ___          ___          ___
+     /\  \     /\  \        /\  \        /\  \        /\  \
+    /::\  \    \:\  \      /::\  \      /::\  \      /::\  \
+   /:/\:\  \    \:\  \    /:/\:\  \    /:/\:\  \    /:/\ \  \
+  /::\~\:\  \   /::\  \  /::\~\:\  \  /:/  \:\  \  _\:\~\ \  \
+ /:/\:\ \:\__\ /:/\:\__\/:/\:\ \:\__\/:/__/_\:\__\/\ \:\ \ \__\
+ \/_|::\/:/  //:/  \/__/\/__\:\/:/  /\:\  /\ \/__/\:\ \:\ \/__/
+    |:|::/  //:/  /          \::/  /  \:\ \:\__\   \:\ \:\__\
+    |:|\/__/ \/__/           /:/  /    \:\/:/  /    \:\/:/  /
+    |:|  |                  /:/  /      \::/  /      \::/  /
+     \|__|                  \/__/        \/__/        \/__/
+      ___          ___          ___          ___                    ___                 ___
+     /\__\        /\  \        /\  \        /\  \                  /\__\               /\__\
+    /:/  /       /::\  \      |::\  \      /::\  \                /:/ _/_       ___   /:/ _/_
+   /:/  /       /:/\:\  \     |:|:\  \    /:/\:\__\              /:/ /\__\     /\__\ /:/ /\__\
+  /:/  /  ___  /:/  \:\  \  __|:|\:\  \  /:/ /:/  /___     ___  /:/ /:/ _/_   /:/  //:/ /:/ _/_
+ /:/__/  /\__\/:/__/ \:\__\/::::|_\:\__\/:/_/:/  //\  \   /\__\/:/_/:/ /\__\ /:/__//:/_/:/ /\__\
+ \:\  \ /:/  /\:\  \ /:/  /\:\~~\  \/__/\:\/:/  / \:\  \ /:/  /\:\/:/ /:/  //::\  \\:\/:/ /:/  /
+  \:\  /:/  /  \:\  /:/  /  \:\  \       \::/__/   \:\  /:/  /  \::/_/:/  //:/\:\  \\::/_/:/  /
+   \:\/:/  /    \:\/:/  /    \:\  \       \:\  \    \:\/:/  /    \:\/:/  / \/__\:\  \\:\/:/  /
+    \::/  /      \::/  /      \:\__\       \:\__\    \::/  /      \::/  /       \:\__\\::/  /
+     \/__/        \/__/        \/__/        \/__/     \/__/        \/__/         \/__/ \/__/
+```
+
+
 # About
 
 Sublime Text 3 C/C++ code completion, navigation plugin. It is based on [RTags](https://github.com/Andersbakken/rtags).
 
-This is a fork of the original [sublime-rtags](https://github.com/rampage644/sublime-rtags) by Sergei Turukin. New features have been added and merging those back into the orignal sublime-rtags has become a bottleneck this fork avoids.
+This is a fork of the original [sublime-rtags](https://github.com/rampage644/sublime-rtags) by Sergei Turukin. New features have been added and merging those back into the original sublime-rtags has become a bottleneck this fork avoids.
 
 # Installation
 
@@ -51,15 +77,15 @@ It is an unstable plugin. There are a number of limitations which may or may not
 * There is no `rdm`'s project management yet. So it's your responsibility to setup project, pass compilation commands (with `rc --compile gcc main.c` or `rc -J`). For more info see [LLVM codebase](http://clang.llvm.org/docs/JSONCompilationDatabase.html), [rtags README](https://github.com/Andersbakken/rtags/blob/master/README.org), [Bear project](https://github.com/rizsotto/Bear/blob/master/README.md).
 * It is recommended to install [rtags via homebrew](http://braumeister.org/repos/Homebrew/homebrew-core/formula/rtags) and then follow the instructions on how to run rdm
 
-So, the typical workflow is:
+So, the typical work-flow is:
 
  1. Start `rdm` (unless already started via launchd or brew services)
  2. Supply it with _JSON compilation codebase_ via `rc -J` or several `rc -c` calls.
  3. Start _Sublime Text 3_
 
-# Default keybindings
+# Default key bindings
 
-Keybindings were originally inspired by Qt Creator.
+Key bindings were originally inspired by Qt Creator.
 
 + Symbol navigation - `F2`
 + Find usages - `Ctrl+Shift+u`
@@ -73,7 +99,7 @@ Keybindings were originally inspired by Qt Creator.
 
 ### Keybindings
 
-Customize your own keybindings via "Preferences - Package Settings - RtagsComplete - Key Bindings - User"
+Customize your own key bindings via "Preferences - Package Settings - RtagsComplete - Key Bindings - User"
 
 ```
 [
@@ -93,12 +119,12 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
 ```
 {
   /* Path to rc utility if not found in $PATH */
-  "rc_path": "/home/ramp/mnt/git/rtags/build/bin/rc",
+  "rc_path": "/usr/local/bin/rc",
 
   /* Seconds for rc utility communication timeout default */
   "rc_timeout": 0.5,
 
-  /* Max number of jump steps */
+  /* max number of jump steps */
   "jump_limit": 10,
 
   /* Supported source file types */
@@ -110,27 +136,45 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
   /* Statusbar results key - sorting is done alphabetically */
   "results_key": "000001_rtags_status",
 
-  /* Enable autocompletion */
+  /* Enable auto-completion */
   "auto_complete": true,
 
+  /* Auto-completion triggers internal to RTagsComplete */
+  "triggers" : [ ".", "->", "::", " ", "  ", "(", "[" ],
+
   /* Enable displaying fixits, warnings and errors */
-  "fixits": true
+  "fixits": true,
+
+  /* Enable enhanced, rather verbose logging for troubleshooting */
+  "verbose_log": true
 }
 ```
 
-If you need auto-completion to trigger upon `.`, `->` or `::` add following to "Preferences - Settings - User"
+If you need auto-completion add following to "Preferences - Settings - User"
 
 ```
   "auto_complete_triggers":
-  [
-    {
-      "characters": ".>:",
-      "selector": "text, source, meta, string, punctuation, constant"
-    }
-  ]
+    [
+        {
+            "characters": "<",
+            "selector": "text.html"
+        },
+        {
+            "characters": ".>:",
+            "selector": "source.c++.11, source.c++, source.c - string - comment - constant.numeric"
+        }
+    ],
 ```
 
 # Further reading
 
 For a typical setup of a larger codebase built via autotools, check out [Simplify development by adding RTags to your text editor](https://mesosphere.com/blog/simplify-development-by-adding-rtags-to-your-text-editor/).
 
+# Credits
+
+Original code by Sergei Turukin.
+Hacked with plenty of new features by Till Toenshoff.
+Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
+
+On that thought, I would like to mention that EasyClangComplete is an excellent plugin, far more complex and in many ways superior to RTagsComplete. However, the approach taken by EasyClangComplete is arguably not so great for larger projects. EasyClangComplete aims to make things conveniently easy while RTagsComplete is attempting to offer plenty of features with highest possible performance.
+Maybe some day EasyClangComplete will be based on `clangd` and that is likely the day I stop tinkering with RTagsComplete.
