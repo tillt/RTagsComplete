@@ -146,7 +146,13 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
   "fixits": true,
 
   /* Enable enhanced, rather verbose logging for troubleshooting */
-  "verbose_log": true
+  "verbose_log": true,
+
+  /* Enable auto-reindex unsaved file */
+  "auto_reindex": true,
+
+  /* Seconds of idle-time before auto-reindex is triggered */
+  "auto_reindex_threshold": 30
 }
 ```
 
@@ -160,7 +166,7 @@ If you need auto-completion add following to "Preferences - Settings - User"
             "selector": "text.html"
         },
         {
-            "characters": ".>:",
+            "characters": ".>: ",
             "selector": "source.c++.11, source.c++, source.c - string - comment - constant.numeric"
         }
     ],
