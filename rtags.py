@@ -9,9 +9,10 @@ Original code by Sergei Turukin.
 Hacked with plenty of new features by Till Toenshoff.
 Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 
-Note from Till;
-This code is in most places ugly as hell - I never claimed
-to be a Python coder -- but hey, it works for me.
+TODO(tillt): This desperately needs a refactor into submodules with
+clean APIs instead of this horrible spaghetti code.
+TODO(tillt): The current tests are broken and need to get redone.
+TODO(tillt): Life is more important than any of the above, so fuck it.
 """
 
 import collections
@@ -252,7 +253,6 @@ class ProgressIndicator():
             self.stopping = False
             if self.view:
                 self.view.erase_status(self.status_key)
-            log.debug("Indexing done")
 
             if self.indexing_done_callback:
                 # Let the originator know that we are done.
@@ -281,6 +281,9 @@ class RConnectionThread(threading.Thread):
             'rtags_location',
             {'switches': navigation_helper.switches})
 
+    # TODO(tillt): Make this parse JSON instead of the ugly XML - this
+    # is 2017!
+    #
     # `rc -m` will feed stdout with xml like this:
     #
     # <?xml version="1.0" encoding="utf-8"?>
@@ -968,6 +971,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         self.suggestions = []
         self.completion_job_id = None
         self.view = None
+        self.trigger_position = None
 
     def completion_done(self, future):
         if not future.done():
@@ -978,14 +982,32 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         log.debug("Finished completion job {} for view {}".format(completion_job_id, view))
 
-        # Has the view changed since triggering completion?
         if view != self.view:
-            log.debug("Completion done for switched view")
+            log.debug("Completion done for different view")
             return
 
         # Did we have a different completion in mind?
         if completion_job_id != self.completion_job_id:
-            log.debug("Completion done for wrong completion")
+            log.debug("Completion done for unexpected completion")
+            return
+
+        active_view = sublime.active_window().active_view()
+
+        # Has the view changed since triggering completion?
+        if view != active_view:
+            log.debug("Completion done for inactive view")
+            return
+
+        # We accept both current position and position to the left of the
+        # current word as valid as we don't know how much user already typed
+        # after the trigger.
+        current_position = view.sel()[0].a
+        valid_positions = [current_position, view.word(current_position).a]
+
+        if self.trigger_position not in valid_positions:
+            log.debug("Trigger position {} does not match valid positions {}".format(
+                valid_positions,
+                self.trigger_position))
             return
 
         self.suggestions = suggestions
@@ -1020,13 +1042,11 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         if pos_status == PosStatus.WRONG_TRIGGER:
             # We are at a wrong trigger, remove all completions from the list.
-            log.debug("Wrong trigger")
-            log.debug("Hiding default completions")
+            log.debug("Wrong trigger - hiding default completions")
             return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
         if pos_status == PosStatus.COMPLETION_NOT_NEEDED:
-            log.debug("Completion not needed")
-            log.debug("Showing default completions")
+            log.debug("Completion not needed - showing default completions")
             return None
 
         # Render some unique identifier for us to match a completion request
@@ -1043,6 +1063,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         self.view = view
         self.completion_job_id = completion_job_id
+        self.trigger_position = trigger_position
         text = get_view_text(view)
         row, col = view.rowcol(trigger_position)
         filename = view.file_name()
