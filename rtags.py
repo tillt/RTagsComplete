@@ -23,22 +23,27 @@ import sublime_plugin
 import subprocess
 import threading
 
+
 import xml.etree.ElementTree as etree
 
 from concurrent import futures
 from datetime import datetime
 from os import path
 from threading import RLock
+from functools import partial
+
+from .plugin import jobs
+from .plugin import settings
+from .plugin import tools
+from .plugin import indicator
 
 
-# RTagsComplete settings
-settings = None
 # Path to rc utility.
-RC_PATH = ''
+#RC_PATH = ''
 # Timeout for common rc incocations.
-RC_TIMEOUT = 0.5
+#RC_TIMEOUT = 0.5
 # Enable RTagsComplete autocompletion.
-auto_complete = True
+#auto_complete = True
 
 
 log = logging.getLogger("RTags")
@@ -60,13 +65,14 @@ if not log.hasHandlers():
 
 class IdleController:
 
-    def __init__(self, auto_reindex, threshold, period):
+    def __init__(self, auto_reindex, threshold, period, callback):
         self.counter = 0
         self.auto_reindex = auto_reindex
         self.counter_threshold = threshold / period
         self.period = period * 1000.0
         self.active = False
         self.view = None
+        self.callback = callback
 
     def trigger(self, view):
         if not self.auto_reindex:
@@ -89,9 +95,9 @@ class IdleController:
         self.counter += 1
 
         if self.counter >= self.counter_threshold:
-            log.debug("Threshold reached, reindexing unsaved file")
+            log.debug("Threshold reached.")
             self.active = False
-            fixits_controller.reindex(self.view, False)
+            self.callback(view=self.view)
             return
 
         sublime.set_timeout(lambda: self.run(), self.period)
@@ -134,7 +140,7 @@ def get_pos_status(point, view):
     # to the right of given point.
     curr_char = view.substr(point - trigger_length)
     wrong_trigger_found = False
-    for trigger in settings.get('triggers'):
+    for trigger in settings.SettingsManager.get('triggers'):
         # compare to the last char of a trigger
         if curr_char == trigger[-1]:
             trigger_length = len(trigger)
@@ -156,18 +162,15 @@ def get_pos_status(point, view):
     return PosStatus.COMPLETION_NOT_NEEDED
 
 
-def run_rc(switches, input=None, quote=True, *args):
-    p = subprocess.Popen([RC_PATH] + switches + list(args),
-                         stderr=subprocess.PIPE,
-                         stdout=subprocess.PIPE,
-                         stdin=subprocess.PIPE)
-    if quote:
-        log.debug(' '.join(p.args))
-    return p.communicate(input=input, timeout=RC_TIMEOUT)
+def run_rc(switches, input=None, *args):
+    command = switches
+    command += list(args)
+    job = jobs.SyncRTagsJob("SyncRTagsJob" + ThreadManager.next_job_id(), command, input)
+    return job.run_process()
 
 
 def rc_is_indexing():
-    (out, _) = run_rc(['--is-indexing', '--silent-query'], None, False)
+    out = run_rc(['--is-indexing', '--silent-query'])
     return out.decode().strip() == "1"
 
 
@@ -179,10 +182,7 @@ def supported_view(view):
     if not view:
         return False
 
-    if settings == None:
-        return False
-
-    file_types = settings.get('file_types', ["source.c", "source.c++"])
+    file_types = settings.SettingsManager.get('file_types', ["source.c", "source.c++"])
     if not view.scope_name(view.sel()[0].a).split()[0] in file_types:
         return False
 
@@ -219,252 +219,6 @@ class NavigationHelper(object):
         self.history = collections.deque()
 
 
-class ProgressIndicator():
-    # Borrowed from EasyClangComplete.
-    MSG_CHARS_COLOR_SUBLIME = u'⣾⣽⣻⢿⡿⣟⣯⣷'
-
-    def __init__(self):
-        self.size = 8
-        self.view = None
-        self.stopping = False
-        self.indexing_done_callback = None
-        self.running = False
-        self.status_key = settings.get('status_key', 'rtags_status_indicator')
-
-    def start(self, view, callback):
-        if self.running:
-            log.debug("Indicator already active")
-            return
-        log.debug("Starting indicator")
-        self.view = view
-        self.running = True
-        self.indexing_done_callback = callback
-        sublime.set_timeout(lambda: self.run(1), 100)
-
-    def stop(self):
-        log.debug("Stopping indicator")
-        self.stopping = True
-        self.view = None
-
-    def run(self, i):
-        if self.stopping or not rc_is_indexing():
-            log.debug("Stopping {}, indexing {}".format(self.stopping, rc_is_indexing()))
-            self.running = False
-            self.stopping = False
-            if self.view:
-                self.view.erase_status(self.status_key)
-
-            if self.indexing_done_callback:
-                # Let the originator know that we are done.
-                self.indexing_done_callback()
-            return
-
-        from random import sample
-
-        mod = len(ProgressIndicator.MSG_CHARS_COLOR_SUBLIME)
-        rands = [ProgressIndicator.MSG_CHARS_COLOR_SUBLIME[x] for x in sample(range(mod), mod)]
-
-        self.view.set_status(self.status_key, 'RTags {}'.format(''.join(rands)))
-
-        sublime.set_timeout(lambda: self.run(i), 100)
-
-
-class RConnectionThread(threading.Thread):
-
-    def __init__(self):
-        threading.Thread.__init__(self)
-        self.killing = False
-        self.p = None
-
-    def notify(self):
-        sublime.active_window().active_view().run_command(
-            'rtags_location',
-            {'switches': navigation_helper.switches})
-
-    # TODO(tillt): Make this parse JSON instead of the ugly XML - this
-    # is 2017!
-    #
-    # `rc -m` will feed stdout with xml like this:
-    #
-    # <?xml version="1.0" encoding="utf-8"?>
-    #  <checkstyle>
-    #   <file name="/home/ramp/tmp/pthread_simple.c">
-    #    <error line="54" column="5" severity="warning" message="implicit declaration of function 'sleep' is invalid in C99"/>
-    #    <error line="59" column="5" severity="warning" message="implicit declaration of function 'write' is invalid in C99"/>
-    #    <error line="60" column="5" severity="warning" message="implicit declaration of function 'lseek' is invalid in C99"/>
-    #    <error line="78" column="7" severity="warning" message="implicit declaration of function 'read' is invalid in C99"/>
-    #   </file>
-    #  </checkstyle>
-    # <?xml version="1.0" encoding="utf-8"?>
-    # <progress index="1" total="1"></progress>
-    #
-    # So we need to split xml chunks somehow
-    # Will start by looking for opening tag (<checkstyle, <progress)
-    # and parse accumulated xml when we encounter closing tag
-    # TODO deal with < /> style tags
-
-    def run(self):
-        started_at = datetime.now()
-
-        log.debug("Restarting RTags communication")
-
-        with subprocess.Popen(
-            [RC_PATH, '-m'],
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE) as p:
-
-            self.p = p
-
-            rgxp = re.compile(r'<(\w+)')
-            buffer = ''  # xml to be parsed
-            start_tag = ''
-
-            for line in iter(self.p.stdout.readline, b''):
-                line = line.decode('utf-8')
-                self.p.poll()
-
-                if not start_tag:
-                    start_tag = re.findall(rgxp, line)
-                    start_tag = start_tag[0] if len(start_tag) else ''
-
-                buffer += line
-
-                if "Can't seem to connect to server" in line:
-                    log.error(line);
-                    if sublime.ok_cancel_dialog(
-                        "Can't seem to connect to server. Make sure RTags `rdm` is running, then retry.",
-                        "Retry"):
-                        self.run()
-
-                if '</{}>'.format(start_tag) in line:
-                    tree = etree.fromstring(buffer)
-                    # OK, we received some chunk
-                    # check if it is progress update
-                    if (tree.tag == 'progress' and
-                            tree.attrib['index'] == tree.attrib['total'] and
-                            navigation_helper.flag == NavigationHelper.NAVIGATION_REQUESTED):
-                        # notify about event
-                        sublime.set_timeout(self.notify, 10)
-
-                    if  tree.tag == 'checkstyle':
-                        key = 0
-
-                        mapping = {
-                            'warning': 'warning',
-                            'error': 'error',
-                            'fixit': 'error'
-                        }
-
-                        issues = {
-                            'warning': [],
-                            'error': []
-                        }
-
-                        for file in tree.findall('file'):
-                            for error in file.findall('error'):
-                                if error.attrib["severity"] in mapping.keys():
-                                    issue = {}
-                                    issue['line'] = int(error.attrib["line"])
-                                    issue['column'] = int(error.attrib["column"])
-                                    if 'length' in error.attrib:
-                                        issue['length'] = int(error.attrib["length"])
-                                    else:
-                                        issue['length'] = -1
-                                    issue['message'] = error.attrib["message"]
-
-                                    issues[mapping[error.attrib["severity"]]].append(issue)
-
-                            sublime.active_window().active_view().run_command(
-                                'rtags_fixit',
-                                {
-                                    'filename': file.attrib["name"],
-                                    'issues': issues
-                                })
-
-                    buffer = ''
-                    start_tag = ''
-        self.p = None
-
-        log.debug("RTags client ran for {} seconds".format((datetime.now() - started_at).seconds))
-        log.debug("RTags communication thread is quitting")
-
-    def stop(self):
-        log.debug("We were asked to stop")
-
-        if self.is_alive():
-            self.killing = True
-            self.p.kill()
-            self.p = None
-
-
-class CompletionJob():
-
-    def __init__(self, view, completion_job_id, filename, text, size, row, col):
-        self.completion_job_id = completion_job_id
-        self.filename = filename
-        self.text = text
-        self.size = size
-        self.row = row
-        self.col = col
-        self.view = view
-
-        self.p = None
-
-    def run(self):
-        self.p = None
-
-        switches = []
-        # rc itself.
-        switches.append(RC_PATH)
-        # Auto-complete switch.
-        switches.append('-l')
-        # The query.
-        switches.append('{}:{}:{}'.format(self.filename, self.row + 1, self.col + 1))
-        # We want to complete on an unsaved file.
-        switches.append('--unsaved-file')
-        # We launch rc utility with both filename:line:col and filename:length
-        # because we're using modified file which is passed via stdin (see --unsaved-file
-        # switch)
-        switches.append('{}:{}'.format(self.filename, self.size))
-        # Make this query block until getting answered.
-        switches.append('--synchronous-completions')
-
-        self.p = subprocess.Popen(
-            switches,
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE,
-            stdin=subprocess.PIPE)
-
-        # We do not use the regular timeout as this is an async job and
-        # hence waiting much longer than usual is entirely fine.
-        (out, _) = self.p.communicate(input=self.text, timeout=30)
-
-        suggestions = []
-        for line in out.splitlines():
-            # line is like this
-            # "process void process(CompletionThread::Request *request) CXXMethod"
-            # "reparseTime int reparseTime VarDecl"
-            # "dump String dump() CXXMethod"
-            # "request CompletionThread::Request * request ParmDecl"
-            # we want it to show as process()\tCXXMethod
-            #
-            # output is list of tuples: first tuple element is what we see in popup menu
-            # second is what inserted into file. '$0' is where to place cursor.
-            # TODO play with $1, ${2:int}, ${3:string} and so on.
-            elements = line.decode('utf-8').split()
-            suggestions.append(('{}\t{}'.format(' '.join(elements[1:-1]), elements[-1]),
-                                '{}$0'.format(elements[0])))
-
-        self.p = None
-
-        return (self.view, self.completion_job_id, suggestions)
-
-    # Unused so far - may be pointless.
-    def stop(self):
-        self.p.kill()
-        self.p = None
-
-
 class FixitsController():
     THEMES_PATH = "RTagsComplete/themes/Default"
     PACKAGE_PATH = "Packages/RTagsComplete"
@@ -489,7 +243,7 @@ class FixitsController():
         self.expecting = False
         self.filename = None
         self.view = None
-        self.results_key = settings.get('results_key', 'rtags_result_indicator')
+        self.results_key = settings.SettingsManager.get('results_key', 'rtags_result_indicator')
         self.templates = {}
         self.navigation_items = None
 
@@ -677,12 +431,13 @@ class FixitsController():
         self.issues = issues
 
     def indexing_callback(self, filename, view):
+        log.debug("Indexing done callback hit {} {} {}".format(self, filename, view))
         self.filename = filename
         self.view = view
         # For some bizarre reason a reindexed file that does not have any
         # fixits or warnings will not return anything in `rc -m`, hence
         # we need to force such result again via `rc --diagnose`.
-        run_rc(['--diagnose'], None, False, filename)
+        run_rc(['--diagnose'], None, filename)
 
     def reindex(self, view, saved):
         self.clear()
@@ -691,19 +446,7 @@ class FixitsController():
             log.debug("Fixits are disabled")
             return
 
-        if not rc_thread.is_alive():
-            if self.waiting:
-                sublime.error_message(
-                    "Something went wrong with the RTags communication."
-                    " We won't be able to show any errors/warnings/fixits"
-                    " after re-index.")
-                return
-
-            self.waiting = True
-            globals()['rc_thread'] = RConnectionThread()
-            rc_thread.start()
-            sublime.set_timeout(lambda: self.expect(view), 100)
-            return
+        ThreadManager.run_job(jobs.MonitorJob("MonitorJobId"))
 
         self.waiting = False
         self.filename = view.file_name()
@@ -717,17 +460,16 @@ class FixitsController():
             run_rc(
                 ['-x'],
                 None,
-                True,
                 self.filename)
         else:
             text = get_view_text(view)
             run_rc(
                 ['-V', self.filename, '--unsaved-file', "{}:{}".format(self.filename, len(text))],
-                text,
-                True);
+                text);
 
         progress_indicator.start(
             view,
+            rc_is_indexing,
             lambda view=view,filename=self.filename: self.indexing_callback(filename, view))
 
         log.debug("Expecting indexing results for {}".format(self.filename))
@@ -756,7 +498,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             # Never go further.
             return
 
-        (out, err) = run_rc(switches, None, True, self._query(*args, **kwargs))
+        out = run_rc(switches, None, self._query(*args, **kwargs))
         # Dirty hack.
         # TODO figure out why rdm responds with 'Project loading'
         # for now just repeat query.
@@ -770,10 +512,10 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         navigation_helper.flag = NavigationHelper.NAVIGATION_DONE
         navigation_helper.switches = []
 
-        self._action(out, err)
+        self._action(out)
 
     def _reindex(self, filename):
-        run_rc(['-V'], get_view_text(self.view), True, filename,
+        run_rc(['-V'], get_view_text(self.view), filename,
                '--unsaved-file', '{}:{}'.format(filename, self.view.size()))
 
     def on_select(self, res):
@@ -789,7 +531,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             RtagsBaseCommand.FILE_INFO_REG,
             self.last_references[res])[0]
 
-        if len(navigation_helper.history) > int(settings.get('jump_limit', 10)):
+        if len(navigation_helper.history) > int(settings.SettingsManager.get('jump_limit', 10)):
             navigation_helper.history.popleft()
 
         view = self.view.window().open_file(
@@ -809,7 +551,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
     def _query(self, *args, **kwargs):
         return ''
 
-    def _validate(self, stdout, stderr):
+    def _validate(self, stdout):
         # Check if the file in question is not indexed by rtags.
         if stdout == b'Not indexed\n':
             self.view.show_popup("<nbsp/>Not indexed<nbsp/>")
@@ -821,8 +563,8 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             return False
         return True
 
-    def _action(self, stdout, stderr):
-        if not self._validate(stdout, stderr):
+    def _action(self, stdout):
+        if not self._validate(stdout):
             return
 
         # Pretty format the results.
@@ -886,8 +628,8 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     def filter_items(self, item):
         return re.match(RtagsSymbolInfoCommand.SYMBOL_INFO_REG, item)
 
-    def _action(self, out, err):
-        if not self._validate(out, err):
+    def _action(self, out):
+        if not self._validate(out):
             return
 
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
@@ -945,7 +687,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             # all our files and reindex accordingly. However on macOS
             # this feature is broken.
             # See https://github.com/Andersbakken/rtags/issues/1052
-            run_rc(['-x'], None, True, view.file_name())
+            run_rc(['-x'], None, view.file_name())
             return
 
         fixits_controller.reindex(view, True)
@@ -959,13 +701,57 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
 
         # If view get 'clean' after undo check if we need reindex.
         if command_name == 'undo' and not view.is_dirty():
-            run_rc(['-V'], None, False, view.file_name())
+            run_rc(['-V'], None, view.file_name())
+
+
+class ThreadManager():
+    pool = futures.ThreadPoolExecutor(max_workers=1)
+    lock = RLock()
+    thread_map = {}
+    unique_index = 0
+
+    def next_job_id():
+        ThreadManager.unique_index += 1
+        return "{}".format(ThreadManager.unique_index)
+
+    def run_job(job, callback=None):
+        with ThreadManager.lock:
+            if job.job_id in ThreadManager.thread_map.keys():
+                log.debug("Job {} still active".format(job.job_id))
+                return
+            log.debug("Starting job {}".format(job.job_id))
+            future = ThreadManager.pool.submit(job.run)
+            future.add_done_callback(
+                lambda future,callback=callback,job_id=job.job_id: ThreadManager.job_done(future, job_id, callback))
+            ThreadManager.thread_map[job.job_id] = future
+
+    def stop_job(job_id):
+        with ThreadManager.lock:
+            if not job_id in ThreadManager.thread_map.keys():
+                log.debug("Job not started - somethugn is odd")
+                return
+            future = ThreadManager.thread_map[job_id]
+            log.debug("Stopping job {}".format(job_id))
+            future.cancel()
+
+    def job_done(future, job_id, callback):
+        #log.debug("trying to get Job {} done".format(job_id))
+        log.debug("Job {} done".format(job_id))
+        if callback:
+            log.debug("Invoking job_done-callback")
+            # FIXME(tillt): Call function in its own thread's context.
+            callback(future)
+
+        with ThreadManager.lock:
+            log.debug("Kill bookkeeping")
+            del ThreadManager.thread_map[job_id]
+
+    def stop_all_jobs():
+        for job_id in ThreadManager.thread_map.keys():
+            ThreadManager.stop_job(job_id)
 
 
 class RtagsCompleteListener(sublime_plugin.EventListener):
-
-    pool = futures.ThreadPoolExecutor(max_workers=1)
-    lock = RLock()
 
     def __init__(self):
         self.suggestions = []
@@ -977,6 +763,9 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         if not future.done():
             log.warning("Completion failed")
             return
+
+        if future.cancelled():
+            log.warning(("Completion aborted"))
 
         (view, completion_job_id, suggestions) = future.result()
 
@@ -1025,7 +814,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
     def on_query_completions(self, view, prefix, locations):
         # Check if autocompletion was disabled for this plugin.
-        if not auto_complete:
+        if not settings.SettingsManager.get('auto_complete', True):
             return []
 
         # Do nothing if not called from supported code.
@@ -1069,26 +858,17 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         filename = view.file_name()
         size = view.size()
 
-        job = CompletionJob(view, completion_job_id, filename, text, size, row, col)
+        job = jobs.CompletionJob(view, completion_job_id, filename, text, size, row, col)
 
-        with RtagsCompleteListener.lock:
-            future = RtagsCompleteListener.pool.submit(job.run)
-            future.add_done_callback(self.completion_done)
+        ThreadManager.run_job(job, self.completion_done)
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
 
 def update_settings():
-    log.info("Settings updated")
+    settings.SettingsManager.update()
 
-    globals()['settings'] = sublime.load_settings(
-        'RtagsComplete.sublime-settings')
-
-    globals()['RC_PATH'] = settings.get('rc_path', 'rc')
-    globals()['RC_TIMEOUT'] = settings.get('rc_timeout', 0.5)
-    globals()['auto_complete'] = settings.get('auto_complete', True)
-
-    if settings.get('verbose_log', True):
+    if settings.SettingsManager.get('verbose_log', True):
         log.info("Enabled verbose logging")
         ch.setFormatter(formatter_verbose)
         ch.setLevel(logging.DEBUG)
@@ -1097,25 +877,25 @@ def update_settings():
         ch.setFormatter(formatter_default)
         ch.setLevel(logging.INFO)
 
+    log.info("Settings updated")
+
 
 def init():
     update_settings()
 
-    globals()['rc_thread'] = RConnectionThread()
     globals()['navigation_helper'] = NavigationHelper()
-    globals()['progress_indicator'] = ProgressIndicator()
+    globals()['progress_indicator'] = indicator.ProgressIndicator()
+    globals()['fixits_controller'] = FixitsController(settings.SettingsManager.get('fixits', False))
     globals()['idle_controller'] = IdleController(
-        settings.get('auto_reindex', False),
-        settings.get('auto_reindex_threshold', 30),
-        5)
-    globals()['fixits_controller'] = FixitsController(settings.get('fixits', False))
+        settings.SettingsManager.get('auto_reindex', False),
+        settings.SettingsManager.get('auto_reindex_threshold', 30),
+        5,
+        partial(FixitsController.reindex, self=fixits_controller, saved=False))
 
-    rc_thread.start()
-
-    settings.add_on_change('rc_path', update_settings)
-    settings.add_on_change('rc_timeout', update_settings)
-    settings.add_on_change('auto_complete', update_settings)
-    settings.add_on_change('verbose_log', update_settings)
+    settings.SettingsManager.add_on_change('rc_path')
+    settings.SettingsManager.add_on_change('rc_timeout')
+    settings.SettingsManager.add_on_change('auto_complete')
+    settings.SettingsManager.add_on_change('verbose_log')
 
     # TODO(tillt): Allow "fixits" setting to get live-updated.
     #settings.add_on_change('fixits', update_settings)
@@ -1125,6 +905,7 @@ def init():
 
 
 def plugin_loaded():
+    tools.Reloader.reload_all()
     sublime.set_timeout(init, 200)
 
 
@@ -1134,4 +915,4 @@ def plugin_unloaded():
     # Clear any regions, status and phantoms.
     fixits_controller.clear()
     # Stop `rc -m` thread.
-    sublime.set_timeout(rc_thread.stop, 100)
+    ThreadManager.stop_all_jobs()
