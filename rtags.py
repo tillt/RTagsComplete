@@ -23,27 +23,19 @@ import sublime_plugin
 import subprocess
 import threading
 
-
 import xml.etree.ElementTree as etree
 
 from concurrent import futures
 from datetime import datetime
 from os import path
-from threading import RLock
 from functools import partial
 
+from .plugin import fixits
+from .plugin import indicator
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
-from .plugin import indicator
-
-
-# Path to rc utility.
-#RC_PATH = ''
-# Timeout for common rc incocations.
-#RC_TIMEOUT = 0.5
-# Enable RTagsComplete autocompletion.
-#auto_complete = True
+from .plugin import idle
 
 
 log = logging.getLogger("RTags")
@@ -63,49 +55,9 @@ if not log.hasHandlers():
     log.addHandler(ch)
 
 
-class IdleController:
-
-    def __init__(self, auto_reindex, threshold, period, callback):
-        self.counter = 0
-        self.auto_reindex = auto_reindex
-        self.counter_threshold = threshold / period
-        self.period = period * 1000.0
-        self.active = False
-        self.view = None
-        self.callback = callback
-
-    def trigger(self, view):
-        if not self.auto_reindex:
-            return
-
-        self.counter = 0
-        self.view = view
-
-        if not self.active:
-            self.active = True
-            self.run()
-
-    def sleep(self):
-        self.active = False
-
-    def run(self):
-        if not self.active:
-            return
-
-        self.counter += 1
-
-        if self.counter >= self.counter_threshold:
-            log.debug("Threshold reached.")
-            self.active = False
-            self.callback(view=self.view)
-            return
-
-        sublime.set_timeout(lambda: self.run(), self.period)
-
-
 class PosStatus:
     """Enum class for position status.
-    Stolen from EasyClangComplete
+    Taken from EasyClangComplete by Igor Bogoslavskyi
 
     Attributes:
         COMPLETION_NEEDED (int): completion needed
@@ -118,12 +70,10 @@ class PosStatus:
 
 def get_pos_status(point, view):
     """Check if the cursor focuses a valid trigger.
-    Stolen from EasyClangComplete
 
     Args:
         point (int): position of the cursor in the file as defined by subl
         view (sublime.View): current view
-        settings (TYPE): Description
 
     Returns:
         PosStatus: status for this position
@@ -133,7 +83,7 @@ def get_pos_status(point, view):
     word_on_the_left = view.substr(view.word(point - trigger_length))
     if word_on_the_left.isdigit():
         # don't autocomplete digits
-        log.debug("Trying to auto-complete digit, are we? Not allowed.")
+        log.debug("Trying to auto-complete digit, are we? Not allowed")
         return PosStatus.WRONG_TRIGGER
 
     # slightly counterintuitive `view.substr` returns ONE character
@@ -146,10 +96,10 @@ def get_pos_status(point, view):
             trigger_length = len(trigger)
             prev_char = view.substr(point - trigger_length)
             if prev_char == trigger[0]:
-                log.debug("Matched trigger '%s'.", trigger)
+                log.debug("Matched trigger '%s'", trigger)
                 return PosStatus.COMPLETION_NEEDED
             else:
-                log.debug("Wrong trigger '%s%s'.", prev_char, curr_char)
+                log.debug("Wrong trigger '%s%s'", prev_char, curr_char)
                 wrong_trigger_found = True
 
     if wrong_trigger_found:
@@ -160,18 +110,6 @@ def get_pos_status(point, view):
     # if nothing fired we don't need to do anything
     log.debug("No completions needed")
     return PosStatus.COMPLETION_NOT_NEEDED
-
-
-def run_rc(switches, input=None, *args):
-    command = switches
-    command += list(args)
-    job = jobs.SyncRTagsJob("SyncRTagsJob" + ThreadManager.next_job_id(), command, input)
-    return job.run_process()
-
-
-def rc_is_indexing():
-    out = run_rc(['--is-indexing', '--silent-query'])
-    return out.decode().strip() == "1"
 
 
 def get_view_text(view):
@@ -219,262 +157,6 @@ class NavigationHelper(object):
         self.history = collections.deque()
 
 
-class FixitsController():
-    THEMES_PATH = "RTagsComplete/themes/Default"
-    PACKAGE_PATH = "Packages/RTagsComplete"
-
-    CATEGORY_WARNING = "warning"
-    CATEGORY_ERROR = "error"
-
-    CATEGORIES = [ CATEGORY_WARNING, CATEGORY_ERROR]
-
-    CATEGORY_FLAGS = {
-        CATEGORY_WARNING: sublime.DRAW_NO_FILL,
-        CATEGORY_ERROR: sublime.DRAW_NO_FILL
-    }
-
-    PHANTOMS_TAG = "rtags_phantoms"
-
-    def __init__(self, supported):
-        self.supported = supported
-        self.regions = {}
-        self.issues = None
-        self.waiting = False
-        self.expecting = False
-        self.filename = None
-        self.view = None
-        self.results_key = settings.SettingsManager.get('results_key', 'rtags_result_indicator')
-        self.templates = {}
-        self.navigation_items = None
-
-        names = ["phantom"]
-
-        for category in FixitsController.CATEGORIES:
-            self.templates[category] = {}
-            for name in names:
-                filename = "{}_{}.html".format(category, name)
-                filepath = path.join(
-                    path.dirname(path.dirname(__file__)),
-                    FixitsController.THEMES_PATH,
-                    filename)
-
-                with open(filepath, 'rb') as file:
-                    self.templates[category][name] = file.read().decode('utf-8')
-
-    def as_html(self, template, message):
-        padded = template.replace('{', '{{').replace('}', '}}')
-        substituted = padded.replace('[', '{').replace(']', '}')
-        return substituted.format(message)
-
-    def on_select(self, res):
-        (file, line, col) = self.navigation_items[res]
-        view = self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
-
-    def on_highlight(self, res):
-        (file, line, col) = self.navigation_items[res]
-        view = self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
-
-    def show_selector(self, view):
-        if not supported_view(view):
-            return
-
-        if view.file_name() != self.filename:
-            return
-
-        def issue_to_panel_item(issue):
-            return [
-                issue['message'],
-                "{}:{}:{}".format(self.filename.split('/')[-1], issue['line'], issue['column'])]
-
-        items = list(map(issue_to_panel_item, self.issues['error']))
-        items += list(map(issue_to_panel_item, self.issues['warning']))
-
-        def issue_to_navigation_item(issue):
-            return [self.filename, issue['line'], issue['column']]
-
-        self.navigation_items = list(map(issue_to_navigation_item, self.issues['error']))
-        self.navigation_items += list(map(issue_to_navigation_item, self.issues['warning']))
-
-        # If there is only one result no need to show it to user
-        # just do navigation directly.
-        if len(items) == 1:
-            self.on_select(0)
-            return
-
-        view.window().show_quick_panel(
-            items,
-            self.on_select,
-            sublime.MONOSPACE_FONT,
-            -1,
-            self.on_highlight)
-
-    def category_key(self, category):
-        return "rtags-{}-mark".format(category)
-
-    def clear_regions(self):
-        if not self.view:
-            return
-        log.debug("Clearing regions from view")
-        for key in self.regions.keys():
-            self.view.erase_regions(self.category_key(key));
-
-    def show_regions(self):
-        scope_names = {'error': 'region.redish', 'warning': 'region.yellowish'}
-        for category, regions in self.regions.items():
-            self.view.add_regions(
-                self.category_key(category),
-                [region['region'] for region in regions],
-                scope_names[category],
-                "",
-                FixitsController.CATEGORY_FLAGS[category])
-
-    def clear_phantoms(self):
-        if not self.view:
-            return
-        log.debug("Clearing phantoms from view")
-        self.view.erase_phantoms(FixitsController.PHANTOMS_TAG)
-
-    def update_phantoms(self, issues):
-        if not self.view:
-            return
-
-        self.phantom_set = sublime.PhantomSet(self.view, FixitsController.PHANTOMS_TAG)
-
-        def issue_to_phantom(category, issue):
-            point = self.view.text_point(issue['line']-1, 0)
-            start = self.view.line(point).a
-            return sublime.Phantom(
-                sublime.Region(start, start+1),
-                self.as_html(self.templates[category]['phantom'], issue['message']),
-                sublime.LAYOUT_BLOCK)
-
-        phantoms = list(map(lambda p: issue_to_phantom('error', p), issues['error']))
-        phantoms += list(map(lambda p: issue_to_phantom('warning', p), issues['warning']))
-
-        self.phantom_set.update(phantoms)
-
-    def update_regions(self, issues):
-
-        def issue_to_region(issue):
-            start = self.view.text_point(issue['line']-1, issue['column']-1)
-
-            if issue['length'] > 0:
-                end = self.view.text_point(issue['line']-1, issue['column']-1 + issue['length'])
-            else:
-                end = self.view.line(start).b
-
-            return {
-                "region": sublime.Region(start, end),
-                "message": issue['message']}
-
-        self.regions = {
-            'warning': list(map(issue_to_region, issues['warning'])),
-            'error': list(map(issue_to_region, issues['error']))
-        }
-
-    def clear_results(self):
-        if not self.view:
-            return
-        log.debug("Clearing results from view")
-        self.view.erase_status(self.results_key)
-
-    def update_results(self, issues):
-        results = []
-
-        error_count = len(issues['error'])
-        warning_count = len(issues['warning'])
-
-        if error_count > 0:
-            results.append("⛔: {}".format(error_count))
-        if warning_count > 0:
-            results.append("✋: {}".format(warning_count))
-        if len(results) == 0:
-            results.append("✅")
-
-        self.view.set_status(self.results_key, "RTags {}".format(" ".join(results)))
-
-    def clear(self, view=None):
-        if not self.view:
-            return
-
-        # Skip of we wanted to clear a specific view but never drew onto it.
-        #if view and (view != self.view):
-        #    return
-
-        self.clear_results()
-        self.clear_regions()
-        self.clear_phantoms()
-        self.regions = {}
-        self.issues = None
-
-    def update(self, filename, issues):
-        log.debug("Got indexing results for {}".format(filename))
-
-        if not self.supported:
-            log.debug("Fixits are disabled")
-            return
-
-        if not self.view:
-            log.warning("There is no view")
-            return
-
-        if filename != self.filename:
-            log.warning("Got update for {} which is not {}".format(filename, self.filename))
-            return
-
-        self.update_results(issues)
-        self.update_regions(issues)
-        self.update_phantoms(issues)
-        self.show_regions()
-        self.issues = issues
-
-    def indexing_callback(self, filename, view):
-        log.debug("Indexing done callback hit {} {} {}".format(self, filename, view))
-        self.filename = filename
-        self.view = view
-        # For some bizarre reason a reindexed file that does not have any
-        # fixits or warnings will not return anything in `rc -m`, hence
-        # we need to force such result again via `rc --diagnose`.
-        run_rc(['--diagnose'], None, filename)
-
-    def reindex(self, view, saved):
-        self.clear()
-
-        if not self.supported:
-            log.debug("Fixits are disabled")
-            return
-
-        ThreadManager.run_job(jobs.MonitorJob("MonitorJobId"))
-
-        self.waiting = False
-        self.filename = view.file_name()
-        self.view = view
-
-        if saved:
-            # We do this manually even though rtags SHOULD watch
-            # all our files and reindex accordingly. However on macOS
-            # this feature is broken.
-            # See https://github.com/Andersbakken/rtags/issues/1052
-            run_rc(
-                ['-x'],
-                None,
-                self.filename)
-        else:
-            text = get_view_text(view)
-            run_rc(
-                ['-V', self.filename, '--unsaved-file', "{}:{}".format(self.filename, len(text))],
-                text);
-
-        progress_indicator.start(
-            view,
-            rc_is_indexing,
-            lambda view=view,filename=self.filename: self.indexing_callback(filename, view))
-
-        log.debug("Expecting indexing results for {}".format(self.filename))
-
-
 class RtagsBaseCommand(sublime_plugin.TextCommand):
     FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
 
@@ -494,11 +176,16 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             navigation_helper.switches = switches
             navigation_helper.data = get_view_text(self.view)
             navigation_helper.flag = NavigationHelper.NAVIGATION_REQUESTED
-            self._reindex(self.view.file_name())
+            fixits_controller.reindex(view=self.view, saved=False)
             # Never go further.
             return
 
-        out = run_rc(switches, None, self._query(*args, **kwargs))
+        args = self._query(*args, **kwargs)
+
+        (_, out) = jobs.RTagsJob(
+            "RTBasicJob" + jobs.ThreadManager.next_job_id(),
+            switches + [args]).run_process()
+
         # Dirty hack.
         # TODO figure out why rdm responds with 'Project loading'
         # for now just repeat query.
@@ -513,10 +200,6 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         navigation_helper.switches = []
 
         self._action(out)
-
-    def _reindex(self, filename):
-        run_rc(['-V'], get_view_text(self.view), filename,
-               '--unsaved-file', '{}:{}'.format(filename, self.view.size()))
 
     def on_select(self, res):
         if res == -1:
@@ -672,7 +355,13 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         fixits_controller.clear(view)
         idle_controller.trigger(view)
 
-    def on_post_save(self, view):
+    def _save(self, view):
+        log.debug("Post post save triggered")
+
+        idle_controller.sleep()
+        fixits_controller.reindex(view=view, saved=True)
+
+    def on_post_save_async(self, view):
         log.debug("Post save triggered")
         # Do nothing if not called from supported code.
         if not supported_view(view):
@@ -687,11 +376,18 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             # all our files and reindex accordingly. However on macOS
             # this feature is broken.
             # See https://github.com/Andersbakken/rtags/issues/1052
-            run_rc(['-x'], None, view.file_name())
+            jobs.RTagsJob(
+                "RTSyncJob" + jobs.ThreadManager.next_job_id(),
+                ['-x', view.file_name()]).run_process()
             return
 
-        fixits_controller.reindex(view, True)
-        idle_controller.sleep()
+        # For some bizarre reason, we need to delay our re-indexing task
+        # by substantial amounts of time until we may relatively risk-
+        # free will truly be attached to the lifetime of a
+        # fully functioning `rc -V ... --wait`. `rc ... --wait` appears to
+        # prevent concurrent instances by aborting the old "wait" when new
+        # "wait"-request comes in.
+        sublime.set_timeout(lambda self=self,view=view: self._save(view), 400)
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
@@ -701,54 +397,21 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
 
         # If view get 'clean' after undo check if we need reindex.
         if command_name == 'undo' and not view.is_dirty():
-            run_rc(['-V'], None, view.file_name())
 
-
-class ThreadManager():
-    pool = futures.ThreadPoolExecutor(max_workers=1)
-    lock = RLock()
-    thread_map = {}
-    unique_index = 0
-
-    def next_job_id():
-        ThreadManager.unique_index += 1
-        return "{}".format(ThreadManager.unique_index)
-
-    def run_job(job, callback=None):
-        with ThreadManager.lock:
-            if job.job_id in ThreadManager.thread_map.keys():
-                log.debug("Job {} still active".format(job.job_id))
+            if not fixits_controller.supported:
+                logging.debug("Fixits are disabled")
+                # Run rc --check-reindex to reindex just saved files.
+                # We do this manually even though rtags SHOULD watch
+                # all our files and reindex accordingly. However on macOS
+                # this feature is broken.
+                # See https://github.com/Andersbakken/rtags/issues/1052
+                jobs.RTagsJob(
+                    "RTSyncJob" + jobs.ThreadManager.next_job_id(),
+                    ['-V', view.file_name()]).run_process()
                 return
-            log.debug("Starting job {}".format(job.job_id))
-            future = ThreadManager.pool.submit(job.run)
-            future.add_done_callback(
-                lambda future,callback=callback,job_id=job.job_id: ThreadManager.job_done(future, job_id, callback))
-            ThreadManager.thread_map[job.job_id] = future
 
-    def stop_job(job_id):
-        with ThreadManager.lock:
-            if not job_id in ThreadManager.thread_map.keys():
-                log.debug("Job not started - somethugn is odd")
-                return
-            future = ThreadManager.thread_map[job_id]
-            log.debug("Stopping job {}".format(job_id))
-            future.cancel()
-
-    def job_done(future, job_id, callback):
-        #log.debug("trying to get Job {} done".format(job_id))
-        log.debug("Job {} done".format(job_id))
-        if callback:
-            log.debug("Invoking job_done-callback")
-            # FIXME(tillt): Call function in its own thread's context.
-            callback(future)
-
-        with ThreadManager.lock:
-            log.debug("Kill bookkeeping")
-            del ThreadManager.thread_map[job_id]
-
-    def stop_all_jobs():
-        for job_id in ThreadManager.thread_map.keys():
-            ThreadManager.stop_job(job_id)
+            idle_controller.sleep()
+            fixits_controller.reindex(view=view, saved=True)
 
 
 class RtagsCompleteListener(sublime_plugin.EventListener):
@@ -766,6 +429,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         if future.cancelled():
             log.warning(("Completion aborted"))
+            return
 
         (view, completion_job_id, suggestions) = future.result()
 
@@ -800,6 +464,8 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
             return
 
         self.suggestions = suggestions
+
+        #log.debug("suggestiongs: {}".format(suggestions))
 
         # Hide the completion we might currently see as those are sublime's
         # own completions which are not that useful to us C++ coders.
@@ -840,12 +506,14 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         # Render some unique identifier for us to match a completion request
         # to its original query.
-        completion_job_id = "CompletionJobId{}".format(trigger_position)
+        completion_job_id = "RTCompletionJob{}".format(trigger_position)
 
         # If we already have a completion for this position, show that.
         if self.completion_job_id == completion_job_id:
             log.debug("We already got a completion for this position available.")
             return self.suggestions, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS
+
+        # Cancel a completion that might be in flight.
 
         # We do need to trigger a new completion.
         log.debug("Completion job {} triggered on view {}".format(completion_job_id, view))
@@ -860,7 +528,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         job = jobs.CompletionJob(view, completion_job_id, filename, text, size, row, col)
 
-        ThreadManager.run_job(job, self.completion_done)
+        jobs.ThreadManager.run_job(job, self.completion_done)
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
@@ -884,13 +552,11 @@ def init():
     update_settings()
 
     globals()['navigation_helper'] = NavigationHelper()
-    globals()['progress_indicator'] = indicator.ProgressIndicator()
-    globals()['fixits_controller'] = FixitsController(settings.SettingsManager.get('fixits', False))
-    globals()['idle_controller'] = IdleController(
+    globals()['fixits_controller'] = fixits.Controller(settings.SettingsManager.get('fixits', False))
+    globals()['idle_controller'] = idle.Controller(
         settings.SettingsManager.get('auto_reindex', False),
         settings.SettingsManager.get('auto_reindex_threshold', 30),
-        5,
-        partial(FixitsController.reindex, self=fixits_controller, saved=False))
+        partial(fixits.Controller.reindex, self=fixits_controller, saved=False))
 
     settings.SettingsManager.add_on_change('rc_path')
     settings.SettingsManager.add_on_change('rc_timeout')
@@ -910,9 +576,7 @@ def plugin_loaded():
 
 
 def plugin_unloaded():
-    # Stop progress indicator.
-    progress_indicator.stop()
-    # Clear any regions, status and phantoms.
-    fixits_controller.clear()
+    # Stop progress indicator, clear any regions, status and phantoms.
+    fixits_controller.unload()
     # Stop `rc -m` thread.
-    ThreadManager.stop_all_jobs()
+    jobs.ThreadManager.stop_all_jobs()

@@ -21,7 +21,7 @@ class ProgressIndicator():
         self.running = False
         self.status_key = settings.SettingsManager.get('status_key', 'rtags_status_indicator')
 
-    def start(self, view, active_callback, done_callback):
+    def start(self, view, active_callback=None, done_callback=None):
         if self.running:
             log.debug("Indicator already active")
             return
@@ -35,21 +35,27 @@ class ProgressIndicator():
     def stop(self):
         log.debug("Stopping indicator")
         self.stopping = True
-        self.view = None
 
     def run(self, i):
-        is_active = self.active_callback()
-
-        if self.stopping or (not is_active):
-            log.debug("round stopping {}, indexing {}".format(self.stopping, is_active))
+        if self.stopping:
+            log.debug("Round stopping")
             self.running = False
             self.stopping = False
             if self.view:
                 self.view.erase_status(self.status_key)
-
-            # Let the originator know that we are done.
-            self.indexing_done_callback()
             return
+
+        if self.active_callback:
+            if not self.active_callback():
+                log.debug("Round done indexing")
+                self.running = False
+                self.stopping = False
+                if self.view:
+                    self.view.erase_status(self.status_key)
+                # Let the originator know that we are done.
+                if self.indexing_done_callback:
+                    self.indexing_done_callback()
+                return
 
         mod = len(ProgressIndicator.MSG_CHARS_COLOR_SUBLIME)
         rands = [ProgressIndicator.MSG_CHARS_COLOR_SUBLIME[x] for x in sample(range(mod), mod)]

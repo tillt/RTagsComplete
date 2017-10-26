@@ -24,7 +24,10 @@ import logging
 
 import xml.etree.ElementTree as etree
 
+from concurrent import futures
 from functools import partial
+from time import time
+from threading import RLock
 
 from . import settings
 
@@ -32,79 +35,66 @@ log = logging.getLogger("RTags")
 
 class RTagsJob():
 
-    def __init__(self, job_id, command_info, data=None):
+    def __init__(self, job_id, command_info, data=b'', communicate=None):
         self.job_id = job_id
         self.command_info = command_info
         self.data = data
         self.p = None
+        self.error = None
+        if communicate:
+            self.callback = communicate
+        else:
+            self.callback = self.communicate
 
     def prepare_command(self):
-        command = [settings.SettingsManager.get('rc_path')]
-        command += self.command_info
+        return [settings.SettingsManager.get('rc_path')] + self.command_info
 
-        if self.data:
-            stdin = subprocess.PIPE
-        else:
-            stdin = self.data
-
-        return (command, stdin)
-
-
-class SyncRTagsJob(RTagsJob):
-
-    def run_process(self, nodebug=False):
-        out = None
-
-        (command, pipe) = self.prepare_command()
-
-        #log.debug("Starting {}".format(command))
-
-        with subprocess.Popen(
-            command,
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE,
-            stdin=pipe) as p:
-
-            (out, _) = p.communicate(input=self.data, timeout=settings.SettingsManager.get('rc_timeout'))
-
-        return out
-
-
-class AsyncRTagsJob(RTagsJob):
-
-    def __init__(self, job_id, command_info, data=None, data_callback=None):
-        RTagsJob.__init__(self, job_id, command_info, data)
-        self.p = None
-        self.data_callback = data_callback
-
-    def run_process(self, nodebug=False):
-        (command, pipe) = self.prepare_command()
-
-        log.debug("Starting async {}".format(command))
-
-        with subprocess.Popen(
-            command,
-            stderr=subprocess.STDOUT,
-            stdout=subprocess.PIPE,
-            stdin=pipe) as process:
-
-            log.debug("async running")
-
-            if self.data_callback:
-                log.debug("callback running {}".format(self.data_callback))
-                self.data_callback(process=process)
-
-        log.debug("async done")
-        return None
-
-     # Unused so far - may be pointless.
     def stop(self):
+        log.debug("Killing job {}".format(self.p))
         if self.p:
             self.p.kill()
         self.p = None
+        return
+
+    def communicate(self, process, timeout=None):
+        log.debug("Static communicate for {}".format(self.callback))
+        if not timeout:
+            timeout = settings.SettingsManager.get('rc_timeout')
+        (out, _) = process.communicate(input=self.data, timeout=timeout)
+        return out
+
+    def run_process(self, timeout=None):
+        out = b''
+        command = self.prepare_command()
+
+        log.debug("Starting process job {}".format(command))
+
+        start_time = time()
+
+        try:
+            with subprocess.Popen(
+                command,
+                stderr=subprocess.STDOUT,
+                stdout=subprocess.PIPE,
+                stdin=subprocess.PIPE) as process:
+
+                self.p = process
+
+                log.debug("Process running with timeout {}, input-length {}".format(timeout, len(self.data)))
+
+                log.debug("Communicating with process via {}".format(self.callback))
+                out = self.callback(process)
+
+        except Exception as e:
+            log.debug("Aborting with exception: {}".format(e))
+
+        log.debug("Return code {}, output-length: {}".format(process.returncode, len(out)))
+        log.debug("Process job ran for {:2.2f} seconds".format(time() - start_time))
+
+        return (self.job_id, out)
 
 
-class CompletionJob(SyncRTagsJob):
+class CompletionJob(RTagsJob):
 
     def __init__(self, view, completion_job_id, filename, text, size, row, col):
         command_info = []
@@ -122,13 +112,13 @@ class CompletionJob(SyncRTagsJob):
         # Make this query block until getting answered.
         command_info.append('--synchronous-completions')
 
-        self.view = view
+        RTagsJob.__init__(self, completion_job_id, command_info, text)
 
-        SyncRTagsJob.__init__(self, completion_job_id, command_info, text)
+        self.view = view
 
     def run(self):
         log.debug("Completion starting")
-        out  = self.run_process()
+        (_, out)  = self.run_process(60)
         log.debug("Completion returned")
 
         suggestions = []
@@ -152,16 +142,33 @@ class CompletionJob(SyncRTagsJob):
         return (self.view, self.job_id, suggestions)
 
 
-class MonitorJob(AsyncRTagsJob):
+class ReindexJob(RTagsJob):
+
+    def __init__(self, job_id, filename, text=b''):
+        command_info = [ "--wait", "-V", filename ]
+        if len(text):
+            command_info += [ "--unsaved-file", "{}:{}".format(filename,len(text)) ]
+
+        RTagsJob.__init__(self, job_id, command_info, text)
+
+    def run(self):
+        log.debug("Reindex starting")
+        (_, out)  = self.run_process(300)
+        log.debug("Reindex returned")
+
+        return (self.job_id, out)
+
+
+class MonitorJob(RTagsJob):
 
     def __init__(self, job_id):
-        #AsyncRTagsJob.__init__(self, job_id, ['-m'], None, partial(self.data_callback, self=self))
-        AsyncRTagsJob.__init__(self, job_id, ['-m'], None, lambda process:MonitorJob.data_callback(process))
+        RTagsJob.__init__(self, job_id, ['-m'], b'', self.communicate)
+        self.error = None
 
     def run(self):
         return self.run_process()
 
-    def data_callback(process):
+    def communicate(self, process, timeout=None):
         log.debug("In data callback {}".format(process.stdout))
         rgxp = re.compile(r'<(\w+)')
         buffer = ''  # xml to be parsed
@@ -179,10 +186,8 @@ class MonitorJob(AsyncRTagsJob):
 
             if "Can't seem to connect to server" in line:
                 log.error(line)
-                #if sublime.ok_cancel_dialog(
-                #    "Can't seem to connect to server. Make sure RTags `rdm` is running, then retry.",
-                #    "Retry"):
-                #    #self.run()
+                self.error = "Can't seem to connect to server. Make sure RTags `rdm` is running, then retry."
+                return
 
             # Keep on accumulating XML data until we have a closing tag,
             # matching our start_tag.
@@ -227,7 +232,7 @@ class MonitorJob(AsyncRTagsJob):
 
                                 issues[mapping[error.attrib["severity"]]].append(issue)
 
-                        log.debug("Got fixits to send.")
+                        log.debug("Got fixits to send")
 
                         sublime.active_window().active_view().run_command(
                             'rtags_fixit',
@@ -240,3 +245,73 @@ class MonitorJob(AsyncRTagsJob):
                 start_tag = ''
 
         log.debug("Data callback terminating")
+
+
+class ThreadManager():
+    pool = futures.ThreadPoolExecutor(max_workers=4)
+    lock = RLock()
+    thread_map = {}
+    unique_index = 0
+
+    def next_job_id():
+        ThreadManager.unique_index += 1
+        return "{}".format(ThreadManager.unique_index)
+
+    def run_job(job, callback=None):
+        with ThreadManager.lock:
+            if job.job_id in ThreadManager.thread_map.keys():
+                log.debug("Job {} still active".format(job.job_id))
+                return
+
+            log.debug("Starting job {}".format(job.job_id))
+
+            future = ThreadManager.pool.submit(job.run)
+            if callback:
+                future.add_done_callback(callback)
+            future.add_done_callback(
+                partial(ThreadManager.job_done, job_id=job.job_id))
+
+            ThreadManager.thread_map[job.job_id] = (future, job)
+
+    def stop_job(job_id):
+        with ThreadManager.lock:
+            if not job_id in ThreadManager.thread_map.keys():
+                log.debug("Job not started - somethugn is odd")
+                return
+            (future, job) = ThreadManager.thread_map[job_id]
+
+            log.debug("Stopping job {}={}".format(job_id, job.job_id))
+
+            log.debug("Job {} should now disappear with {}".format(job_id, future))
+
+            job.stop()
+
+            future.result(15)
+
+            if future.done():
+                log.debug("Done with that job {}".format(job_id))
+            if future.cancelled():
+                log.debug("Stopped job {}".format(job_id))
+
+    def job_done(future, job_id):
+        log.debug("Job {} done".format(job_id))
+        if not future.done():
+            log.debug("Job wasn't really done")
+
+        if future.cancelled():
+            log.debug("Job was cancelled")
+
+        with ThreadManager.lock:
+            log.debug("Kill bookkeeping for {}".format(job_id))
+            del ThreadManager.thread_map[job_id]
+            log.debug("Job entirely {} done and forgotten".format(job_id))
+
+    def future(job_id):
+        with ThreadManager.lock:
+            return ThreadManager.thread_map[job_id]
+
+    def stop_all_jobs():
+        with ThreadManager.lock:
+            log.debug("Stopping running threads {}".format(list(ThreadManager.thread_map)))
+            for job_id in list(ThreadManager.thread_map):
+                ThreadManager.stop_job(job_id)
