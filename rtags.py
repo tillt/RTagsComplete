@@ -30,11 +30,11 @@ from functools import partial
 
 from .plugin import completion
 from .plugin import fixits
+from .plugin import idle
 from .plugin import indicator
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
-from .plugin import idle
 
 
 log = logging.getLogger("RTags")
@@ -122,7 +122,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             # Never go further.
             return
 
-        (_, out) = jobs.JobController.run_sync(jobs.RTagsJob(
+        (_, _, out) = jobs.JobController.run_sync(jobs.RTagsJob(
             "RTBaseCommand" + jobs.JobController.next_id(),
             switches + [self._query(*args, **kwargs)]))
 
@@ -363,6 +363,8 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         self.trigger_position = None
 
     def completion_done(self, future):
+        log.debug("Completion done callback hit {}".format(future))
+
         if not future.done():
             log.warning("Completion failed")
             return

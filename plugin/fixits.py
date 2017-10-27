@@ -242,6 +242,22 @@ class Controller():
 
         self.indicator.stop()
 
+        if not future.done():
+            log.warning("Indexing failed")
+            return
+
+        if future.cancelled():
+            log.warning("Indexing was cancelled")
+            return
+
+        (returncode, job_id, out) = future.result()
+
+        if returncode != 0:
+            log.debug("Indexing failed with returncode {}".format(returncode))
+            return
+
+        log.debug("Triggering diagnosis for the indexed file")
+
         # For some bizarre reason a reindexed file that does not have any
         # fixits or warnings will not return anything in `rc -m`, hence
         # we need to force such result again via `rc --diagnose`.

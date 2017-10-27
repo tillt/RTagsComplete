@@ -57,6 +57,7 @@ class RTagsJob():
     def run_process(self, timeout=None):
         out = b''
         command = self.prepare_command()
+        returncode = None
 
         log.debug("Starting process job {}".format(command))
 
@@ -76,13 +77,15 @@ class RTagsJob():
                 log.debug("Communicating with process via {}".format(self.callback))
                 out = self.callback(process)
 
+                returncode = process.returncode
+
         except Exception as e:
             log.debug("Aborting with exception: {}".format(e))
 
-        log.debug("Return code {}, output-length: {}".format(process.returncode, len(out)))
+        log.debug("Return code {}, output-length: {}".format(returncode, len(out)))
         log.debug("Process job ran for {:2.2f} seconds".format(time() - start_time))
 
-        return (self.job_id, out)
+        return (returncode, self.job_id, out)
 
 
 class CompletionJob(RTagsJob):
@@ -108,10 +111,7 @@ class CompletionJob(RTagsJob):
         self.view = view
 
     def run(self):
-        log.debug("Completion starting")
-        (_, out)  = self.run_process(60)
-        log.debug("Completion returned")
-
+        (_, _, out)  = self.run_process(60)
         suggestions = []
         for line in out.splitlines():
             # log.debug(line)
@@ -143,11 +143,8 @@ class ReindexJob(RTagsJob):
         RTagsJob.__init__(self, job_id, command_info, text)
 
     def run(self):
-        log.debug("Reindex starting")
-        (_, out)  = self.run_process(300)
-        log.debug("Reindex returned")
-
-        return (self.job_id, out)
+        (returncode, _, out)  = self.run_process(300)
+        return (returncode, self.job_id, out)
 
 
 class MonitorJob(RTagsJob):
@@ -157,7 +154,8 @@ class MonitorJob(RTagsJob):
         self.error = None
 
     def run(self):
-        return self.run_process()
+        (returncode, _, out) = self.run_process()
+        return (returncode, self.job_id, out)
 
     def communicate(self, process, timeout=None):
         log.debug("In data callback {}".format(process.stdout))
@@ -178,7 +176,7 @@ class MonitorJob(RTagsJob):
             if "Can't seem to connect to server" in line:
                 log.error(line)
                 self.error = "Can't seem to connect to server. Make sure RTags `rdm` is running, then retry."
-                return
+                return b''
 
             # Keep on accumulating XML data until we have a closing tag,
             # matching our start_tag.
@@ -236,6 +234,7 @@ class MonitorJob(RTagsJob):
                 start_tag = ''
 
         log.debug("Data callback terminating")
+        return b''
 
 
 class JobController():
@@ -285,6 +284,8 @@ class JobController():
 
         job.stop()
 
+        log.debug("Waiting for job {}".format(job_id))
+        future.cancel()
         future.result(15)
 
         if future.done():
