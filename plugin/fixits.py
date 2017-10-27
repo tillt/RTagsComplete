@@ -245,9 +245,9 @@ class Controller():
         # For some bizarre reason a reindexed file that does not have any
         # fixits or warnings will not return anything in `rc -m`, hence
         # we need to force such result again via `rc --diagnose`.
-        jobs.RTagsJob(
-            "RTDiagnoseJob" + jobs.ThreadManager.next_job_id(),
-            ['--diagnose', self.filename]).run_process()
+        jobs.JobController.run_sync(jobs.RTagsJob(
+            "RTDiagnoseJob" + jobs.JobController.next_id(),
+            ['--diagnose', self.filename]))
 
     def reindex(self, view, saved):
         log.debug("Reindex hit {} {} {}".format(self, view, saved))
@@ -262,14 +262,14 @@ class Controller():
         self.view = view
         self.indicator.start(view)
 
-        jobs.ThreadManager.run_job(jobs.MonitorJob("RTMonitorJob"))
+        jobs.JobController.run_async(jobs.MonitorJob("RTMonitorJob"))
 
         text = b''
 
         if not saved:
             text = bytes(view.substr(sublime.Region(0, view.size())), "utf-8")
 
-        jobs.ThreadManager.run_job(
+        jobs.JobController.run_async(
             jobs.ReindexJob(
                 "RTReindexJob",
                 self.filename,

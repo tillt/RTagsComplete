@@ -2,17 +2,8 @@
 
 """RTagsComplete plugin for Sublime Text 3.
 
-Provides completion suggestions and much more for C/C++ languages
-based on RTags.
+Jobs are scheduled process runs.
 
-Original code by Sergei Turukin.
-Hacked with plenty of new features by Till Toenshoff.
-Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
-
-TODO(tillt): This desperately needs a refactor into submodules with
-clean APIs instead of this horrible spaghetti code.
-TODO(tillt): The current tests are broken and need to get redone.
-TODO(tillt): Life is more important than any of the above, so fuck it.
 """
 
 import re
@@ -247,53 +238,61 @@ class MonitorJob(RTagsJob):
         log.debug("Data callback terminating")
 
 
-class ThreadManager():
+class JobController():
     pool = futures.ThreadPoolExecutor(max_workers=4)
     lock = RLock()
     thread_map = {}
     unique_index = 0
 
-    def next_job_id():
-        ThreadManager.unique_index += 1
-        return "{}".format(ThreadManager.unique_index)
+    def next_id():
+        JobController.unique_index += 1
+        return "{}".format(JobController.unique_index)
 
-    def run_job(job, callback=None):
-        with ThreadManager.lock:
-            if job.job_id in ThreadManager.thread_map.keys():
+    def run_async(job, callback=None):
+        with JobController.lock:
+            if job.job_id in JobController.thread_map.keys():
                 log.debug("Job {} still active".format(job.job_id))
                 return
 
-            log.debug("Starting job {}".format(job.job_id))
+            log.debug("Starting async job {}".format(job.job_id))
 
-            future = ThreadManager.pool.submit(job.run)
+            future = JobController.pool.submit(job.run)
             if callback:
                 future.add_done_callback(callback)
             future.add_done_callback(
-                partial(ThreadManager.job_done, job_id=job.job_id))
+                partial(JobController.done, job_id=job.job_id))
 
-            ThreadManager.thread_map[job.job_id] = (future, job)
+            JobController.thread_map[job.job_id] = (future, job)
 
-    def stop_job(job_id):
-        with ThreadManager.lock:
-            if not job_id in ThreadManager.thread_map.keys():
-                log.debug("Job not started - somethugn is odd")
-                return
-            (future, job) = ThreadManager.thread_map[job_id]
+    def run_sync(job, timeout=None):
+        log.debug("Starting blocking job {} with timeout {}".format(job.job_id, timeout))
+        return job.run_process(timeout)
 
-            log.debug("Stopping job {}={}".format(job_id, job.job_id))
+    def stop(job_id):
+        future = None
+        job = None
 
-            log.debug("Job {} should now disappear with {}".format(job_id, future))
+        with JobController.lock:
+            if job_id in JobController.thread_map.keys():
+                (future, job) = JobController.thread_map[job_id]
 
-            job.stop()
+        if not job:
+            log.debug("Job not started")
+            return
 
-            future.result(15)
+        log.debug("Stopping job {}={}".format(job_id, job.job_id))
+        log.debug("Job {} should now disappear with {}".format(job_id, future))
 
-            if future.done():
-                log.debug("Done with that job {}".format(job_id))
-            if future.cancelled():
-                log.debug("Stopped job {}".format(job_id))
+        job.stop()
 
-    def job_done(future, job_id):
+        future.result(15)
+
+        if future.done():
+            log.debug("Done with that job {}".format(job_id))
+        if future.cancelled():
+            log.debug("Stopped job {}".format(job_id))
+
+    def done(future, job_id):
         log.debug("Job {} done".format(job_id))
         if not future.done():
             log.debug("Job wasn't really done")
@@ -301,17 +300,25 @@ class ThreadManager():
         if future.cancelled():
             log.debug("Job was cancelled")
 
-        with ThreadManager.lock:
+        with JobController.lock:
             log.debug("Kill bookkeeping for {}".format(job_id))
-            del ThreadManager.thread_map[job_id]
+            del JobController.thread_map[job_id]
             log.debug("Job entirely {} done and forgotten".format(job_id))
 
-    def future(job_id):
-        with ThreadManager.lock:
-            return ThreadManager.thread_map[job_id]
+    def job(job_id):
+        job = None
+        with JobController.lock:
+            (_, job) = JobController.thread_map[job_id]
+        return job
 
-    def stop_all_jobs():
-        with ThreadManager.lock:
-            log.debug("Stopping running threads {}".format(list(ThreadManager.thread_map)))
-            for job_id in list(ThreadManager.thread_map):
-                ThreadManager.stop_job(job_id)
+    def future(job_id):
+        future = None
+        with JobController.lock:
+            (future, _) = JobController.thread_map[job_id]
+        return future
+
+    def stop_all():
+        with JobController.lock:
+            log.debug("Stopping running threads {}".format(list(JobController.thread_map)))
+            for job_id in list(JobController.thread_map):
+                JobController.stop(job_id)

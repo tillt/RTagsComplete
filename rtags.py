@@ -20,8 +20,6 @@ import logging
 import re
 import sublime
 import sublime_plugin
-import subprocess
-import threading
 
 import xml.etree.ElementTree as etree
 
@@ -30,6 +28,7 @@ from datetime import datetime
 from os import path
 from functools import partial
 
+from .plugin import completion
 from .plugin import fixits
 from .plugin import indicator
 from .plugin import jobs
@@ -53,63 +52,6 @@ ch.setLevel(logging.INFO)
 ch.setFormatter(formatter_default)
 if not log.hasHandlers():
     log.addHandler(ch)
-
-
-class PosStatus:
-    """Enum class for position status.
-    Taken from EasyClangComplete by Igor Bogoslavskyi
-
-    Attributes:
-        COMPLETION_NEEDED (int): completion needed
-        COMPLETION_NOT_NEEDED (int): completion not needed
-        WRONG_TRIGGER (int): trigger is wrong
-    """
-    COMPLETION_NEEDED = 0
-    COMPLETION_NOT_NEEDED = 1
-    WRONG_TRIGGER = 2
-
-def get_pos_status(point, view):
-    """Check if the cursor focuses a valid trigger.
-
-    Args:
-        point (int): position of the cursor in the file as defined by subl
-        view (sublime.View): current view
-
-    Returns:
-        PosStatus: status for this position
-    """
-    trigger_length = 1
-
-    word_on_the_left = view.substr(view.word(point - trigger_length))
-    if word_on_the_left.isdigit():
-        # don't autocomplete digits
-        log.debug("Trying to auto-complete digit, are we? Not allowed")
-        return PosStatus.WRONG_TRIGGER
-
-    # slightly counterintuitive `view.substr` returns ONE character
-    # to the right of given point.
-    curr_char = view.substr(point - trigger_length)
-    wrong_trigger_found = False
-    for trigger in settings.SettingsManager.get('triggers'):
-        # compare to the last char of a trigger
-        if curr_char == trigger[-1]:
-            trigger_length = len(trigger)
-            prev_char = view.substr(point - trigger_length)
-            if prev_char == trigger[0]:
-                log.debug("Matched trigger '%s'", trigger)
-                return PosStatus.COMPLETION_NEEDED
-            else:
-                log.debug("Wrong trigger '%s%s'", prev_char, curr_char)
-                wrong_trigger_found = True
-
-    if wrong_trigger_found:
-        # no correct trigger found, but a wrong one fired instead
-        log.debug("Wrong trigger fired")
-        return PosStatus.WRONG_TRIGGER
-
-    # if nothing fired we don't need to do anything
-    log.debug("No completions needed")
-    return PosStatus.COMPLETION_NOT_NEEDED
 
 
 def get_view_text(view):
@@ -180,11 +122,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             # Never go further.
             return
 
-        args = self._query(*args, **kwargs)
-
-        (_, out) = jobs.RTagsJob(
-            "RTBasicJob" + jobs.ThreadManager.next_job_id(),
-            switches + [args]).run_process()
+        (_, out) = jobs.JobController.run_sync(jobs.RTagsJob(
+            "RTBaseCommand" + jobs.JobController.next_id(),
+            switches + [self._query(*args, **kwargs)]))
 
         # Dirty hack.
         # TODO figure out why rdm responds with 'Project loading'
@@ -376,9 +316,9 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             # all our files and reindex accordingly. However on macOS
             # this feature is broken.
             # See https://github.com/Andersbakken/rtags/issues/1052
-            jobs.RTagsJob(
-                "RTSyncJob" + jobs.ThreadManager.next_job_id(),
-                ['-x', view.file_name()]).run_process()
+            jobs.JobsController.run_sync(jobs.RTagsJob(
+                "RTPostSaveReindex" + jobs.JobController.next_id(),
+                ['-x', view.file_name()]))
             return
 
         # For some bizarre reason, we need to delay our re-indexing task
@@ -405,9 +345,9 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
                 # all our files and reindex accordingly. However on macOS
                 # this feature is broken.
                 # See https://github.com/Andersbakken/rtags/issues/1052
-                jobs.RTagsJob(
-                    "RTSyncJob" + jobs.ThreadManager.next_job_id(),
-                    ['-V', view.file_name()]).run_process()
+                jobs.JobController.run_sync(jobs.RTagsJob(
+                    "RTPostUndoReindex" + jobs.JobController.next_id(),
+                    ['-V', view.file_name()]))
                 return
 
             idle_controller.sleep()
@@ -469,6 +409,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         # Hide the completion we might currently see as those are sublime's
         # own completions which are not that useful to us C++ coders.
+        #
         # This neat trick was borrowed from EasyClangComplete.
         view.run_command('hide_auto_complete')
 
@@ -493,14 +434,14 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         # so "rewind" location to that character
         trigger_position = locations[0] - len(prefix)
 
-        pos_status = get_pos_status(trigger_position, view)
+        pos_status = completion.position_status(trigger_position, view)
 
-        if pos_status == PosStatus.WRONG_TRIGGER:
+        if pos_status == completion.PositionStatus.WRONG_TRIGGER:
             # We are at a wrong trigger, remove all completions from the list.
             log.debug("Wrong trigger - hiding default completions")
             return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
-        if pos_status == PosStatus.COMPLETION_NOT_NEEDED:
+        if pos_status == completion.PositionStatus.COMPLETION_NOT_NEEDED:
             log.debug("Completion not needed - showing default completions")
             return None
 
@@ -514,6 +455,8 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
             return self.suggestions, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS
 
         # Cancel a completion that might be in flight.
+        if self.completion_job_id:
+            jobs.JobController.stop(self.completion_job_id)
 
         # We do need to trigger a new completion.
         log.debug("Completion job {} triggered on view {}".format(completion_job_id, view))
@@ -521,14 +464,18 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         self.view = view
         self.completion_job_id = completion_job_id
         self.trigger_position = trigger_position
-        text = get_view_text(view)
         row, col = view.rowcol(trigger_position)
-        filename = view.file_name()
-        size = view.size()
 
-        job = jobs.CompletionJob(view, completion_job_id, filename, text, size, row, col)
-
-        jobs.ThreadManager.run_job(job, self.completion_done)
+        jobs.JobController.run_async(
+            jobs.CompletionJob(
+                view,
+                completion_job_id,
+                view.file_name(),
+                get_view_text(view),
+                view.size(),
+                row,
+                col),
+            self.completion_done)
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
@@ -579,4 +526,4 @@ def plugin_unloaded():
     # Stop progress indicator, clear any regions, status and phantoms.
     fixits_controller.unload()
     # Stop `rc -m` thread.
-    jobs.ThreadManager.stop_all_jobs()
+    jobs.JobController.stop_all()
