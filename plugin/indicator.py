@@ -1,3 +1,9 @@
+# -*- coding: utf-8 -*-
+
+"""Activity Indicator.
+
+"""
+
 import sublime
 import logging
 
@@ -12,24 +18,29 @@ class ProgressIndicator():
     # Borrowed from EasyClangComplete.
     MSG_CHARS_COLOR_SUBLIME = u'⣾⣽⣻⢿⡿⣟⣯⣷'
 
+    PERIOD = 100
+
     def __init__(self):
         self.size = 8
         self.view = None
-        self.indexing_done_callback = None
         self.active = False
         self.status_key = settings.SettingsManager.get('status_key', 'rtags_status_indicator')
 
-    def start(self, view, active_callback=None, done_callback=None):
+    def start(self, view):
         if self.active:
             log.debug("Indicator already active")
             return
+
         log.debug("Starting indicator {} {}".format(active_callback, done_callback))
         self.view = view
         self.active = True
-        self.indexing_done_callback = done_callback
         sublime.set_timeout(lambda self=self: self.run(1), 0)
 
     def stop(self):
+        if not self.active:
+            log.debug("Indicator was not active")
+            return
+
         log.debug("Stopping indicator")
         sublime.set_timeout(lambda self=self: self.run(1, True), 0)
 
@@ -49,4 +60,4 @@ class ProgressIndicator():
 
         self.view.set_status(self.status_key, 'RTags {}'.format(''.join(rands)))
 
-        sublime.set_timeout(lambda self=self: self.run(i), 100)
+        sublime.set_timeout(lambda self=self: self.run(i), ProgressIndicator.PERIOD)

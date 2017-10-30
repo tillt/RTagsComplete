@@ -310,6 +310,7 @@ class IndexWatchdog():
         self.active=True
         self.threshold=10
         self.callback=callback
+        self.indexing=False
 
         # Schadule into timer-thread.
         sublime.set_timeout_async(lambda self=self: self.run(False), 0)
