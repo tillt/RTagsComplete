@@ -48,10 +48,11 @@ class RTagsJob():
         return
 
     def communicate(self, process, timeout=None):
-        log.debug("Static communicate for {}".format(self.callback))
+        log.debug("Static communicate with timeout {} for {}".format(timeout, self.callback))
         if not timeout:
             timeout = settings.SettingsManager.get('rc_timeout')
         (out, _) = process.communicate(input=self.data, timeout=timeout)
+        log.debug("Static communicate terminating")
         return out
 
     def run_process(self, timeout=None):
@@ -304,7 +305,8 @@ class JobController():
         with JobController.lock:
             log.debug("Kill bookkeeping for {}".format(job_id))
             del JobController.thread_map[job_id]
-            log.debug("Job entirely {} done and forgotten".format(job_id))
+            log.debug("Job {} entirely done and forgotten".format(job_id))
+            log.debug("Remaining concurrent jobs {}".format(len(JobController.thread_map.keys())))
 
     def job(job_id):
         job = None

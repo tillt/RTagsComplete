@@ -44,7 +44,7 @@ log.propagate = False
 formatter_default = logging.Formatter(
     '[%(name)s:%(levelname)s]: %(message)s')
 formatter_verbose = logging.Formatter(
-    '[%(name)s:%(levelname)s]:[%(filename)s]:[%(funcName)s]:'
+    '%(asctime)-15s [%(name)s:%(levelname)s]:[%(filename)s]:[%(funcName)s]:'
     '[%(threadName)s]: %(message)s')
 
 ch = logging.StreamHandler()
@@ -301,7 +301,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         idle_controller.sleep()
         fixits_controller.reindex(view=view, saved=True)
 
-    def on_post_save_async(self, view):
+    def on_post_save(self, view):
         log.debug("Post save triggered")
         # Do nothing if not called from supported code.
         if not supported_view(view):
@@ -328,6 +328,8 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         # prevent concurrent instances by aborting the old "wait" when new
         # "wait"-request comes in.
         sublime.set_timeout(lambda self=self,view=view: self._save(view), 400)
+
+        log.debug("Bizarrely delayed save scheduled")
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
