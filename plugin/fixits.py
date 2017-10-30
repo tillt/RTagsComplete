@@ -47,6 +47,7 @@ class Controller():
         self.templates = {}
         self.navigation_items = None
         self.indicator = indicator.ProgressIndicator()
+        self.watchdog = IndexWatchdog()
 
         names = ["phantom"]
 
@@ -213,6 +214,7 @@ class Controller():
 
     def unload(self):
         self.indicator.stop()
+        self.watchdog.stop()
         self.clear()
 
     def update(self, filename, issues):
@@ -236,24 +238,13 @@ class Controller():
         self.show_regions()
         self.issues = issues
 
-    def indexing_done_callback(self, future):
-        #def indexing_callback(self, filename, view):
-        log.debug("Indexing done callback hit {}".format(future))
+    def indexing_done_callback(self, complete):
+        log.debug("Indexing done callback hit")
 
         self.indicator.stop()
 
-        if not future.done():
-            log.warning("Indexing failed")
-            return
-
-        if future.cancelled():
-            log.warning("Indexing was cancelled")
-            return
-
-        (returncode, job_id, out) = future.result()
-
-        if returncode != 0:
-            log.debug("Indexing failed with returncode {}".format(returncode))
+        if not complete:
+            log.debug("Indexing not completed, don't even trigger a diagnosis")
             return
 
         log.debug("Triggering diagnosis for the indexed file")
@@ -276,6 +267,7 @@ class Controller():
 
         self.filename = view.file_name()
         self.view = view
+
         self.indicator.start(view)
 
         jobs.JobController.run_async(jobs.MonitorJob("RTMonitorJob"))
@@ -285,11 +277,73 @@ class Controller():
         if not saved:
             text = bytes(view.substr(sublime.Region(0, view.size())), "utf-8")
 
-        jobs.JobController.run_async(
-            jobs.ReindexJob(
-                "RTReindexJob",
-                self.filename,
-                text),
-            self.indexing_done_callback)
+        jobs.JobController.run_async(jobs.ReindexJob("RTReindexJob", self.filename, text))
+
+        # Start a watchdog that polls if we were still indexing.
+        self.watchdog.start(self.indexing_done_callback)
 
         log.debug("Expecting indexing results for {}".format(self.filename))
+
+
+class IndexWatchdog():
+
+    def __init__(self):
+        self.active=False
+        self.period=100
+        self.threshold=10
+        self.indexing=False
+        self.callback=None
+
+    def stop(self):
+        if not self.active:
+            return
+
+        # Schadule into timer-thread.
+        sublime.set_timeout_async(lambda self=self: self.run(True), 0)
+
+    def start(self, callback):
+        if self.active:
+            log.debug("Watchdog already active")
+            return
+
+        log.debug("Watchdog starting")
+        self.active=True
+        self.threshold=10
+        self.callback=callback
+
+        # Schadule into timer-thread.
+        sublime.set_timeout_async(lambda self=self: self.run(False), 0)
+
+    def run(self, stopping):
+        if not self.active:
+            log.debug("Watchdog not even active - interesting case")
+            return
+
+        if stopping:
+            log.debug("Stopping indexing watchdog now")
+            self.active = False
+            self.callback(False)
+            return
+
+        (_, _, out) = jobs.JobController.run_sync(jobs.RTagsJob(
+            "ReindexWatchdogJob", ["--is-indexing"], b'', None, True))
+
+        if out.decode().strip() == "1":
+            self.indexing = True
+        else:
+            if self.indexing == False:
+                log.debug("Threshold not yet expired but counting {}".format(self.threshold))
+                self.threshold -= 1
+
+            if (self.indexing == True) or (self.threshold == 0):
+                if self.indexing == False:
+                    log.debug("We never even recognised an indexing in progress")
+                self.active = False
+                if self.callback:
+                    self.callback(self.indexing)
+                return
+
+        # Repeat as long as we are still indexing OR we are still trying
+        # to recognize the first indication of an indexing before the
+        # theshold expires.
+        sublime.set_timeout_async(lambda self=self: self.run(False), self.period)

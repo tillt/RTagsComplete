@@ -295,12 +295,6 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         fixits_controller.clear(view)
         idle_controller.trigger(view)
 
-    def _save(self, view):
-        log.debug("Post post save triggered")
-
-        idle_controller.sleep()
-        fixits_controller.reindex(view=view, saved=True)
-
     def on_post_save(self, view):
         log.debug("Post save triggered")
         # Do nothing if not called from supported code.
@@ -327,9 +321,13 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         # fully functioning `rc -V ... --wait`. `rc ... --wait` appears to
         # prevent concurrent instances by aborting the old "wait" when new
         # "wait"-request comes in.
-        sublime.set_timeout(lambda self=self,view=view: self._save(view), 400)
+        #sublime.set_timeout(lambda self=self,view=view: self._save(view), 400)
 
-        log.debug("Bizarrely delayed save scheduled")
+        #log.debug("Bizarrely delayed save scheduled")
+
+        idle_controller.sleep()
+        fixits_controller.reindex(view=view, saved=True)
+
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.

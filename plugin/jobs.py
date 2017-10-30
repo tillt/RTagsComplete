@@ -26,7 +26,7 @@ log = logging.getLogger("RTags")
 
 class RTagsJob():
 
-    def __init__(self, job_id, command_info, data=b'', communicate=None):
+    def __init__(self, job_id, command_info, data=b'', communicate=None, nodebug=False):
         self.job_id = job_id
         self.command_info = command_info
         self.data = data
@@ -36,6 +36,7 @@ class RTagsJob():
             self.callback = communicate
         else:
             self.callback = self.communicate
+        self.nodebug = nodebug
 
     def prepare_command(self):
         return [settings.SettingsManager.get('rc_path')] + self.command_info
@@ -48,11 +49,13 @@ class RTagsJob():
         return
 
     def communicate(self, process, timeout=None):
-        log.debug("Static communicate with timeout {} for {}".format(timeout, self.callback))
+        if not self.nodebug:
+            log.debug("Static communicate with timeout {} for {}".format(timeout, self.callback))
         if not timeout:
             timeout = settings.SettingsManager.get('rc_timeout')
         (out, _) = process.communicate(input=self.data, timeout=timeout)
-        log.debug("Static communicate terminating")
+        if not self.nodebug:
+            log.debug("Static communicate terminating")
         return out
 
     def run_process(self, timeout=None):
@@ -60,7 +63,8 @@ class RTagsJob():
         command = self.prepare_command()
         returncode = None
 
-        log.debug("Starting process job {}".format(command))
+        if not self.nodebug:
+            log.debug("Starting process job {}".format(command))
 
         start_time = time()
 
@@ -73,18 +77,20 @@ class RTagsJob():
 
                 self.p = process
 
-                log.debug("Process running with timeout {}, input-length {}".format(timeout, len(self.data)))
+                if not self.nodebug:
+                    log.debug("Process running with timeout {}, input-length {}".format(timeout, len(self.data)))
+                    log.debug("Communicating with process via {}".format(self.callback))
 
-                log.debug("Communicating with process via {}".format(self.callback))
                 out = self.callback(process)
 
                 returncode = process.returncode
 
         except Exception as e:
-            log.debug("Aborting with exception: {}".format(e))
+            log.error("Aborting with exception: {}".format(e))
 
-        log.debug("Return code {}, output-length: {}".format(returncode, len(out)))
-        log.debug("Process job ran for {:2.2f} seconds".format(time() - start_time))
+        if not self.nodebug:
+            log.debug("Return code {}, output-length: {}".format(returncode, len(out)))
+            log.debug("Process job ran for {:2.2f} seconds".format(time() - start_time))
 
         return (returncode, self.job_id, out)
 
@@ -137,7 +143,7 @@ class CompletionJob(RTagsJob):
 class ReindexJob(RTagsJob):
 
     def __init__(self, job_id, filename, text=b''):
-        command_info = [ "--wait", "-V", filename ]
+        command_info = ["-V", filename ]
         if len(text):
             command_info += [ "--unsaved-file", "{}:{}".format(filename,len(text)) ]
 
