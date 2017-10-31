@@ -10,7 +10,6 @@ Hacked with plenty of new features by Till Toenshoff.
 Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 
 TODO(tillt): The current tests are broken and need to get redone.
-TODO(tillt): Life is more important than any of the above, so fuck it.
 """
 
 import collections
