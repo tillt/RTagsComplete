@@ -16,8 +16,11 @@ log = logging.getLogger("RTags")
 
 class ProgressIndicator():
     MSG_LEN = 1
-    MSG_CHARS = u'▏▎▍▌▋▊▉█▉▊▋▌▍▎▏▏'
-    PERIOD = 100
+
+    #MSG_CHARS = u'◒◐◓◑'
+    MSG_CHARS = u'◤◥◢◣'
+    #MSG_CHARS = u'╀┾╁┽'
+    PERIOD = 200
 
     def __init__(self):
         self.view = None

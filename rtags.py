@@ -9,8 +9,6 @@ Original code by Sergei Turukin.
 Hacked with plenty of new features by Till Toenshoff.
 Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 
-TODO(tillt): This desperately needs a refactor into submodules with
-clean APIs instead of this horrible spaghetti code.
 TODO(tillt): The current tests are broken and need to get redone.
 TODO(tillt): Life is more important than any of the above, so fuck it.
 """
@@ -214,6 +212,8 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
 
     def run(self, edit):
+        if not supported_view(self.view):
+            return
         fixits_controller.show_selector(self.view)
 
 

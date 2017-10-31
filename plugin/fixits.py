@@ -79,16 +79,18 @@ class Controller():
             '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
     def show_selector(self, view):
-        if not supported_view(view):
-            return
-
         if view.file_name() != self.filename:
+            log.debug("This view isn't known")
             return
 
         def issue_to_panel_item(issue):
             return [
                 issue['message'],
                 "{}:{}:{}".format(self.filename.split('/')[-1], issue['line'], issue['column'])]
+
+        if not self.issues:
+            log.debug("No warnings, errors or fixits to show")
+            return
 
         items = list(map(issue_to_panel_item, self.issues['error']))
         items += list(map(issue_to_panel_item, self.issues['warning']))
