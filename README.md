@@ -40,16 +40,14 @@ Make sure you installed RTags:
     mkdir build && cd build && cmake ..
     make install
 
-### Via Package Control
+### Via Package Control (not available yet!)
 
-* Install [Package Control](https://sublime.wbond.net/installation)
-* Run “Package Control: Install Package”
-* Install "RtagsComplete"
+This fork is currently not available via PackageControl.
 
 ### Manually
 
     cd <sublime-text-Packages-dir>
-    git clone https://github.com/rampage644/sublime-rtags
+    git clone https://github.com/tillt/RTagsComplete
 
 # Features
 
@@ -65,7 +63,7 @@ Make sure you installed RTags:
 
 ![Completion Example](site/images/completion.png)
 
-## File compilation results after save - shows errors and warnings inline
+## File re-indexing results after save and idle timeout - shows errors and warnings inline
 
 ![Fixits Example](site/images/fixits.png)
 
@@ -77,11 +75,82 @@ It is an unstable plugin. There are a number of limitations which may or may not
 * There is no `rdm`'s project management yet. So it's your responsibility to setup project, pass compilation commands (with `rc --compile gcc main.c` or `rc -J`). For more info see [LLVM codebase](http://clang.llvm.org/docs/JSONCompilationDatabase.html), [rtags README](https://github.com/Andersbakken/rtags/blob/master/README.org), [Bear project](https://github.com/rizsotto/Bear/blob/master/README.md).
 * It is recommended to install [rtags via homebrew](http://braumeister.org/repos/Homebrew/homebrew-core/formula/rtags) and then follow the instructions on how to run rdm
 
-So, the typical work-flow is:
+### Typical work-flow
+- Make sure `rdm` is active
+  - linux
+    - TBD
+  - windows
+    - TBD
+  - macOS
+    - via homebrew
+    ```bash
+    $ brew services start rtags
+    ==> Successfully started `rtags` (label: homebrew.mxcl.rtags)
 
- 1. Start `rdm` (unless already started via launchd or brew services)
- 2. Supply it with _JSON compilation codebase_ via `rc -J` or several `rc -c` calls.
- 3. Start _Sublime Text 3_
+    $ brew services list
+    Name           Status  User Plist
+    [..]
+    rtags          started till /Users/till/Library/LaunchAgents/homebrew.mxcl.rtags.plist
+    [..]
+    ```
+
+    - via launch-control directly
+
+    ```bash
+    $ launchctrl start /Users/till/Library/LaunchAgents/homebrew.mxcl.rtags.plist
+    ```
+
+    ```xml
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+      <key>Label</key>
+      <string>homebrew.mxcl.rtags</string>
+      <key>ProgramArguments</key>
+      <array>
+        <string>/usr/local/Cellar/rtags/2.14_1/bin/rdm</string>
+        <string>--verbose</string>
+        <string>--launchd</string>
+        <string>--inactivity-timeout=300</string>
+        <string>--log-file=/usr/local/var/log/rtags.log</string>
+      </array>
+      <key>Sockets</key>
+      <dict>
+        <key>Listener</key>
+        <dict>
+          <key>SockPathName</key>
+          <string>/Users/till/.rdm</string>
+        </dict>
+      </dict>
+    </dict>
+    </plist>
+    ```
+
+- Obtain a _JSON compilation database_ from the build-chain of your project
+  - via [Build EAR](https://github.com/rizsotto/Bear)
+  ```
+  $ make clean
+  $ bear make -j6
+  ```
+  - via cmake
+  ```
+  $ cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 /path/to/src
+  ```
+
+ - Supply `rdm` with the _JSON compilation database_ via `rc -J` or several `rc -c` calls.
+  ```bash
+  $ ls -la
+  [..]
+  -rw-r--r--   1 till  staff    49817 Oct 20 20:09 Makefile
+  -rw-r--r--   1 till  staff  3519617 Oct 10 22:07 compile_commands.json
+  -rw-r--r--   1 till  staff    88333 Oct 20 20:09 config.log
+  [..]
+
+  $ rc -J .
+  ```
+
+ - Start _Sublime Text 3_
 
 # Default key bindings
 
@@ -182,5 +251,5 @@ Original code by Sergei Turukin.
 Hacked with plenty of new features by Till Toenshoff.
 Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 
-On that thought, I would like to mention that EasyClangComplete is an excellent plugin, far more complex and in many ways superior to RTagsComplete. However, the approach taken by EasyClangComplete is arguably not so great for larger projects. EasyClangComplete aims to make things conveniently easy while RTagsComplete is attempting to offer plenty of features with highest possible performance.
+On that thought, I would like to mention that EasyClangComplete is an excellent plugin, far more complex and in many ways superior to RTagsComplete. However, the approach taken by EasyClangComplete is arguably not so great for larger projects. EasyClangComplete aims to make things conveniently easy while RTagsComplete is attempting to offer plenty of features with highest possible performance at scale.
 Maybe some day EasyClangComplete will be based on `clangd` and that is likely the day I stop tinkering with RTagsComplete.
