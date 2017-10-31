@@ -271,7 +271,9 @@ class JobController():
             JobController.thread_map[job.job_id] = (future, job)
 
     def run_sync(job, timeout=None):
-        log.debug("Starting blocking job {} with timeout {}".format(job.job_id, timeout))
+        # Debug logging every single run_sync request is too verbose
+        # if polling is used for gathering rc's indexing status
+        #log.debug("Starting blocking job {} with timeout {}".format(job.job_id, timeout))
         return job.run_process(timeout)
 
     def stop(job_id):
@@ -302,6 +304,7 @@ class JobController():
 
     def done(future, job_id):
         log.debug("Job {} done".format(job_id))
+
         if not future.done():
             log.debug("Job wasn't really done")
 
@@ -309,10 +312,8 @@ class JobController():
             log.debug("Job was cancelled")
 
         with JobController.lock:
-            log.debug("Kill bookkeeping for {}".format(job_id))
             del JobController.thread_map[job_id]
-            log.debug("Job {} entirely done and forgotten".format(job_id))
-            log.debug("Remaining concurrent jobs {}".format(len(JobController.thread_map.keys())))
+            log.debug("Removed bookkeeping for job {}".format(job_id))
 
     def job(job_id):
         job = None

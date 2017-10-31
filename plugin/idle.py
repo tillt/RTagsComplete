@@ -7,6 +7,12 @@ import logging
 
 log = logging.getLogger("RTags")
 
+class Mode:
+    RESET = 0
+    SLEEP = 1
+    RUN = 2
+
+
 class Controller:
     PERIOD = 5000.0
 
@@ -14,7 +20,6 @@ class Controller:
         self.counter = 0
         self.auto_reindex = auto_reindex
         self.counter_threshold = threshold / Controller.PERIOD
-        self.active = False
         self.view = None
         self.callback = callback
 
@@ -26,26 +31,25 @@ class Controller:
         if not view:
             return
 
-        self.counter = 0
         self.view = view
 
-        if not self.active:
-            self.active = True
-            self.run()
+        sublime.set_timeout_async(lambda self=self: self.run(Mode.RESET), 0)
 
     def sleep(self):
-        self.active = False
+        sublime.set_timeout_async(lambda self=self: self.run(Mode.SLEEP), 0)
 
-    def run(self):
-        if not self.active:
+    def run(self, mode=Mode.RUN):
+        if mode == Mode.SLEEP:
+            return
+
+        if mode == Mode.RESET:
+            self.counter = 0
+
+        if self.counter >= self.counter_threshold:
+            log.debug("Threshold reached.")
+            self.callback(view=self.view)
             return
 
         self.counter += 1
 
-        if self.counter >= self.counter_threshold:
-            log.debug("Threshold reached.")
-            self.active = False
-            self.callback(view=self.view)
-            return
-
-        sublime.set_timeout(lambda: self.run(), Controller.PERIOD)
+        sublime.set_timeout_async(lambda: self.run(Mode.RUN), Controller.PERIOD)

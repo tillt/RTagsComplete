@@ -21,9 +21,6 @@ import re
 import sublime
 import sublime_plugin
 
-import xml.etree.ElementTree as etree
-
-from concurrent import futures
 from datetime import datetime
 from os import path
 from functools import partial
@@ -42,10 +39,10 @@ log.setLevel(logging.DEBUG)
 log.propagate = False
 
 formatter_default = logging.Formatter(
-    '[%(name)s:%(levelname)s]: %(message)s')
+    '%(name)s:%(levelname)s: %(message)s')
 formatter_verbose = logging.Formatter(
-    '%(asctime)-15s [%(name)s:%(levelname)s]:[%(filename)s]:[%(funcName)s]:'
-    '[%(threadName)s]: %(message)s')
+    '%(name)s:%(levelname)s: %(asctime)-15s %(filename)s::%(funcName)s'
+    ' [%(threadName)s]: %(message)s')
 
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
