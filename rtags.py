@@ -96,6 +96,41 @@ class NavigationHelper(object):
 class RtagsBaseCommand(sublime_plugin.TextCommand):
     FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
 
+    def command_done(self, future):
+        log.debug("Command done callback hit {}".format(future))
+
+        if not future.done():
+            log.warning("Command failed")
+            return
+
+        if future.cancelled():
+            log.warning(("Command aborted"))
+            return
+
+        (job_id, out, error) = future.result()
+
+        if error:
+            fixits_controller.signal_failure()
+            self.view.show_popup("<nbsp/>{}<nbsp/>".format(error.message))
+            return
+
+        log.debug("Finished Command job {}".format(job_id))
+
+        # Dirty hack.
+        # TODO figure out why rdm responds with 'Project loading'
+        # for now just repeat query.
+        if error and error.code == jobs.JobError.PROJECT_LOADING:
+            def rerun():
+                self.view.run_command('rtags_location', {'switches': switches})
+            sublime.set_timeout_async(rerun, 500)
+            return
+
+        # Drop the flag, we are going to navigate.
+        navigation_helper.flag = NavigationHelper.NAVIGATION_DONE
+        navigation_helper.switches = []
+
+        self._action(out)
+
     def run(self, edit, switches, *args, **kwargs):
         # Do nothing if not called from supported code.
         if not supported_view(self.view):
@@ -116,24 +151,11 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             # Never go further.
             return
 
-        (_, out, error) = jobs.JobController.run_sync(jobs.RTagsJob(
-            "RTBaseCommand" + jobs.JobController.next_id(),
-            switches + [self._query(*args, **kwargs)]))
-
-        # Dirty hack.
-        # TODO figure out why rdm responds with 'Project loading'
-        # for now just repeat query.
-        if error and error.code == jobs.JobError.PROJECT_LOADING:
-            def rerun():
-                self.view.run_command('rtags_location', {'switches': switches})
-            sublime.set_timeout_async(rerun, 500)
-            return
-
-        # Drop the flag, we are going to navigate.
-        navigation_helper.flag = NavigationHelper.NAVIGATION_DONE
-        navigation_helper.switches = []
-
-        self._action(out, error)
+        jobs.JobController.run_async(
+            jobs.RTagsJob(
+                "RTBaseCommand" + jobs.JobController.next_id(),
+                switches + [self._query(*args, **kwargs)]),
+            self.command_done)
 
     def on_select(self, res):
         if res == -1:
@@ -168,11 +190,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
     def _query(self, *args, **kwargs):
         return ''
 
-    def _action(self, stdout, error):
-        if error:
-            fixits_controller.signal_failure()
-            self.view.show_popup("<nbsp/>{}<nbsp/>".format(error.message))
-            return
+    def _action(self, stdout):
 
         # Pretty format the results.
         items = list(map(lambda x: x.decode('utf-8'), stdout.splitlines()))
@@ -237,12 +255,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     def filter_items(self, item):
         return re.match(RtagsSymbolInfoCommand.SYMBOL_INFO_REG, item)
 
-    def _action(self, out, error):
-        if error:
-            fixits_controller.signal_failure()
-            self.view.show_popup("<nbsp/>{}<nbsp/>".format(error.message))
-            return
-
+    def _action(self, out):
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
         items = list(filter(self.filter_items, items))
 

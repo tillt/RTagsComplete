@@ -118,7 +118,7 @@ class RTagsJob():
                     log.debug("Process running with timeout {}, input-length {}".format(timeout, len(self.data)))
                     log.debug("Communicating with process via {}".format(self.callback))
 
-                (out, error) = self.callback(process)
+                (out, error) = self.callback(process, timeout)
 
         except Exception as e:
             error = JobError(JobError.EXCEPTION, "Aborting with exception: {}".format(e))
@@ -132,6 +132,8 @@ class RTagsJob():
 
         return (self.job_id, out, error)
 
+    def run(self):
+        return self.run_process()
 
 class CompletionJob(RTagsJob):
 
