@@ -24,6 +24,40 @@ from . import settings
 
 log = logging.getLogger("RTags")
 
+class JobError:
+    UNKNOWN = 0
+    PROJECT_LOADING = 1
+    NOT_INDEXED = 2
+    RDM_DOWN = 3
+    EXCEPTION = 4
+
+    def __init__(self, code=UNKNOWN, message=""):
+        self.code = code
+        self.message = message
+
+    def from_results(out, code=0):
+        # Check if the file in question is not indexed by rtags.
+        if out == "Not indexed\n":
+            return JobError(
+                JobError.NOT_INDEXED,
+                "Not indexed.")
+        elif out == "Project loading\n":
+            return JobError(
+                JobError.PROJECT_LOADING,
+                "Project loading.")
+        elif out.startswith("Can't seem to connect to server"):
+            return JobError(
+                JobError.RDM_DOWN,
+                "Can't seem to connect to server")
+
+        if code != 0:
+            return JobError(
+                JobError.UNKNOWN,
+                "RTags client returns {}".format(process.returncode))
+
+        return None
+
+
 class RTagsJob():
 
     def __init__(self, job_id, command_info, data=b'', communicate=None, nodebug=False):
@@ -31,7 +65,6 @@ class RTagsJob():
         self.command_info = command_info
         self.data = data
         self.p = None
-        self.error = None
         if communicate:
             self.callback = communicate
         else:
@@ -51,17 +84,21 @@ class RTagsJob():
     def communicate(self, process, timeout=None):
         if not self.nodebug:
             log.debug("Static communicate with timeout {} for {}".format(timeout, self.callback))
+
         if not timeout:
             timeout = settings.SettingsManager.get('rc_timeout')
         (out, _) = process.communicate(input=self.data, timeout=timeout)
+
         if not self.nodebug:
             log.debug("Static communicate terminating")
-        return out
+
+        return out, JobError.from_results(out.decode('utf-8'), process.returncode)
 
     def run_process(self, timeout=None):
         out = b''
+        error = None
+
         command = self.prepare_command()
-        returncode = None
 
         if not self.nodebug:
             log.debug("Starting process job {}".format(command))
@@ -81,18 +118,19 @@ class RTagsJob():
                     log.debug("Process running with timeout {}, input-length {}".format(timeout, len(self.data)))
                     log.debug("Communicating with process via {}".format(self.callback))
 
-                out = self.callback(process)
-
-                returncode = process.returncode
+                (out, error) = self.callback(process)
 
         except Exception as e:
-            log.error("Aborting with exception: {}".format(e))
+            error = JobError(JobError.EXCEPTION, "Aborting with exception: {}".format(e))
 
         if not self.nodebug:
-            log.debug("Return code {}, output-length: {}".format(returncode, len(out)))
+            log.debug("Output-length: {}".format(len(out)))
             log.debug("Process job ran for {:2.2f} seconds".format(time() - start_time))
 
-        return (returncode, self.job_id, out)
+        if error:
+             log.error("Failed to run process job {} with error: {}".format(command, error.message))
+
+        return (self.job_id, out, error)
 
 
 class CompletionJob(RTagsJob):
@@ -118,26 +156,29 @@ class CompletionJob(RTagsJob):
         self.view = view
 
     def run(self):
-        (_, _, out)  = self.run_process(60)
-        suggestions = []
-        for line in out.splitlines():
-            # log.debug(line)
-            # line is like this
-            # "process void process(CompletionThread::Request *request) CXXMethod"
-            # "reparseTime int reparseTime VarDecl"
-            # "dump String dump() CXXMethod"
-            # "request CompletionThread::Request * request ParmDecl"
-            # we want it to show as process()\tCXXMethod
-            #
-            # output is list of tuples: first tuple element is what we see in popup menu
-            # second is what inserted into file. '$0' is where to place cursor.
-            # TODO play with $1, ${2:int}, ${3:string} and so on.
-            elements = line.decode('utf-8').split()
-            suggestions.append(('{}\t{}'.format(' '.join(elements[1:-1]), elements[-1]),
-                                '{}$0'.format(elements[0])))
+        (job_id, out, error)  = self.run_process(60)
 
-        log.debug("Completion done")
-        return (self.view, self.job_id, suggestions)
+        suggestions = []
+
+        if not error:
+            for line in out.splitlines():
+                # log.debug(line)
+                # line is like this
+                # "process void process(CompletionThread::Request *request) CXXMethod"
+                # "reparseTime int reparseTime VarDecl"
+                # "dump String dump() CXXMethod"
+                # "request CompletionThread::Request * request ParmDecl"
+                # we want it to show as process()\tCXXMethod
+                #
+                # output is list of tuples: first tuple element is what we see in popup menu
+                # second is what inserted into file. '$0' is where to place cursor.
+                # TODO play with $1, ${2:int}, ${3:string} and so on.
+                elements = line.decode('utf-8').split()
+                suggestions.append(('{}\t{}'.format(' '.join(elements[1:-1]), elements[-1]),
+                                    '{}$0'.format(elements[0])))
+            log.debug("Completion done")
+
+        return (job_id, suggestions, error, self.view)
 
 
 class ReindexJob(RTagsJob):
@@ -150,22 +191,20 @@ class ReindexJob(RTagsJob):
         RTagsJob.__init__(self, job_id, command_info, text)
 
     def run(self):
-        (returncode, _, out)  = self.run_process(300)
-        return (returncode, self.job_id, out)
+        return self.run_process(300)
 
 
 class MonitorJob(RTagsJob):
 
     def __init__(self, job_id):
         RTagsJob.__init__(self, job_id, ['-m'], b'', self.communicate)
-        self.error = None
 
     def run(self):
-        (returncode, _, out) = self.run_process()
-        return (returncode, self.job_id, out)
+        return self.run_process()
 
     def communicate(self, process, timeout=None):
         log.debug("In data callback {}".format(process.stdout))
+
         rgxp = re.compile(r'<(\w+)')
         buffer = ''  # xml to be parsed
         start_tag = ''
@@ -180,10 +219,9 @@ class MonitorJob(RTagsJob):
 
             buffer += line
 
-            if "Can't seem to connect to server" in line:
-                log.error(line)
-                self.error = "Can't seem to connect to server. Make sure RTags `rdm` is running, then retry."
-                return b''
+            error = JobError.from_results(line)
+            if error:
+                return (b'', error)
 
             # Keep on accumulating XML data until we have a closing tag,
             # matching our start_tag.
@@ -241,7 +279,7 @@ class MonitorJob(RTagsJob):
                 start_tag = ''
 
         log.debug("Data callback terminating")
-        return b''
+        return (b'', None)
 
 
 class JobController():
@@ -291,16 +329,28 @@ class JobController():
         log.debug("Stopping job {}={}".format(job_id, job.job_id))
         log.debug("Job {} should now disappear with {}".format(job_id, future))
 
+        # FIXME(tillt): This entire part appears to either not have the
+        # intended results or the debug output time skewing the displayed
+        # results; complete job termination is NOT waited upon.
+
+        # Signal that we are not interested in results.
+        future.cancel()
+
+        # Terminate any underlying subprocesses.
         job.stop()
 
         log.debug("Waiting for job {}".format(job_id))
-        future.cancel()
+
+        # Wait upon the job to terminate.
         future.result(15)
+
+        log.debug("Waited for job {}".format(job_id))
 
         if future.done():
             log.debug("Done with that job {}".format(job_id))
+
         if future.cancelled():
-            log.debug("Stopped job {}".format(job_id))
+            log.debug("Cancelled job {}".format(job_id))
 
     def done(future, job_id):
         log.debug("Job {} done".format(job_id))

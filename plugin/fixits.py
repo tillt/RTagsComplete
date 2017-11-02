@@ -200,6 +200,9 @@ class Controller():
 
         self.view.set_status(self.results_key, "RTags {}".format(" ".join(results)))
 
+    def signal_failure(self):
+        self.view.set_status(self.results_key, "RTags ❌")
+
     def clear(self, view=None):
         if not self.view:
             return
@@ -240,13 +243,16 @@ class Controller():
         self.show_regions()
         self.issues = issues
 
-    def indexing_done_callback(self, complete):
-        log.debug("Indexing done callback hit")
+    def indexing_done_callback(self, complete, error=None):
+        log.debug("Indexing callback hit")
 
         self.indicator.stop()
 
+        if error:
+            self.signal_failure()
+
         if not complete:
-            log.debug("Indexing not completed, don't even trigger a diagnosis")
+            log.debug("Indexing not completed")
             return
 
         log.debug("Triggering diagnosis for the indexed file")
@@ -325,26 +331,38 @@ class IndexWatchdog():
         if stopping:
             log.debug("Stopping indexing watchdog now")
             self.active = False
-            self.callback(False)
+            if self.callback:
+                self.callback(False)
             return
 
-        (_, _, out) = jobs.JobController.run_sync(jobs.RTagsJob(
+        (_, out, error) = jobs.JobController.run_sync(jobs.RTagsJob(
             "ReindexWatchdogJob", ["--is-indexing"], b'', None, True))
 
-        if out.decode().strip() == "1":
-            self.indexing = True
+        if error:
+            log.error("Watchdog failed to poll: {}".format(error.message))
+            log.debug("Retrying...")
+            self.threshold -= 1
         else:
-            if self.indexing == False:
-                log.debug("Threshold not yet expired but counting {}".format(self.threshold))
+            if out.decode().strip() == "1":
+                # We are now indexing!
+                self.indexing = True
+            else:
+                # In case we did detect activity before, we now assume a done state.
+                if self.indexing == True:
+                    self.active = False
+                    if self.callback:
+                        self.callback(True)
+                    return
+
+                log.debug("Retrying...")
                 self.threshold -= 1
 
-            if (self.indexing == True) or (self.threshold == 0):
-                if self.indexing == False:
-                    log.debug("We never even recognised an indexing in progress")
-                self.active = False
-                if self.callback:
-                    self.callback(self.indexing)
-                return
+        if self.threshold == 0:
+            log.debug("We never even recognized an indexing in progress")
+            self.active = False
+            if self.callback:
+                self.callback(False, error)
+            return
 
         # Repeat as long as we are still indexing OR we are still trying
         # to recognize the first indication of an indexing before the
