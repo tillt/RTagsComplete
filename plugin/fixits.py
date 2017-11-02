@@ -35,7 +35,7 @@ class Controller():
 
     PHANTOMS_TAG = "rtags_phantoms"
 
-    def __init__(self, supported):
+    def __init__(self, supported, indicator):
         self.supported = supported
         self.regions = {}
         self.issues = None
@@ -46,7 +46,7 @@ class Controller():
         self.results_key = settings.SettingsManager.get('results_key', 'rtags_result_indicator')
         self.templates = {}
         self.navigation_items = None
-        self.indicator = indicator.ProgressIndicator()
+        self.indicator = indicator
         self.watchdog = IndexWatchdog()
 
         names = ["phantom"]
@@ -200,8 +200,11 @@ class Controller():
 
         self.view.set_status(self.results_key, "RTags {}".format(" ".join(results)))
 
-    def signal_failure(self):
-        self.view.set_status(self.results_key, "RTags ❌")
+    # TODO(tillt): This has little to do with fixits and more to do with
+    # general RTags client failures. Move this somewhere else.
+    def signal_failure(self, view):
+        # We can not rely on a possibly outdated "self.view".
+        view.set_status(self.results_key, "RTags ❌")
 
     def clear(self, view=None):
         if not self.view:
@@ -249,7 +252,7 @@ class Controller():
         self.indicator.stop()
 
         if error:
-            self.signal_failure()
+            self.signal_failure(self.view)
 
         if not complete:
             log.debug("Indexing not completed")
@@ -260,7 +263,7 @@ class Controller():
         # For some bizarre reason a reindexed file that does not have any
         # fixits or warnings will not return anything in `rc -m`, hence
         # we need to force such result again via `rc --diagnose`.
-        jobs.JobController.run_sync(jobs.RTagsJob(
+        jobs.JobController.run_async(jobs.RTagsJob(
             "RTDiagnoseJob" + jobs.JobController.next_id(),
             ['--diagnose', self.filename]))
 
@@ -297,7 +300,7 @@ class IndexWatchdog():
 
     def __init__(self):
         self.active=False
-        self.period=100
+        self.period=500
         self.threshold=10
         self.indexing=False
         self.callback=None
@@ -336,7 +339,7 @@ class IndexWatchdog():
             return
 
         (_, out, error) = jobs.JobController.run_sync(jobs.RTagsJob(
-            "ReindexWatchdogJob", ["--is-indexing"], b'', None, True))
+            "ReindexWatchdogJob", ["--is-indexing"], b'', None, None, True))
 
         if error:
             log.error("Watchdog failed to poll: {}".format(error.message))
