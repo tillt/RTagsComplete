@@ -116,14 +116,14 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             # Never go further.
             return
 
-        (_, _, out) = jobs.JobController.run_sync(jobs.RTagsJob(
+        (_, out, error) = jobs.JobController.run_sync(jobs.RTagsJob(
             "RTBaseCommand" + jobs.JobController.next_id(),
             switches + [self._query(*args, **kwargs)]))
 
         # Dirty hack.
         # TODO figure out why rdm responds with 'Project loading'
         # for now just repeat query.
-        if out == b'Project loading\n':
+        if error and error.code == jobs.JobError.PROJECT_LOADING:
             def rerun():
                 self.view.run_command('rtags_location', {'switches': switches})
             sublime.set_timeout_async(rerun, 500)
@@ -133,7 +133,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         navigation_helper.flag = NavigationHelper.NAVIGATION_DONE
         navigation_helper.switches = []
 
-        self._action(out)
+        self._action(out, error)
 
     def on_select(self, res):
         if res == -1:
@@ -168,20 +168,10 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
     def _query(self, *args, **kwargs):
         return ''
 
-    def _validate(self, stdout):
-        # Check if the file in question is not indexed by rtags.
-        if stdout == b'Not indexed\n':
-            self.view.show_popup("<nbsp/>Not indexed<nbsp/>")
-            return False
-
-        # Check if rtags is actually running.
-        if stdout.decode('utf-8').startswith("Can't seem to connect to server"):
-            self.view.show_popup("<nbsp/>{}<nbsp/>".format(stdout.decode('utf-8')))
-            return False
-        return True
-
-    def _action(self, stdout):
-        if not self._validate(stdout):
+    def _action(self, stdout, error):
+        if error:
+            fixits_controller.signal_failure()
+            self.view.show_popup("<nbsp/>{}<nbsp/>".format(error.message))
             return
 
         # Pretty format the results.
@@ -247,8 +237,10 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     def filter_items(self, item):
         return re.match(RtagsSymbolInfoCommand.SYMBOL_INFO_REG, item)
 
-    def _action(self, out):
-        if not self._validate(out):
+    def _action(self, out, error):
+        if error:
+            fixits_controller.signal_failure()
+            self.view.show_popup("<nbsp/>{}<nbsp/>".format(error.message))
             return
 
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
@@ -369,7 +361,12 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
             log.warning(("Completion aborted"))
             return
 
-        (view, completion_job_id, suggestions) = future.result()
+        (completion_job_id, suggestions, error, view) = future.result()
+
+        if error:
+            fixits_controller.signal_failure()
+            log.debug("Completion job {} failed: {}".format(completion_job_id, error.message))
+            return
 
         log.debug("Finished completion job {} for view {}".format(completion_job_id, view))
 
