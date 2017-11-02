@@ -60,11 +60,12 @@ class JobError:
 
 class RTagsJob():
 
-    def __init__(self, job_id, command_info, data=b'', communicate=None, nodebug=False):
+    def __init__(self, job_id, command_info, data=b'', communicate=None, view=None, nodebug=False):
         self.job_id = job_id
         self.command_info = command_info
         self.data = data
         self.p = None
+        self.view = view
         if communicate:
             self.callback = communicate
         else:
@@ -137,7 +138,7 @@ class RTagsJob():
 
 class CompletionJob(RTagsJob):
 
-    def __init__(self, view, completion_job_id, filename, text, size, row, col):
+    def __init__(self, completion_job_id, filename, text, size, row, col, view):
         command_info = []
 
         # Auto-complete switch.
@@ -153,9 +154,7 @@ class CompletionJob(RTagsJob):
         # Make this query block until getting answered.
         command_info.append('--synchronous-completions')
 
-        RTagsJob.__init__(self, completion_job_id, command_info, text)
-
-        self.view = view
+        RTagsJob.__init__(self, completion_job_id, command_info, text, None, view)
 
     def run(self):
         (job_id, out, error)  = self.run_process(60)
@@ -185,12 +184,12 @@ class CompletionJob(RTagsJob):
 
 class ReindexJob(RTagsJob):
 
-    def __init__(self, job_id, filename, text=b''):
+    def __init__(self, job_id, filename, text=b'', view=None):
         command_info = ["-V", filename ]
         if len(text):
             command_info += [ "--unsaved-file", "{}:{}".format(filename,len(text)) ]
 
-        RTagsJob.__init__(self, job_id, command_info, text)
+        RTagsJob.__init__(self, job_id, command_info, text, None, view)
 
     def run(self):
         return self.run_process(300)
@@ -294,7 +293,7 @@ class JobController():
         JobController.unique_index += 1
         return "{}".format(JobController.unique_index)
 
-    def run_async(job, callback=None):
+    def run_async(job, callback=None, indicator=None):
         with JobController.lock:
             if job.job_id in JobController.thread_map.keys():
                 log.debug("Job {} still active".format(job.job_id))
@@ -302,11 +301,14 @@ class JobController():
 
             log.debug("Starting async job {}".format(job.job_id))
 
+            if indicator and job.view:
+                indicator.start(job.view)
+
             future = JobController.pool.submit(job.run)
             if callback:
                 future.add_done_callback(callback)
             future.add_done_callback(
-                partial(JobController.done, job_id=job.job_id))
+                partial(JobController.done, job_id=job.job_id, indicator=indicator))
 
             JobController.thread_map[job.job_id] = (future, job)
 
@@ -354,14 +356,23 @@ class JobController():
         if future.cancelled():
             log.debug("Cancelled job {}".format(job_id))
 
-    def done(future, job_id):
+    def done(future, job_id, indicator):
         log.debug("Job {} done".format(job_id))
+
+        job = None
+
+        with JobController.lock:
+            if job_id in JobController.thread_map.keys():
+                (_, job) = JobController.thread_map[job_id]
 
         if not future.done():
             log.debug("Job wasn't really done")
 
         if future.cancelled():
             log.debug("Job was cancelled")
+
+        if indicator:
+            indicator.stop()
 
         with JobController.lock:
             del JobController.thread_map[job_id]

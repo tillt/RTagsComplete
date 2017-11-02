@@ -110,7 +110,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         (job_id, out, error) = future.result()
 
         if error:
-            fixits_controller.signal_failure()
+            fixits_controller.signal_failure(view=self.view)
             self.view.show_popup("<nbsp/>{}<nbsp/>".format(error.message))
             return
 
@@ -154,8 +154,12 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         jobs.JobController.run_async(
             jobs.RTagsJob(
                 "RTBaseCommand" + jobs.JobController.next_id(),
-                switches + [self._query(*args, **kwargs)]),
-            self.command_done)
+                switches + [self._query(*args, **kwargs)],
+                b'',
+                None,
+                self.view),
+            self.command_done,
+            progress_indicator)
 
     def on_select(self, res):
         if res == -1:
@@ -311,9 +315,11 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             # all our files and reindex accordingly. However on macOS
             # this feature is broken.
             # See https://github.com/Andersbakken/rtags/issues/1052
-            jobs.JobsController.run_sync(jobs.RTagsJob(
+            jobs.JobsController.run_async(jobs.ReindexJob(
                 "RTPostSaveReindex" + jobs.JobController.next_id(),
-                ['-x', view.file_name()]))
+                view.file_name(),
+                b'',
+                view))
             return
 
         # For some bizarre reason, we need to delay our re-indexing task
@@ -346,9 +352,11 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
                 # all our files and reindex accordingly. However on macOS
                 # this feature is broken.
                 # See https://github.com/Andersbakken/rtags/issues/1052
-                jobs.JobController.run_sync(jobs.RTagsJob(
+                jobs.JobController.run_async(jobs.ReindexJob(
                     "RTPostUndoReindex" + jobs.JobController.next_id(),
-                    ['-V', view.file_name()]))
+                    view.file_name(),
+                    b'',
+                    view))
                 return
 
             idle_controller.sleep()
@@ -377,7 +385,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         (completion_job_id, suggestions, error, view) = future.result()
 
         if error:
-            fixits_controller.signal_failure()
+            fixits_controller.signal_failure(view=self.view)
             log.debug("Completion job {} failed: {}".format(completion_job_id, error.message))
             return
 
@@ -476,14 +484,15 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         jobs.JobController.run_async(
             jobs.CompletionJob(
-                view,
                 completion_job_id,
                 view.file_name(),
                 get_view_text(view),
                 view.size(),
                 row,
-                col),
-            self.completion_done)
+                col,
+                view),
+            self.completion_done,
+            progress_indicator)
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
@@ -507,7 +516,10 @@ def init():
     update_settings()
 
     globals()['navigation_helper'] = NavigationHelper()
-    globals()['fixits_controller'] = fixits.Controller(settings.SettingsManager.get('fixits', False))
+    globals()['progress_indicator'] = indicator.ProgressIndicator()
+    globals()['fixits_controller'] = fixits.Controller(
+        settings.SettingsManager.get('fixits', False),
+        progress_indicator)
     globals()['idle_controller'] = idle.Controller(
         settings.SettingsManager.get('auto_reindex', False),
         settings.SettingsManager.get('auto_reindex_threshold', 30),
