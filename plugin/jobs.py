@@ -53,7 +53,7 @@ class JobError:
         if code != 0:
             return JobError(
                 JobError.UNKNOWN,
-                "RTags client returns {}".format(process.returncode))
+                "RTags client returns {}".format(code))
 
         return None
 
