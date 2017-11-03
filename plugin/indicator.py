@@ -26,35 +26,33 @@ class ProgressIndicator():
         self.view = None
         self.step = 0
         self.len = 1
-        self.active = False
+        self.active_counter = 0
         self.status_key = settings.SettingsManager.get('status_key', 'rtags_status_indicator')
 
     def start(self, view):
-        if self.active:
+        self.active_counter += 1
+        log.debug("Indicator now running for {} processes".format(self.active_counter))
+
+        if self.active_counter > 1:
             log.debug("Indicator already active")
             return
 
         log.debug("Starting indicator")
         self.len = ProgressIndicator.MSG_LEN
         self.view = view
-        self.active = True
         sublime.set_timeout(lambda self=self: self.run(), 0)
 
     def stop(self, abort=False):
-        if not self.active:
+        if self.active_counter == 0:
             log.debug("Indicator not active")
             return
 
-        log.debug("Stopping indicator")
-        sublime.set_timeout(lambda self=self: self.run(True), 0)
+        self.active_counter -= 1
+        log.debug("Stopping one indication")
+        log.debug("Indicator now running for {} processes".format(self.active_counter))
 
-    def run(self, stopping=False):
-        if not self.active:
-            return
-
-        if stopping:
-            log.debug("Still stopping indicator")
-            self.active = False
+    def run(self):
+        if self.active_counter == 0:
             if self.view:
                 self.view.erase_status(self.status_key)
             return
@@ -69,4 +67,4 @@ class ProgressIndicator():
 
         self.view.set_status(self.status_key, 'RTags {}'.format(''.join(chars)))
 
-        sublime.set_timeout(lambda self=self,stopping=stopping: self.run(stopping), ProgressIndicator.PERIOD)
+        sublime.set_timeout(lambda self=self: self.run(), ProgressIndicator.PERIOD)
