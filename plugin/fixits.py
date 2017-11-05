@@ -339,7 +339,7 @@ class IndexWatchdog():
             return
 
         (_, out, error) = jobs.JobController.run_sync(jobs.RTagsJob(
-            "ReindexWatchdogJob", ["--is-indexing"], b'', None, None, True))
+            "ReindexWatchdogJob", ["--is-indexing", "--silent-query"], **{'nodebug': True}))
 
         if error:
             log.error("Watchdog failed to poll: {}".format(error.message))

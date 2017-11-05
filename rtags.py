@@ -14,6 +14,7 @@ TODO(tillt): The current tests are broken and need to get redone.
 
 import collections
 import logging
+import html
 import re
 import sublime
 import sublime_plugin
@@ -96,7 +97,7 @@ class NavigationHelper(object):
 class RtagsBaseCommand(sublime_plugin.TextCommand):
     FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
 
-    def command_done(self, future):
+    def command_done(self, future, **kwargs):
         log.debug("Command done callback hit {}".format(future))
 
         if not future.done():
@@ -109,27 +110,36 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         (job_id, out, error) = future.result()
 
+        location = -1
+        if 'col' in kwargs:
+            location = self.view.text_point(kwargs['row'], kwargs['col'])
+
         if error:
             fixits_controller.signal_failure(view=self.view)
-            self.view.show_popup("<nbsp/>{}<nbsp/>".format(error.message))
+            self.view.show_popup(
+                "<nbsp/>{}<nbsp/>".format(error.message),
+                sublime.HIDE_ON_MOUSE_MOVE_AWAY,
+                location=location)
             return
 
         log.debug("Finished Command job {}".format(job_id))
 
+        # We never needed this - maybe it got fixed in RTags?
+        #
         # Dirty hack.
         # TODO figure out why rdm responds with 'Project loading'
         # for now just repeat query.
-        if error and error.code == jobs.JobError.PROJECT_LOADING:
-            def rerun():
-                self.view.run_command('rtags_location', {'switches': switches})
-            sublime.set_timeout_async(rerun, 500)
-            return
+        #if error and error.code == jobs.JobError.PROJECT_LOADING:
+        #    def rerun():
+        #        self.view.run_command('rtags_location', {'switches': switches})
+        #    sublime.set_timeout_async(rerun, 500)
+        #    return
 
         # Drop the flag, we are going to navigate.
         navigation_helper.flag = NavigationHelper.NAVIGATION_DONE
         navigation_helper.switches = []
 
-        self._action(out)
+        self._action(out, **kwargs)
 
     def run(self, edit, switches, *args, **kwargs):
         # Do nothing if not called from supported code.
@@ -151,14 +161,15 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             # Never go further.
             return
 
+        job_args = kwargs
+        job_args.update({'view': self.view})
+
         jobs.JobController.run_async(
             jobs.RTagsJob(
                 "RTBaseCommand" + jobs.JobController.next_id(),
                 switches + [self._query(*args, **kwargs)],
-                b'',
-                None,
-                self.view),
-            self.command_done,
+                **job_args),
+            partial(self.command_done, **kwargs),
             progress_indicator)
 
     def on_select(self, res):
@@ -194,10 +205,10 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
     def _query(self, *args, **kwargs):
         return ''
 
-    def _action(self, stdout):
+    def _action(self, out, **kwargs):
 
         # Pretty format the results.
-        items = list(map(lambda x: x.decode('utf-8'), stdout.splitlines()))
+        items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
         self.last_references = items
 
         def out_to_items(item):
@@ -248,37 +259,99 @@ class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
 class RtagsLocationCommand(RtagsBaseCommand):
 
     def _query(self, *args, **kwargs):
-        row, col = self.view.rowcol(self.view.sel()[0].a)
+        if 'col' in kwargs:
+            col = kwargs['col']
+            row = kwargs['row']
+        else:
+            row, col = self.view.rowcol(self.view.sel()[0].a)
         return '{}:{}:{}'.format(self.view.file_name(),
                                  row + 1, col + 1)
 
 
+class HTMLTemplate:
+    THEMES_PATH = "themes/Default"
+    PACKAGE_PATH = "Packages/RTagsComplete"
+
+    def __init__(self, name):
+        self.template = None
+        filepath = path.join(
+                    path.dirname(__file__),
+                    self.THEMES_PATH,
+                    name + ".html")
+        with open(filepath, 'rb') as file:
+            self.template = file.read().decode('utf-8')
+
+    def as_html(self, message):
+        padded = self.template.replace('{', '{{').replace('}', '}}')
+        substituted = padded.replace('[', '{').replace(']', '}')
+        return substituted.format(message)
+
+
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
     SYMBOL_INFO_REG = r'(\S+):\s*(.+)'
+    MAX_POPUP_WIDTH = 1800
+    MAX_POPUP_HEIGHT = 900
+
+    FILTER_TITLES=[
+        'SymbolLength',
+        'Range']
+
+    def filter_title(self, title):
+        return not title in RtagsSymbolInfoCommand.FILTER_TITLES
 
     def filter_items(self, item):
         return re.match(RtagsSymbolInfoCommand.SYMBOL_INFO_REG, item)
 
-    def _action(self, out):
+    def _action(self, out, **kwargs):
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
         items = list(filter(self.filter_items, items))
+
+        # Consider dropping: `range` and `SymbolLength` as those add no value.
+        if len(items) > 1:
+            # Skip first item as that will not bring in any news.
+            log.debug("Dropping first info as it is the filename and cursor position")
+            del items[0]
 
         def out_to_items(item):
             (title, info) = re.findall(
                 RtagsSymbolInfoCommand.SYMBOL_INFO_REG,
                 item)[0]
-            return [info.strip(), title.strip()]
+            if not self.filter_title(title):
+                return ''
 
-        items = list(map(out_to_items, items))
+            return                                                  \
+                "<div class=\"info\"><span class=\"header\">{}"     \
+                "</span><br /><span class=\"info\">{}</span></div>".format(
+                    html.escape(title.strip(), quote=False),
+                    html.escape(info.strip(), quote=False))
 
-        self.last_references = items
+        info = '\n'.join(list(map(out_to_items, items)))
+        rendered = HTMLTemplate("info_popup").as_html(info)
+        location = -1
+        if 'col' in kwargs:
+            location = self.view.text_point(kwargs['row'], kwargs['col'])
+        self.view.show_popup(
+            rendered,
+            sublime.HIDE_ON_MOUSE_MOVE_AWAY,
+            max_width=self.MAX_POPUP_WIDTH,
+            max_height=self.MAX_POPUP_HEIGHT,
+            location=location)
 
-        self.view.window().show_quick_panel(
-            items,
-            None,
-            sublime.MONOSPACE_FONT,
-            -1,
-            None)
+
+class RtagsHoverInfo(sublime_plugin.EventListener):
+
+    def on_hover(self, view, point, hover_zone):
+        if hover_zone != sublime.HOVER_TEXT:
+            return
+
+        (row, col) = view.rowcol(point)
+        view.run_command(
+            'rtags_symbol_info',
+            {
+                'switches': ['--absolute-path', '--symbol-info'],
+                'col': col,
+                'row': row
+            })
 
 
 class RtagsNavigationListener(sublime_plugin.EventListener):

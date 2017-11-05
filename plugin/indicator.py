@@ -8,6 +8,7 @@ import sublime
 import logging
 
 from random import sample
+from threading import RLock
 
 from . import settings
 
@@ -15,12 +16,14 @@ log = logging.getLogger("RTags")
 
 
 class ProgressIndicator():
-    MSG_LEN = 1
-
     #MSG_CHARS = u'◒◐◓◑'
     MSG_CHARS = u'◤◥◢◣'
     #MSG_CHARS = u'╀┾╁┽'
-    PERIOD = 200
+    PERIOD = 150
+
+    MSG_LEN = 1
+
+    lock = RLock()
 
     def __init__(self):
         self.view = None
@@ -30,26 +33,30 @@ class ProgressIndicator():
         self.status_key = settings.SettingsManager.get('status_key', 'rtags_status_indicator')
 
     def start(self, view):
-        self.active_counter += 1
-        log.debug("Indicator now running for {} processes".format(self.active_counter))
+        with ProgressIndicator.lock:
+            self.active_counter += 1
+            log.debug("Indicator now running for {} processes".format(self.active_counter))
 
-        if self.active_counter > 1:
-            log.debug("Indicator already active")
-            return
+            if self.active_counter > 1:
+                log.debug("Indicator already active")
+                return
 
         log.debug("Starting indicator")
         self.len = ProgressIndicator.MSG_LEN
         self.view = view
-        sublime.set_timeout(lambda self=self: self.run(), 0)
+        sublime.set_timeout_async(lambda self=self: self.run(), 0)
 
-    def stop(self, abort=False):
-        if self.active_counter == 0:
-            log.debug("Indicator not active")
-            return
-
-        self.active_counter -= 1
+    def stop(self, total=False):
         log.debug("Stopping one indication")
-        log.debug("Indicator now running for {} processes".format(self.active_counter))
+        with ProgressIndicator.lock:
+            if self.active_counter == 0:
+                log.debug("Indicator not active")
+                return
+            if total:
+                self.active_counter = 0
+            else:
+                self.active_counter -= 1
+            log.debug("Indicator now running for {} processes".format(self.active_counter))
 
     def run(self):
         if self.active_counter == 0:
@@ -66,5 +73,4 @@ class ProgressIndicator():
         self.step = (self.step + 1) % mod
 
         self.view.set_status(self.status_key, 'RTags {}'.format(''.join(chars)))
-
-        sublime.set_timeout(lambda self=self: self.run(), ProgressIndicator.PERIOD)
+        sublime.set_timeout_async(lambda self=self: self.run(), ProgressIndicator.PERIOD)

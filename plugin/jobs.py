@@ -60,17 +60,21 @@ class JobError:
 
 class RTagsJob():
 
-    def __init__(self, job_id, command_info, data=b'', communicate=None, view=None, nodebug=False):
+    def __init__(self, job_id, command_info, **kwargs):
         self.job_id = job_id
         self.command_info = command_info
-        self.data = data
+        self.data = b''
+        if 'data' in kwargs:
+            self.data = kwargs['data']
         self.p = None
-        self.view = view
-        if communicate:
-            self.callback = communicate
+        if 'view' in kwargs:
+            self.view = kwargs['view']
+        if 'communicate' in kwargs:
+            self.callback = kwargs['communicate']
         else:
             self.callback = self.communicate
-        self.nodebug = nodebug
+        self.nodebug = 'nodebug' in kwargs
+        self.kwargs = kwargs
 
     def prepare_command(self):
         return [settings.SettingsManager.get('rc_path')] + self.command_info
@@ -136,6 +140,7 @@ class RTagsJob():
     def run(self):
         return self.run_process()
 
+
 class CompletionJob(RTagsJob):
 
     def __init__(self, completion_job_id, filename, text, size, row, col, view):
@@ -154,7 +159,7 @@ class CompletionJob(RTagsJob):
         # Make this query block until getting answered.
         command_info.append('--synchronous-completions')
 
-        RTagsJob.__init__(self, completion_job_id, command_info, text, None, view)
+        RTagsJob.__init__(self, completion_job_id, command_info, **{'data': text, 'view': view})
 
     def run(self):
         (job_id, out, error)  = self.run_process(60)
@@ -189,7 +194,7 @@ class ReindexJob(RTagsJob):
         if len(text):
             command_info += [ "--unsaved-file", "{}:{}".format(filename,len(text)) ]
 
-        RTagsJob.__init__(self, job_id, command_info, text, None, view)
+        RTagsJob.__init__(self, job_id, command_info, **{'data': text, 'view': view})
 
     def run(self):
         return self.run_process(300)
@@ -198,7 +203,7 @@ class ReindexJob(RTagsJob):
 class MonitorJob(RTagsJob):
 
     def __init__(self, job_id):
-        RTagsJob.__init__(self, job_id, ['-m'], b'', self.communicate)
+        RTagsJob.__init__(self, job_id, ['-m'], **{'communicate': self.communicate})
 
     def run(self):
         return self.run_process()
@@ -308,7 +313,7 @@ class JobController():
             if callback:
                 future.add_done_callback(callback)
             future.add_done_callback(
-                partial(JobController.done, job_id=job.job_id, indicator=indicator))
+                partial(JobController.done, job=job, indicator=indicator))
 
             JobController.thread_map[job.job_id] = (future, job)
 
@@ -356,14 +361,8 @@ class JobController():
         if future.cancelled():
             log.debug("Cancelled job {}".format(job_id))
 
-    def done(future, job_id, indicator):
-        log.debug("Job {} done".format(job_id))
-
-        job = None
-
-        with JobController.lock:
-            if job_id in JobController.thread_map.keys():
-                (_, job) = JobController.thread_map[job_id]
+    def done(future, job, indicator):
+        log.debug("Job {} done".format(job.job_id))
 
         if not future.done():
             log.debug("Job wasn't really done")
@@ -371,12 +370,12 @@ class JobController():
         if future.cancelled():
             log.debug("Job was cancelled")
 
-        if indicator:
+        if indicator and job.view:
             indicator.stop()
 
         with JobController.lock:
-            del JobController.thread_map[job_id]
-            log.debug("Removed bookkeeping for job {}".format(job_id))
+            del JobController.thread_map[job.job_id]
+            log.debug("Removed bookkeeping for job {}".format(job.job_id))
 
     def job(job_id):
         job = None
