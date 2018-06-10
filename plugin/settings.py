@@ -10,7 +10,7 @@ class SettingsManager():
     settings = None
 
     def update():
-        SettingsManager.settings = sublime.load_settings('RtagsComplete.sublime-settings')
+        SettingsManager.settings = sublime.load_settings('RTagsComplete.sublime-settings')
 
     def get(key, default=None):
         if not SettingsManager.settings:
