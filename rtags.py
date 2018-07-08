@@ -300,6 +300,12 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         fixits_controller.clear(view)
         idle_controller.trigger(view)
 
+#    def on_selection_modified(self, view):
+#        (row, col) = self.cursor_pos(view)
+#        region = fixits_controller.cursor_region(view, row, col)
+#        if region:
+#            fixits_controller.show_fixit(view, region)
+
     def on_post_save(self, view):
         log.debug("Post save triggered")
         # Do nothing if not called from supported code.
@@ -509,6 +515,23 @@ def update_settings():
         ch.setFormatter(formatter_default)
         ch.setLevel(logging.INFO)
 
+    # Initialize settings with their defaults.
+    settings.SettingsManager.get('rc_timeout', 0.5)
+    settings.SettingsManager.get('rc_path', "/usr/local/bin/rc")
+    settings.SettingsManager.get('fixits', False)
+    settings.SettingsManager.get('auto_reindex', False)
+    settings.SettingsManager.get('auto_reindex_threshold', 30)
+
+    settings.SettingsManager.add_on_change('rc_timeout')
+    settings.SettingsManager.add_on_change('rc_path')
+    settings.SettingsManager.add_on_change('auto_complete')
+
+    # TODO(tillt): Allow "fixits" setting to get live-updated.
+    #settings.add_on_change('fixits', update_settings)
+
+    # TODO(tillt): Allow "verbose_log" settings to get live-updated.
+    #settings.add_on_change('verbose_log', update_settings)
+
     log.info("Settings updated")
 
 
@@ -518,24 +541,12 @@ def init():
     globals()['navigation_helper'] = NavigationHelper()
     globals()['progress_indicator'] = indicator.ProgressIndicator()
     globals()['fixits_controller'] = fixits.Controller(
-        settings.SettingsManager.get('fixits', False),
+        settings.SettingsManager.get('fixits'),
         progress_indicator)
     globals()['idle_controller'] = idle.Controller(
-        settings.SettingsManager.get('auto_reindex', False),
-        settings.SettingsManager.get('auto_reindex_threshold', 30),
+        settings.SettingsManager.get('auto_reindex'),
+        settings.SettingsManager.get('auto_reindex_threshold'),
         partial(fixits.Controller.reindex, self=fixits_controller, saved=False))
-
-    settings.SettingsManager.add_on_change('rc_path')
-    settings.SettingsManager.add_on_change('rc_timeout')
-    settings.SettingsManager.add_on_change('auto_complete')
-    settings.SettingsManager.add_on_change('verbose_log')
-
-    # TODO(tillt): Allow "fixits" setting to get live-updated.
-    #settings.add_on_change('fixits', update_settings)
-
-    # TODO(tillt): Allow "verbose_log" settings to get live-updated.
-    #settings.add_on_change('verbose_log', update_settings)
-
 
 def plugin_loaded():
     tools.Reloader.reload_all()

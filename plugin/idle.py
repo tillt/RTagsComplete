@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""RTagsComplete plugin for Sublime Text 3.
+"""Idle Controller.
 
 Manages idle timeout tasks.
 

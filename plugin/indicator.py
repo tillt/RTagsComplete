@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""Activity Indicator.
+"""Progress Indicator.
 
 """
 

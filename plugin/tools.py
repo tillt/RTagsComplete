@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+
+"""Tools.
+
+Various helpers.
+
+"""
+
 from os import path
 
 import logging
