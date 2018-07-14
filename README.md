@@ -199,11 +199,14 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
   /* Supported source file types */
   "file_types": ["source.c", "source.c++", "source.c++.11"],
 
-  /* Statusbar progress indicator key - sorting is done alphabetically */
+  /* Statusbar status key - sorting is done alphabetically */
   "status_key": "000000_rtags_status",
 
   /* Statusbar results key - sorting is done alphabetically */
   "results_key": "000001_rtags_status",
+
+  /* Statusbar progress indicator key - sorting is done alphabetically */
+  "progress_key": "000002_rtags_status",
 
   /* Enable auto-completion */
   "auto_complete": true,

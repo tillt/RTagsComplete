@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-"""RTagsComplete plugin for Sublime Text 3.
+"""Jobs.
 
 Jobs are scheduled process runs.
 

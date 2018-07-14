@@ -1,38 +1,45 @@
-<body id="rtags_info_popup">
+<body id="rtags_popup_info">
     <style>
-        div.info {
-            padding: 0.4rem 0 0.4rem 0.4rem;
-            margin: 0.2rem 0;
-            border-radius: 2px;
-        }
+    body {
+        border: 2px solid color(var(--foreground) alpha(0.2));
+        padding: 0 0 0 0;
+        margin: 0 0;
+        border-radius: 8px 8px 8px 8px;
+    }
 
-        div.info span.header {
-            padding-right: 0.7rem;
-            font-weight: bold;
-            font-size: 0.8rem;
-            color: #999999;
-        }
+    body div.info {
+        padding: 0.0rem 0.0rem 0.0rem 0.0rem;
+        margin: 1.0rem 1.0rem;
+        font-family: HelveticaNeue,Helvetica,Arial,sans-serif;
+    }
 
-        div.info span.info {
-            padding-right: 0.7rem;
-            font-weight: normal;
-            color: #EEEEEE;
-        }
+    span.header {
+        padding-right: 0.7rem;
+        font-weight: bold;
+        font-size: 0.8rem;
+        color: color(var(--foreground) alpha(0.66));
+    }
 
-        div.info a {
-            text-decoration: inherit;
-            padding: 0.35rem 0.7rem 0.45rem 0.8rem;
-            position: relative;
-            bottom: 0.05rem;
-            border-radius: 0 2px 2px 0;
-            font-weight: bold;
-        }
-        html.dark div.info a {
-            color: #CCCCCC;
-        }
-        html.light div.info a {
-            color: #222222;
-        }
+    span.info {
+        padding-right: 0.7rem;
+        font-weight: normal;
+        color: color(var(--foreground));
+    }
+
+    div.info a {
+        text-decoration: inherit;
+        padding: 0.35rem 0.7rem 0.45rem 0.8rem;
+        position: relative;
+        bottom: 0.05rem;
+        border-radius: 0 2px 2px 0;
+        font-weight: bold;
+    }
+    html.dark div.info a {
+        color: #CCCCCC;
+    }
+    html.light div.info a {
+        color: #222222;
+    }
     </style>
     []
 </body>

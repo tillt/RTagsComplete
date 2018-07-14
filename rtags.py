@@ -101,11 +101,11 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         log.debug("Command done callback hit {}".format(future))
 
         if not future.done():
-            log.warning("Command failed")
+            log.warning("Command future failed")
             return
 
         if future.cancelled():
-            log.warning(("Command aborted"))
+            log.warning(("Command future aborted"))
             return
 
         (job_id, out, error) = future.result()
@@ -117,12 +117,8 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         fixits_controller.signal_status(view=self.view, error=error)
 
         if error:
-            log.error("Commend resulted in failure: {}".format(error.message))
-
+            log.error("Command task failed: {}".format(error.message))
             rendered = HTMLTemplate("error_popup").as_html(error.message)
-
-            log.error("Commend resulted in failure: {}".format(rendered))
-
             self.view.show_popup(
                 rendered,
                 sublime.HIDE_ON_MOUSE_MOVE_AWAY,
@@ -335,6 +331,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                     html.escape(info.strip(), quote=False))
 
         info = '\n'.join(list(map(out_to_items, items)))
+
         rendered = HTMLTemplate("info_popup").as_html(info)
         location = -1
         if 'col' in kwargs:
@@ -647,5 +644,6 @@ def plugin_loaded():
 def plugin_unloaded():
     # Stop progress indicator, clear any regions, status and phantoms.
     fixits_controller.unload()
+
     # Stop `rc -m` thread.
     jobs.JobController.stop_all()

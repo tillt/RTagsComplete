@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
-"""Settings Manager.
+"""Settings.
+
+Settings manager.
 
 """
 
