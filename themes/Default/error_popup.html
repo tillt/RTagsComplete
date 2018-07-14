@@ -1,33 +1,37 @@
 <body id="rtags_error_popup">
-    <style>
-        div.error {
-            padding: 0.4rem 0 0.4rem 0.4rem;
-            margin: 0.2rem 0;
-            border-radius: 2px;
-        }
+<style>
+    body {
+        border: 2px solid #333333;
+        padding: 0 0 0 0;
+        margin: 0 0;
+        background: #101010;
+    }
 
-        div.error span.message {
-            padding-right: 0.7rem;
-            font-weight: bold;
-            color: #EEEEEE;
-            font-size: 1.0rem;
-            font-family: HelveticaNeue-Light,Helvetica,Arial,sans-serif;
-        }
+    body div.error {
+        padding: 1.0rem 1.0rem 1.0rem 1.0rem;
+    }
 
-        div.error a {
-            text-decoration: inherit;
-            padding: 0.35rem 0.7rem 0.45rem 0.8rem;
-            position: relative;
-            bottom: 0.05rem;
-            border-radius: 0 2px 2px 0;
-            font-weight: bold;
-        }
-        html.dark div.error a {
-            color: #CCCCCC;
-        }
-        html.light div.error a {
-            color: #222222;
-        }
-    </style>
-    <div class='error'><span class='message'>❌ []<span></div>
+    div.error span.message {
+        font-weight: bold;
+        color: #EEEEEE;
+        font-size: 1.0rem;
+        font-family: HelveticaNeue-Light,Helvetica,Arial,sans-serif;
+    }
+
+    div.error a {
+        text-decoration: inherit;
+        padding: 0.35rem 0.7rem 0.45rem 0.8rem;
+        position: relative;
+        bottom: 0.05rem;
+        border-radius: 0 2px 2px 0;
+        font-weight: bold;
+    }
+    html.dark div.error a {
+        color: #CCCCCC;
+    }
+    html.light div.error a {
+        color: #222222;
+    }
+</style>
+    <div class='error'><span class='message'>❌ &nbsp; &nbsp; []</span></div>
 </body>
