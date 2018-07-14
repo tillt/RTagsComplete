@@ -335,6 +335,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                     html.escape(info.strip(), quote=False))
 
         info = '\n'.join(list(map(out_to_items, items)))
+
         rendered = HTMLTemplate("info_popup").as_html(info)
         location = -1
         if 'col' in kwargs:
