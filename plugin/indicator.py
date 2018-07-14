@@ -30,16 +30,25 @@ class ProgressIndicator():
         self.step = 0
         self.len = 1
         self.active_counter = 0
+        self.stop_counter = 0
         self.status_key = settings.SettingsManager.get('progress_key')
+
+    def clear(self, view=None):
+        if not self.view:
+            return
+
+        if not view:
+            view = self.view
+
+        view.erase_status(self.status_key)
 
     def start(self, view):
         with ProgressIndicator.lock:
-            self.active_counter += 1
-            log.debug("Indicator now running for {} processes".format(self.active_counter))
-
-            if self.active_counter > 1:
+            if self.active_counter > 0:
                 log.debug("Indicator already active")
                 return
+            self.active_counter += 1
+            log.debug("Indicator now running for {} processes".format(self.active_counter))
 
         log.debug("Starting indicator")
         self.len = ProgressIndicator.MSG_LEN
@@ -52,17 +61,24 @@ class ProgressIndicator():
             if self.active_counter == 0:
                 log.debug("Indicator not active")
                 return
+
             if total:
-                self.active_counter = 0
+                self.stop_counter = self.active_counter
             else:
-                self.active_counter -= 1
+                self.stop_counter += 1
+
             log.debug("Indicator now running for {} processes".format(self.active_counter))
 
     def run(self):
-        if self.active_counter == 0:
-            if self.view:
-                self.view.erase_status(self.status_key)
-            return
+        with ProgressIndicator.lock:
+            if self.stop_counter > 0:
+                self.stop_counter -= 1
+                self.active_counter -= 1
+
+            if self.active_counter == 0:
+                self.clear()
+                log.debug("Indicator stopped")
+                return
 
         mod = len(ProgressIndicator.MSG_CHARS)
 
