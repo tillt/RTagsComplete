@@ -118,12 +118,16 @@ class Controller():
     def category_key(self, category):
         return "rtags-{}-mark".format(category)
 
-    def clear_regions(self):
+    def clear_regions(self, view=None):
         if not self.view:
             return
+
+        if not view:
+            view = self.view
+
         log.debug("Clearing regions from view")
         for key in self.regions.keys():
-            self.view.erase_regions(self.category_key(key));
+            view.erase_regions(self.category_key(key));
 
     def show_regions(self):
         scope_names = {'error': 'region.redish', 'warning': 'region.yellowish'}
@@ -135,9 +139,13 @@ class Controller():
                 "",
                 Controller.CATEGORY_FLAGS[category])
 
-    def clear_phantoms(self):
+    def clear_phantoms(self, view=None):
         if not self.view:
             return
+
+        if not view:
+            view = self.view
+
         log.debug("Clearing phantoms from view")
         self.view.erase_phantoms(Controller.PHANTOMS_TAG)
 
@@ -179,12 +187,15 @@ class Controller():
             'error': list(map(issue_to_region, issues['error']))
         }
 
-    def clear_results(self):
+    def clear_results(self, view=None):
         if not self.view:
             return
 
-        log.debug("Clearing results from view {}".format(self.view))
-        self.view.erase_status(self.results_key)
+        if not view:
+            view=self.view
+
+        log.debug("Clearing results from view {}".format(view))
+        view.erase_status(self.results_key)
 
     def update_results(self, issues):
         results = []
@@ -203,7 +214,14 @@ class Controller():
 
     # TODO(tillt): This has little to do with fixits and more to do with
     # general RTags client failures. Move this somewhere else.
-    def clear_status(self, view):
+    def clear_status(self, view=None):
+        if not self.view:
+            return
+
+        if not view:
+            view=self.view
+
+        log.debug("Clearing status from view {}".format(view))
         view.erase_status(self.status_key)
 
     # TODO(tillt): This has little to do with fixits and more to do with
@@ -220,21 +238,20 @@ class Controller():
         if not self.view:
             return
 
-        # Skip of we wanted to clear a specific view but never drew onto it.
-        #if view and (view != self.view):
-        #    return
+        if not view:
+            view=self.view
 
-        self.clear_status()
-        self.clear_results()
-        self.clear_regions()
-        self.clear_phantoms()
+        self.clear_status(view)
+        self.clear_results(view)
+        self.clear_regions(view)
+        self.clear_phantoms(view)
         self.regions = {}
         self.issues = None
 
     def unload(self):
         self.indicator.stop()
         self.watchdog.stop()
-        self.clear()
+        self.clear(self.view)
 
     def update(self, filename, issues):
         log.debug("Got indexing results for {}".format(filename))
@@ -280,7 +297,7 @@ class Controller():
     def reindex(self, view, saved):
         log.debug("Reindex hit {} {} {}".format(self, view, saved))
 
-        self.clear()
+        self.clear(view)
 
         if not self.supported:
             log.debug("Fixits are disabled")
