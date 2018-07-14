@@ -30,7 +30,7 @@ class ProgressIndicator():
         self.step = 0
         self.len = 1
         self.active_counter = 0
-        self.status_key = settings.SettingsManager.get('status_key', 'rtags_status_indicator')
+        self.status_key = settings.SettingsManager.get('progress_key')
 
     def start(self, view):
         with ProgressIndicator.lock:
@@ -72,5 +72,5 @@ class ProgressIndicator():
 
         self.step = (self.step + 1) % mod
 
-        self.view.set_status(self.status_key, 'RTags {}'.format(''.join(chars)))
+        self.view.set_status(self.status_key, '{}'.format(''.join(chars)))
         sublime.set_timeout_async(lambda self=self: self.run(), ProgressIndicator.PERIOD)

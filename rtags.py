@@ -114,8 +114,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if 'col' in kwargs:
             location = self.view.text_point(kwargs['row'], kwargs['col'])
 
+        fixits_controller.signal_status(view=self.view, error=error)
+
         if error:
-            fixits_controller.signal_failure(view=self.view)
             self.view.show_popup(
                 "<nbsp/>{}<nbsp/>".format(error.message),
                 sublime.HIDE_ON_MOUSE_MOVE_AWAY,
@@ -463,8 +464,9 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         (completion_job_id, suggestions, error, view) = future.result()
 
+        fixits_controller.signal_status(view=self.view, error=error)
+
         if error:
-            fixits_controller.signal_failure(view=self.view)
             log.debug("Completion job {} failed: {}".format(completion_job_id, error.message))
             return
 
@@ -595,9 +597,17 @@ def update_settings():
     settings.SettingsManager.get('auto_reindex', False)
     settings.SettingsManager.get('auto_reindex_threshold', 30)
 
+    settings.SettingsManager.get('results_key', 'rtags_result_indicator')
+    settings.SettingsManager.get('status_key', 'rtags_status_indicator')
+    settings.SettingsManager.get('progress_key', 'rtags_progress_indicator')
+
     settings.SettingsManager.add_on_change('rc_timeout')
     settings.SettingsManager.add_on_change('rc_path')
     settings.SettingsManager.add_on_change('auto_complete')
+
+    settings.SettingsManager.add_on_change('results_key')
+    settings.SettingsManager.add_on_change('status_key')
+    settings.SettingsManager.add_on_change('progress_key')
 
     # TODO(tillt): Allow "fixits" setting to get live-updated.
     #settings.add_on_change('fixits', update_settings)

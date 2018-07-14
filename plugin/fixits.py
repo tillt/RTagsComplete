@@ -43,7 +43,8 @@ class Controller():
         self.expecting = False
         self.filename = None
         self.view = None
-        self.results_key = settings.SettingsManager.get('results_key', 'rtags_result_indicator')
+        self.results_key = settings.SettingsManager.get('results_key')
+        self.status_key = settings.SettingsManager.get('status_key')
         self.templates = {}
         self.navigation_items = None
         self.indicator = indicator
@@ -198,13 +199,22 @@ class Controller():
         if len(results) == 0:
             results.append("✅")
 
-        self.view.set_status(self.results_key, "RTags {}".format(" ".join(results)))
+        self.view.set_status(self.results_key, "Diagnose {}".format(" ".join(results)))
 
     # TODO(tillt): This has little to do with fixits and more to do with
     # general RTags client failures. Move this somewhere else.
-    def signal_failure(self, view):
+    def clear_status(self, view):
+        view.erase_status(self.status_key)
+
+    # TODO(tillt): This has little to do with fixits and more to do with
+    # general RTags client failures. Move this somewhere else.
+    def signal_status(self, view, error=None):
+        log.debug("signalling status with error={}".format(error))
         # We can not rely on a possibly outdated "self.view".
-        view.set_status(self.results_key, "RTags ❌")
+        if error:
+            view.set_status(self.status_key, "RTags ❌")
+        else:
+            self.clear_status(view)
 
     def clear(self, view=None):
         if not self.view:
@@ -214,6 +224,7 @@ class Controller():
         #if view and (view != self.view):
         #    return
 
+        self.clear_status()
         self.clear_results()
         self.clear_regions()
         self.clear_phantoms()
@@ -251,8 +262,7 @@ class Controller():
 
         self.indicator.stop()
 
-        if error:
-            self.signal_failure(self.view)
+        self.signal_status(self.view, error)
 
         if not complete:
             log.debug("Indexing not completed")
