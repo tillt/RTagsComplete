@@ -117,9 +117,17 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         fixits_controller.signal_status(view=self.view, error=error)
 
         if error:
+            log.error("Commend resulted in failure: {}".format(error.message))
+
+            rendered = HTMLTemplate("error_popup").as_html(error.message)
+
+            log.error("Commend resulted in failure: {}".format(rendered))
+
             self.view.show_popup(
-                "<nbsp/>{}<nbsp/>".format(error.message),
+                rendered,
                 sublime.HIDE_ON_MOUSE_MOVE_AWAY,
+                max_width=self.MAX_POPUP_WIDTH,
+                max_height=self.MAX_POPUP_HEIGHT,
                 location=location)
             return
 
