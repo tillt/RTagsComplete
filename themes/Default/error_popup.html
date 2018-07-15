@@ -1,5 +1,5 @@
-<body id="rtags_popup_info">
-    <style>
+<body id="rtags_popup_error">
+<style>
     body {
         border: 2px solid color(var(--foreground) alpha(0.2));
         padding: 0 0 0 0;
@@ -7,26 +7,18 @@
         border-radius: 8px 8px 8px 8px;
     }
 
-    body div.info {
-        padding: 0.0rem 0.0rem 0.0rem 0.0rem;
-        margin: 1.0rem 1.0rem;
+    body div.error {
+        padding: 1.0rem 1.0rem 1.0rem 1.0rem;
         font-family: HelveticaNeue,Helvetica,Arial,sans-serif;
     }
 
-    span.header {
-        padding-right: 0.7rem;
-        font-weight: bold;
-        font-size: 0.8rem;
-        color: color(var(--foreground) alpha(0.66));
-    }
-
-    span.info {
-        padding-right: 0.7rem;
+    div.error span.message {
         font-weight: normal;
-        color: color(var(--foreground));
+        color: color(var(--foreground) alpha(1.0));
+        font-size: 1.0rem;
     }
 
-    div.info a {
+    div.error a {
         text-decoration: inherit;
         padding: 0.35rem 0.7rem 0.45rem 0.8rem;
         position: relative;
@@ -34,12 +26,12 @@
         border-radius: 0 2px 2px 0;
         font-weight: bold;
     }
-    html.dark div.info a {
+    html.dark div.error a {
         color: #CCCCCC;
     }
-    html.light div.info a {
+    html.light div.error a {
         color: #222222;
     }
-    </style>
-    []
+</style>
+    <div class='error'><span class='message'>❌ &nbsp; &nbsp; []</span></div>
 </body>

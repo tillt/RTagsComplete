@@ -1,7 +1,14 @@
+# -*- coding: utf-8 -*-
+
+"""Completion.
+
+Completion descision logic.
+
+"""
+
 import logging
 
 from . import settings
-
 
 log = logging.getLogger("RTags")
 
