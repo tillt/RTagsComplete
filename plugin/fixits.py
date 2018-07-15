@@ -3,6 +3,7 @@
 """Fixits handling.
 
 Indexing result evaluation, the frontend for the monitor process.
+
 """
 
 import sublime
@@ -119,11 +120,10 @@ class Controller():
         return "rtags-{}-mark".format(category)
 
     def clear_regions(self, view=None):
-        if not self.view:
-            return
-
         if not view:
-            view = self.view
+            if not self.view:
+                return
+            view=self.view
 
         log.debug("Clearing regions from view")
         for key in self.regions.keys():
@@ -140,11 +140,10 @@ class Controller():
                 Controller.CATEGORY_FLAGS[category])
 
     def clear_phantoms(self, view=None):
-        if not self.view:
-            return
-
         if not view:
-            view = self.view
+            if not self.view:
+                return
+            view=self.view
 
         log.debug("Clearing phantoms from view")
         self.view.erase_phantoms(Controller.PHANTOMS_TAG)
@@ -188,10 +187,9 @@ class Controller():
         }
 
     def clear_results(self, view=None):
-        if not self.view:
-            return
-
         if not view:
+            if not self.view:
+                return
             view=self.view
 
         log.debug("Clearing results from view {}".format(view))
@@ -215,19 +213,18 @@ class Controller():
     # TODO(tillt): This has little to do with fixits and more to do with
     # general RTags client failures. Move this somewhere else.
     def clear_status(self, view=None):
-        if not self.view:
-            return
-
         if not view:
+            if not self.view:
+                return
             view=self.view
-
         log.debug("Clearing status from view {}".format(view))
         view.erase_status(self.status_key)
 
     # TODO(tillt): This has little to do with fixits and more to do with
     # general RTags client failures. Move this somewhere else.
     def signal_status(self, view, error=None):
-        log.debug("signalling status with error={}".format(error))
+        log.debug("Signalling status with error={}".format(error))
+
         # We can not rely on a possibly outdated "self.view".
         if error:
             view.set_status(self.status_key, "RTags ❌")
@@ -235,10 +232,9 @@ class Controller():
             self.clear_status(view)
 
     def clear(self, view=None):
-        if not self.view:
-            return
-
         if not view:
+            if not self.view:
+                return
             view=self.view
 
         self.clear_status(view)
@@ -249,7 +245,6 @@ class Controller():
         self.issues = None
 
     def unload(self):
-        self.indicator.stop()
         self.watchdog.stop()
         self.clear(self.view)
 

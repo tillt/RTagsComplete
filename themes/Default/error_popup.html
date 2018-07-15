@@ -1,21 +1,21 @@
-<body id="rtags_error_popup">
+<body id="rtags_popup_error">
 <style>
     body {
-        border: 2px solid #333333;
+        border: 2px solid color(var(--foreground) alpha(0.2));
         padding: 0 0 0 0;
         margin: 0 0;
-        background: #101010;
+        border-radius: 8px 8px 8px 8px;
     }
 
     body div.error {
         padding: 1.0rem 1.0rem 1.0rem 1.0rem;
+        font-family: HelveticaNeue,Helvetica,Arial,sans-serif;
     }
 
     div.error span.message {
-        font-weight: bold;
-        color: #EEEEEE;
+        font-weight: normal;
+        color: color(var(--foreground) alpha(1.0));
         font-size: 1.0rem;
-        font-family: HelveticaNeue-Light,Helvetica,Arial,sans-serif;
     }
 
     div.error a {

@@ -18,6 +18,7 @@ import html
 import re
 import sublime
 import sublime_plugin
+import json
 
 from datetime import datetime
 from os import path
@@ -101,11 +102,11 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         log.debug("Command done callback hit {}".format(future))
 
         if not future.done():
-            log.warning("Command failed")
+            log.warning("Command future failed")
             return
 
         if future.cancelled():
-            log.warning(("Command aborted"))
+            log.warning(("Command future aborted"))
             return
 
         (job_id, out, error) = future.result()
@@ -117,12 +118,8 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         fixits_controller.signal_status(view=self.view, error=error)
 
         if error:
-            log.error("Commend resulted in failure: {}".format(error.message))
-
+            log.error("Command task failed: {}".format(error.message))
             rendered = HTMLTemplate("error_popup").as_html(error.message)
-
-            log.error("Commend resulted in failure: {}".format(rendered))
-
             self.view.show_popup(
                 rendered,
                 sublime.HIDE_ON_MOUSE_MOVE_AWAY,
@@ -297,44 +294,82 @@ class HTMLTemplate:
 
 
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
-    SYMBOL_INFO_REG = r'(\S+):\s*(.+)'
     MAX_POPUP_WIDTH = 1800
     MAX_POPUP_HEIGHT = 900
 
     FILTER_TITLES=[
-        'SymbolLength',
-        'Range']
+        'arguments',
+        'cf',
+        'cfl',
+        'cflcontext',
+        'context',
+        'endLine',
+        'endColumn',
+        'functionArgumentCursor',
+        'functionArgumentLength',
+        'functionArgumentLocation',
+        'functionArgumentLocationContext',
+        'invocation',
+        'invocationContext',
+        'invokedFunction',
+        'location',
+        'range',
+        'startLine',
+        'startColumn',
+        'symbolLength',
+        'usr'
+    ]
 
-    def filter_title(self, title):
-        return not title in RtagsSymbolInfoCommand.FILTER_TITLES
+    MAP_TITLES={
+        'argumentIndex':    'argument index',
+        'briefcomment':     'brief comment',
+        'symbolName':       'name'
+    }
 
-    def filter_items(self, item):
-        return re.match(RtagsSymbolInfoCommand.SYMBOL_INFO_REG, item)
+    POSITION_TITLES={
+        'symbolName':   '0',
+        'type':         '1',
+        'kind':         '2',
+        'sizeof':       '3'
+    }
 
     def _action(self, out, **kwargs):
-        items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
-        items = list(filter(self.filter_items, items))
+        output_json = json.loads(out.decode("utf-8"))
 
-        # Consider dropping: `range` and `SymbolLength` as those add no value.
-        if len(items) > 1:
-            # Skip first item as that will not bring in any news.
-            log.debug("Dropping first info as it is the filename and cursor position")
-            del items[0]
+        priority_lane = {}
+        alphabetic_keys = []
+        for key in output_json.keys():
+            if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
+                priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
+            else:
+                alphabetic_keys.append(key)
 
-        def out_to_items(item):
-            (title, info) = re.findall(
-                RtagsSymbolInfoCommand.SYMBOL_INFO_REG,
-                item)[0]
-            if not self.filter_title(title):
-                return ''
+        priorized_keys = []
+        for index in sorted(priority_lane.keys()):
+            priorized_keys.append(priority_lane[index])
 
-            return                                                  \
+        def filter_items(item):
+            return not item in RtagsSymbolInfoCommand.FILTER_TITLES
+
+        alphabetic_keys = sorted(filter(filter_items, alphabetic_keys))
+
+        sorted_keys = []
+        sorted_keys.extend(priorized_keys)
+        sorted_keys.extend(alphabetic_keys)
+
+        displayed_html_items = []
+        for key in sorted_keys:
+            title = key
+            info = str(output_json[key])
+            if key in RtagsSymbolInfoCommand.MAP_TITLES:
+                title = RtagsSymbolInfoCommand.MAP_TITLES[key]
+            displayed_html_items.append(
                 "<div class=\"info\"><span class=\"header\">{}"     \
                 "</span><br /><span class=\"info\">{}</span></div>".format(
                     html.escape(title.strip(), quote=False),
-                    html.escape(info.strip(), quote=False))
+                    html.escape(info.strip(), quote=False)))
 
-        info = '\n'.join(list(map(out_to_items, items)))
+        info = '\n'.join(displayed_html_items)
 
         rendered = HTMLTemplate("info_popup").as_html(info)
         location = -1
@@ -358,7 +393,11 @@ class RtagsHoverInfo(sublime_plugin.EventListener):
         view.run_command(
             'rtags_symbol_info',
             {
-                'switches': ['--absolute-path', '--symbol-info'],
+                'switches': [
+                    '--absolute-path',
+                    '--json',
+                    '--symbol-info'
+                ],
                 'col': col,
                 'row': row
             })
@@ -648,5 +687,6 @@ def plugin_loaded():
 def plugin_unloaded():
     # Stop progress indicator, clear any regions, status and phantoms.
     fixits_controller.unload()
+
     # Stop `rc -m` thread.
     jobs.JobController.stop_all()

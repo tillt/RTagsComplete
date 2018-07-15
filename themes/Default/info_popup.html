@@ -1,28 +1,29 @@
-<body id="rtags_info_popup">
+<body id="rtags_popup_info">
     <style>
     body {
-        border: 2px solid #333333;
+        border: 2px solid color(var(--foreground) alpha(0.2));
         padding: 0 0 0 0;
         margin: 0 0;
-        background: #101010;
+        border-radius: 8px 8px 8px 8px;
     }
 
     body div.info {
-        padding: 1.0rem 1.0rem 1.0rem 1.0rem;
+        padding: 0.0rem 0.0rem 0.0rem 0.0rem;
+        margin: 1.0rem 1.0rem;
+        font-family: HelveticaNeue,Helvetica,Arial,sans-serif;
     }
 
-    div.info span.header {
+    span.header {
         padding-right: 0.7rem;
         font-weight: bold;
         font-size: 0.8rem;
-        color: #999999;
-        font-family: HelveticaNeue-Light,Helvetica,Arial,sans-serif;
+        color: color(var(--foreground) alpha(0.66));
     }
 
-    div.info span.info {
+    span.info {
         padding-right: 0.7rem;
         font-weight: normal;
-        color: #EEEEEE;
+        color: color(var(--foreground));
     }
 
     div.info a {
