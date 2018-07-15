@@ -129,12 +129,12 @@ It is an unstable plugin. There are a number of limitations which may or may not
 
 - Obtain a _JSON compilation database_ from the build-chain of your project
   - via [Build EAR](https://github.com/rizsotto/Bear)
-  ```
+  ```bash
   $ make clean
   $ bear make -j6
   ```
   - via cmake
-  ```
+  ```bash
   $ cmake -DCMAKE_EXPORT_COMPILE_COMMANDS=1 /path/to/src
   ```
 
@@ -170,13 +170,24 @@ Key bindings were originally inspired by Qt Creator.
 
 Customize your own key bindings via "Preferences - Package Settings - RtagsComplete - Key Bindings - User"
 
-```
+```json
 [
+  /* Find usages */
   {"keys": ["ctrl+shift+u"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-r"]} },
+
+  /* Find virtual function re-implementations */
   {"keys": ["ctrl+shift+x"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-k", "-r"]} },
-  {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--symbol-info"]} },
+
+  /* Symbol information */
+  {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--json", "--symbol-info"]} },
+
+  /* Jump to definition */
   {"keys": ["f2"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-f"]} },
+
+  /* Backwards in history */
   {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
+
+  /* Show errors, warnings and fixits */
   {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" }
 ]
 ```
@@ -185,7 +196,7 @@ Customize your own key bindings via "Preferences - Package Settings - RtagsCompl
 
 Customize settings via "Preferences - Package Settings - RtagsComplete - Settings - User"
 
-```
+```json
 {
   /* Path to rc utility if not found in $PATH */
   "rc_path": "/usr/local/bin/rc",
@@ -230,18 +241,17 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
 
 If you need auto-completion add following to "Preferences - Settings - User"
 
-```
-  "auto_complete_triggers":
-    [
-        {
-            "characters": "<",
-            "selector": "text.html"
-        },
-        {
-            "characters": ".>: ",
-            "selector": "source.c++.11, source.c++, source.c - string - comment - constant.numeric"
-        }
-    ],
+```json
+"auto_complete_triggers":
+[
+  {
+    "characters": "<",
+    "selector": "text.html"
+  },{
+    "characters": ".>: ",
+    "selector": "source.c++.11, source.c++, source.c - string - comment - constant.numeric"
+  }
+]
 ```
 
 # Further reading
