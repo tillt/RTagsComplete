@@ -261,7 +261,7 @@ For a typical setup of a larger codebase built via autotools, check out [Simplif
 # Credits
 
 Original code by Sergei Turukin.
-Hacked with plenty of new features by Till Toenshoff.
+Hacked with plenty of new features by [Till Toenshoff](https://twitter.com/ttoenshoff).
 Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 
 On that thought, I would like to mention that EasyClangComplete is an excellent plugin, far more complex and in many ways superior to RTagsComplete. However, the approach taken by EasyClangComplete is arguably not so great for larger projects. EasyClangComplete aims to make things conveniently easy while RTagsComplete is attempting to offer plenty of features with highest possible performance at scale.
