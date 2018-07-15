@@ -170,24 +170,24 @@ Key bindings were originally inspired by Qt Creator.
 
 Customize your own key bindings via "Preferences - Package Settings - RtagsComplete - Key Bindings - User"
 
-```json
+```python
 [
-  /* Find usages */
+  # Find usages
   {"keys": ["ctrl+shift+u"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-r"]} },
 
-  /* Find virtual function re-implementations */
+  # Find virtual function re-implementations
   {"keys": ["ctrl+shift+x"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-k", "-r"]} },
 
-  /* Symbol information */
+  # Symbol information
   {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--json", "--symbol-info"]} },
 
-  /* Jump to definition */
+  # Jump to definition
   {"keys": ["f2"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-f"]} },
 
-  /* Backwards in history */
+  # Backwards in history
   {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
 
-  /* Show errors, warnings and fixits */
+  # Show errors, warnings and fixits
   {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" }
 ]
 ```
@@ -196,45 +196,45 @@ Customize your own key bindings via "Preferences - Package Settings - RtagsCompl
 
 Customize settings via "Preferences - Package Settings - RtagsComplete - Settings - User"
 
-```json
+```python
 {
-  /* Path to rc utility if not found in $PATH */
+  # Path to rc utility if not found in $PATH
   "rc_path": "/usr/local/bin/rc",
 
-  /* Seconds for rc utility communication timeout default */
+  # Seconds for rc utility communication timeout default
   "rc_timeout": 0.5,
 
-  /* max number of jump steps */
+  # max number of jump steps
   "jump_limit": 10,
 
-  /* Supported source file types */
+  # Supported source file types
   "file_types": ["source.c", "source.c++", "source.c++.11"],
 
-  /* Statusbar status key - sorting is done alphabetically */
+  # Statusbar status key - sorting is done alphabetically
   "status_key": "000000_rtags_status",
 
-  /* Statusbar results key - sorting is done alphabetically */
+  # Statusbar results key - sorting is done alphabetically
   "results_key": "000001_rtags_status",
 
-  /* Statusbar progress indicator key - sorting is done alphabetically */
+  # Statusbar progress indicator key - sorting is done alphabetically
   "progress_key": "000002_rtags_status",
 
-  /* Enable auto-completion */
+  # Enable auto-completion
   "auto_complete": true,
 
-  /* Auto-completion triggers internal to RTagsComplete */
+  # Auto-completion triggers internal to RTagsComplete
   "triggers" : [ ".", "->", "::", " ", "  ", "(", "[" ],
 
-  /* Enable displaying fixits, warnings and errors */
+  # Enable displaying fixits, warnings and errors
   "fixits": true,
 
-  /* Enable enhanced, rather verbose logging for troubleshooting */
+  # Enable enhanced, rather verbose logging for troubleshooting
   "verbose_log": true,
 
-  /* Enable auto-reindex unsaved file */
+  # Enable auto-reindex unsaved file
   "auto_reindex": true,
 
-  /* Seconds of idle-time before auto-reindex is triggered */
+  # Seconds of idle-time before auto-reindex is triggered
   "auto_reindex_threshold": 30
 }
 ```
