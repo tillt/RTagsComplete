@@ -146,7 +146,7 @@ class Controller():
             view=self.view
 
         log.debug("Clearing phantoms from view")
-        self.view.erase_phantoms(Controller.PHANTOMS_TAG)
+        view.erase_phantoms(Controller.PHANTOMS_TAG)
 
     def update_phantoms(self, issues):
         if not self.view:
