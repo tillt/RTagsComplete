@@ -297,6 +297,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     MAX_POPUP_WIDTH = 1800
     MAX_POPUP_HEIGHT = 900
 
+    # Not useful for our users, we hereby decide.
     FILTER_TITLES=[
         'arguments',
         'cf',
@@ -317,20 +318,26 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'startLine',
         'startColumn',
         'symbolLength',
-        'usr'
+        'usr',
+        'xmlComment'
     ]
 
+    # Camelcase doesn't look so nice on interfaces.
     MAP_TITLES={
         'argumentIndex':    'argument index',
-        'briefcomment':     'brief comment',
-        'symbolName':       'name'
+        'briefComment':     'brief comment',
+        'symbolName':       'name',
+        'stackCost':        'size on stack'
     }
 
+    # Prefixed position
     POSITION_TITLES={
         'symbolName':   '0',
-        'type':         '1',
-        'kind':         '2',
-        'sizeof':       '3'
+        'briefComment': '1',
+        'type':         '2',
+        'kind':         '3',
+        'linkage':      '4',
+        'sizeof':       '5'
     }
 
     def _action(self, out, **kwargs):
@@ -339,19 +346,17 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         priority_lane = {}
         alphabetic_keys = []
         for key in output_json.keys():
-            if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
-                priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
-            else:
-                alphabetic_keys.append(key)
+            if not key in RtagsSymbolInfoCommand.FILTER_TITLES:
+                if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
+                    priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
+                else:
+                    alphabetic_keys.append(key)
 
         priorized_keys = []
         for index in sorted(priority_lane.keys()):
             priorized_keys.append(priority_lane[index])
 
-        def filter_items(item):
-            return not item in RtagsSymbolInfoCommand.FILTER_TITLES
-
-        alphabetic_keys = sorted(filter(filter_items, alphabetic_keys))
+        alphabetic_keys = sorted(alphabetic_keys)
 
         sorted_keys = []
         sorted_keys.extend(priorized_keys)

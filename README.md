@@ -57,7 +57,7 @@ This fork is currently not available via PackageControl.
 
 ## Symbol information
 
-![Symbol Info Example](site/images/symbol_info.png)
+![Symbol Info Example](site/images/symbol_info_ng.png)
 
 ## Code completion
 
