@@ -24,8 +24,9 @@ class Category:
     ERROR = "error"
 
 class Controller():
-    THEMES_PATH = "themes/Default"
     PACKAGE_PATH = "Packages/RTagsComplete"
+    THEMES_PATH = "themes"
+    THEME_NAME = "Default"
 
     CATEGORIES = [ Category.WARNING, Category.ERROR ]
 
@@ -35,6 +36,7 @@ class Controller():
     }
 
     PHANTOMS_TAG = "rtags_phantoms"
+
 
     def __init__(self, supported, indicator):
         self.supported = supported
@@ -53,15 +55,14 @@ class Controller():
 
         names = ["phantom"]
 
+        basepath = path.dirname(path.dirname(path.abspath(__file__)))
+
         for category in self.CATEGORIES:
             self.templates[category] = {}
             for name in names:
                 filename = "{}_{}.html".format(category, name)
-                filepath = path.join(
-                    path.dirname(path.dirname(__file__)),
-                    self.THEMES_PATH,
-                    filename)
-
+                filepath = path.join(basepath, self.THEMES_PATH, self.THEME_NAME, filename)
+                log.debug("Reading from {}".format(filepath))
                 with open(filepath, 'rb') as file:
                     self.templates[category][name] = file.read().decode('utf-8')
 
