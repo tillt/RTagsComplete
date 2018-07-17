@@ -534,6 +534,72 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'OverloadCandidate': 'A code completion overload candidate.'
     }
 
+    def display_items(self, item):
+        return "<div class=\"info\"><span class=\"header\">{}</span><br /><span class=\"info\">{}</span></div>".format(
+            html.escape(item[0], quote=False),
+            html.escape(item[1], quote=False))
+
+    def symbol_location_callback(self, future, displayed_items, oldrow, oldcol, oldfile):
+        log.debug("Symbol location callback hit {}".format(future))
+        if not future.done():
+            log.warning("Symbol location failed")
+            return
+        if future.cancelled():
+            log.warning(("Symbol location aborted"))
+            return
+
+        (job_id, out, error) = future.result()
+
+        fixits_controller.signal_status(view=self.view, error=error)
+
+        if error:
+            log.error("Command task failed: {}".format(error.message))
+            return
+
+        log.debug("Finished Command job {}".format(job_id))
+
+        # It should be a single line of output.
+        items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
+        if not items:
+            log.debug("Failed to get a location result for this symbol.")
+            return
+
+        (file, row, col, _) = re.findall(
+            RtagsBaseCommand.FILE_INFO_REG,
+            items[0])[0]
+
+        link = "{}:{}:{}:{}:{}:{}".format(oldfile, oldrow, oldcol, file, row, col)
+
+        log.debug("Symbol location resulted in {}".format(link))
+
+        info = "<div class=\"info\"><span class=\"header\">{}</span><br /><a href=\"{}\">{}</a></div>\n".format(
+            html.escape(displayed_items[0][0], quote=False),
+            html.escape(link, quote=False),
+            html.escape(displayed_items[0][1], quote=False))
+
+        displayed_html_items = list(map(self.display_items, displayed_items[1:]))
+
+        info += '\n'.join(displayed_html_items)
+
+        rendered = HTMLTemplate("info_popup").as_html(info)
+
+        self.view.update_popup(rendered)
+
+    def on_navigate(self, href):
+        (oldfile, oldline, oldcol, file, line, col) = re.findall(
+            r'(\S+):(\d+):(\d+):(\S+):(\d+):(\d+)',
+            href)[0]
+
+        self.last_references = ["{}:{}:{}".format(oldfile, oldline, oldcol)]
+
+        navigation_helper.history.append((oldfile, int(oldline) + 1, int(oldcol) + 1))
+
+        if len(navigation_helper.history) > int(settings.SettingsManager.get('jump_limit', 10)):
+            navigation_helper.history.popleft()
+
+        view = self.view.window().open_file(
+            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+
     def _action(self, out, **kwargs):
         output_json = json.loads(out.decode("utf-8"))
 
@@ -557,7 +623,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         sorted_keys.extend(priorized_keys)
         sorted_keys.extend(alphabetic_keys)
 
-        displayed_html_items = []
+        displayed_items = []
         for key in sorted_keys:
             title = key
             if key in RtagsSymbolInfoCommand.MAP_TITLES:
@@ -568,25 +634,48 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
             else:
                 info = str(output_json[key])
 
-            displayed_html_items.append(
-                "<div class=\"info\"><span class=\"header\">{}"     \
-                "</span><br /><span class=\"info\">{}</span></div>".format(
-                    html.escape(title.strip(), quote=False),
-                    html.escape(info.strip(), quote=False)))
+            displayed_items.append([title.strip(), info.strip()])
+
+        displayed_html_items = list(map(self.display_items, displayed_items))
 
         info = '\n'.join(displayed_html_items)
 
         rendered = HTMLTemplate("info_popup").as_html(info)
+
         location = -1
+        row = 0
+        col = 0
+
         if 'col' in kwargs:
+            row = kwargs['row']
+            col = kwargs['col']
             location = self.view.text_point(kwargs['row'], kwargs['col'])
+
+        file = self.view.file_name()
+
         self.view.show_popup(
             rendered,
             sublime.HIDE_ON_MOUSE_MOVE_AWAY,
             max_width=self.MAX_POPUP_WIDTH,
             max_height=self.MAX_POPUP_HEIGHT,
-            location=location)
+            location=location,
+            on_navigate=self.on_navigate)
 
+        jobs.JobController.run_async(
+            jobs.RTagsJob(
+                "RTFollowSymbolJob" + jobs.JobController.next_id(),
+                [
+                    '--absolute-path',
+                    '-f',
+                    '{}:{}:{}'.format(file, row + 1, col + 1)
+                ]
+            ),
+            callback=partial(
+                self.symbol_location_callback,
+                displayed_items=displayed_items,
+                oldrow=row,
+                oldcol=col,
+                oldfile=file))
 
 class RtagsHoverInfo(sublime_plugin.EventListener):
 
