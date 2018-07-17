@@ -979,10 +979,5 @@ def plugin_loaded():
     tools.Reloader.reload_all()
     sublime.set_timeout(init, 200)
 
-
 def plugin_unloaded():
-    # Stop progress indicator, clear any regions, status and phantoms.
-    fixits_controller.unload()
-
-    # Stop `rc -m` thread.
     jobs.JobController.stop_all()
