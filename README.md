@@ -40,9 +40,11 @@ Make sure you installed RTags:
     mkdir build && cd build && cmake ..
     make install
 
-### Via Package Control (not available yet!)
+### Via Package Control
 
-This fork is currently not available via PackageControl.
+- Install [Package Control](https://sublime.wbond.net/installation)
+- Run “Package Control: Install Package”
+- Install "RTagsComplete"
 
 ### Manually
 
