@@ -24,10 +24,6 @@ class Category:
     ERROR = "error"
 
 class Controller():
-    PACKAGE_PATH = "Packages/RTagsComplete"
-    THEMES_PATH = "themes"
-    THEME_NAME = "Default"
-
     CATEGORIES = [ Category.WARNING, Category.ERROR ]
 
     CATEGORY_FLAGS = {
@@ -48,24 +44,10 @@ class Controller():
         self.view = None
         self.results_key = settings.SettingsManager.get('results_key')
         self.status_key = settings.SettingsManager.get('status_key')
-        self.templates = {}
         self.navigation_items = None
         self.indicator = indicator
         self.watchdog = IndexWatchdog()
 
-        names = ["phantom"]
-
-        for category in self.CATEGORIES:
-            self.templates[category] = {}
-
-            for name in names:
-                filepath = path.join(
-                    self.PACKAGE_PATH,
-                    self.THEMES_PATH,
-                    self.THEME_NAME,
-                    "{}_{}.html".format(category, name))
-
-                self.templates[category][name] = sublime.load_binary_resource(filepath).decode('utf-8')
 
     def as_html(self, template, message):
         padded = template.replace('{', '{{').replace('}', '}}')

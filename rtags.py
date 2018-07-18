@@ -119,7 +119,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         if error:
             log.error("Command task failed: {}".format(error.message))
-            rendered = HTMLTemplate("error_popup").as_html(error.message)
+
+            rendered = settings.SettingsManager.template_as_html("error","popup", error.message)
+
             self.view.show_popup(
                 rendered,
                 sublime.HIDE_ON_MOUSE_MOVE_AWAY,
@@ -272,25 +274,6 @@ class RtagsLocationCommand(RtagsBaseCommand):
             row, col = self.view.rowcol(self.view.sel()[0].a)
         return '{}:{}:{}'.format(self.view.file_name(),
                                  row + 1, col + 1)
-
-
-class HTMLTemplate:
-    THEMES_PATH = "themes/Default"
-    PACKAGE_PATH = "Packages/RTagsComplete"
-
-    def __init__(self, name):
-        self.template = None
-        filepath = path.join(
-                    path.dirname(__file__),
-                    self.THEMES_PATH,
-                    name + ".html")
-        with open(filepath, 'rb') as file:
-            self.template = file.read().decode('utf-8')
-
-    def as_html(self, message):
-        padded = self.template.replace('{', '{{').replace('}', '}}')
-        substituted = padded.replace('[', '{').replace(']', '}')
-        return substituted.format(message)
 
 
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
@@ -583,7 +566,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         info += '\n'.join(displayed_html_items)
 
-        rendered = HTMLTemplate("info_popup").as_html(info)
+        rendered = settings.SettingsManager.template_as_html("info", "popup", info)
 
         self.view.update_popup(rendered)
 
@@ -642,7 +625,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         info = '\n'.join(displayed_html_items)
 
-        rendered = HTMLTemplate("info_popup").as_html(info)
+        rendered = settings.SettingsManager.template_as_html("info","popup", info)
 
         location = -1
         row = 0
@@ -892,7 +875,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         # If we already have a completion for this position, show that.
         if self.completion_job_id == completion_job_id:
-            log.debug("We already got a completion for this position available.")
+            log.debug("We already got a completion for this position available")
             return self.suggestions, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS
 
         # Cancel a completion that might be in flight.
