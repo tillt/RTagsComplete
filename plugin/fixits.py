@@ -55,16 +55,17 @@ class Controller():
 
         names = ["phantom"]
 
-        basepath = path.dirname(path.dirname(path.abspath(__file__)))
-
         for category in self.CATEGORIES:
             self.templates[category] = {}
+
             for name in names:
-                filename = "{}_{}.html".format(category, name)
-                filepath = path.join(basepath, self.THEMES_PATH, self.THEME_NAME, filename)
-                log.debug("Reading from {}".format(filepath))
-                with open(filepath, 'rb') as file:
-                    self.templates[category][name] = file.read().decode('utf-8')
+                filepath = path.join(
+                    self.PACKAGE_PATH,
+                    self.THEMES_PATH,
+                    self.THEME_NAME,
+                    "{}_{}.html".format(category, name))
+
+                self.templates[category][name] = sublime.load_binary_resource(filepath).decode('utf-8')
 
     def as_html(self, template, message):
         padded = template.replace('{', '{{').replace('}', '}}')
