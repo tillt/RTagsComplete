@@ -33,7 +33,7 @@ This is a fork of the original [sublime-rtags](https://github.com/rampage644/sub
 
 # Installation
 
-Make sure you installed RTags:
+Make sure you installed RTags - for all of the latest features, Version 2.5 is the oldest we support:
 
     git clone https://github.com/Andersbakken/rtags
     cd rtags
