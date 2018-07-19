@@ -230,6 +230,9 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
   # Enable displaying fixits, warnings and errors
   "fixits": true,
 
+  # Enable hover symbol info - needs at least RTags V2.5.
+  "hover": true,
+
   # Enable enhanced, rather verbose logging for troubleshooting
   "verbose_log": true,
 

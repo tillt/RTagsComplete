@@ -668,6 +668,9 @@ class RtagsHoverInfo(sublime_plugin.EventListener):
         if hover_zone != sublime.HOVER_TEXT:
             return
 
+        if not settings.SettingsManager.get("hover"):
+            return
+
         (row, col) = view.rowcol(point)
         view.run_command(
             'rtags_symbol_info',
@@ -921,6 +924,7 @@ def update_settings():
     settings.SettingsManager.get('rc_timeout', 0.5)
     settings.SettingsManager.get('rc_path', "/usr/local/bin/rc")
     settings.SettingsManager.get('fixits', False)
+    settings.SettingsManager.get('hover', False)
     settings.SettingsManager.get('auto_reindex', False)
     settings.SettingsManager.get('auto_reindex_threshold', 30)
 
