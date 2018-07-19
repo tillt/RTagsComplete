@@ -33,7 +33,7 @@ This is a fork of the original [sublime-rtags](https://github.com/rampage644/sub
 
 # Installation
 
-Make sure you installed RTags:
+Make sure you installed RTags - for all of the latest features, Version 2.5 is the oldest we support:
 
     git clone https://github.com/Andersbakken/rtags
     cd rtags
@@ -229,6 +229,9 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
 
   # Enable displaying fixits, warnings and errors
   "fixits": true,
+
+  # Enable hover symbol info - needs at least RTags V2.5.
+  "hover": true,
 
   # Enable enhanced, rather verbose logging for troubleshooting
   "verbose_log": true,
