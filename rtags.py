@@ -331,6 +331,12 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'sizeof':       '5'
     }
 
+    KIND_EXTENSION_BOOL_TYPES=[
+        'container',
+        'definition',
+        'reference'
+    ]
+
     # Human readable type descriptions of clang's cursor kind types.
     # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
     MAP_KINDS={
@@ -604,12 +610,17 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         # Naive filtering, translation and sorting.
         priority_lane = {}
         alphabetic_keys = []
+        kind_extension_keys = []
         for key in output_json.keys():
             if not key in RtagsSymbolInfoCommand.FILTER_TITLES:
-                if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
-                    priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
+                if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
+                    # TODO(tillt): We should also check if the value was `True`.
+                    kind_extension_keys.append(key)
                 else:
-                    alphabetic_keys.append(key)
+                    if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
+                        priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
+                    else:
+                        alphabetic_keys.append(key)
 
         priorized_keys = []
         for index in sorted(priority_lane.keys()):
@@ -626,8 +637,10 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
             title = key
             if key in RtagsSymbolInfoCommand.MAP_TITLES:
                 title = RtagsSymbolInfoCommand.MAP_TITLES[key]
-
             if key == "kind" and output_json[key] in RtagsSymbolInfoCommand.MAP_KINDS:
+                extension = ", ".join(kind_extension_keys)
+                if len(extension):
+                    title += "  (" + extension + ")"
                 info = RtagsSymbolInfoCommand.MAP_KINDS[output_json[key]]
             else:
                 info = str(output_json[key])
