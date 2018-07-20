@@ -633,17 +633,20 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         sorted_keys.extend(alphabetic_keys)
 
         displayed_items = []
+
         for key in sorted_keys:
             title = key
+            info = str(output_json[key])
+
             if key in RtagsSymbolInfoCommand.MAP_TITLES:
                 title = RtagsSymbolInfoCommand.MAP_TITLES[key]
-            if key == "kind" and output_json[key] in RtagsSymbolInfoCommand.MAP_KINDS:
-                extension = ", ".join(kind_extension_keys)
-                if len(extension):
-                    title += "  (" + extension + ")"
+
+            if key == "kind":
+                if len(kind_extension_keys):
+                    title += "  (" + ", ".join(kind_extension_keys) + ")"
+
+            if output_json[key] in RtagsSymbolInfoCommand.MAP_KINDS:
                 info = RtagsSymbolInfoCommand.MAP_KINDS[output_json[key]]
-            else:
-                info = str(output_json[key])
 
             displayed_items.append([title.strip(), info.strip()])
 
