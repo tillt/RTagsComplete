@@ -638,7 +638,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         info = '\n'.join(displayed_html_items)
 
-        rendered = settings.SettingsManager.template_as_html("info","popup", info)
+        rendered = settings.SettingsManager.template_as_html("info", "popup", info)
 
         location = -1
         row = 0
@@ -674,6 +674,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                 oldrow=row,
                 oldcol=col,
                 oldfile=file))
+
 
 class RtagsHoverInfo(sublime_plugin.EventListener):
 
