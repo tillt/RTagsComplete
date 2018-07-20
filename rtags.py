@@ -331,7 +331,11 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'sizeof':       '5'
     }
 
+    # Kind extensions.
+    # TODO(tillt): Find a complete list of possible boolean kind extensions.
     KIND_EXTENSION_BOOL_TYPES=[
+        'auto',
+        'virtual',
         'container',
         'definition',
         'reference'
@@ -535,7 +539,9 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         # definitions or RTags sources show this string result. Instead we
         # would have expected a key similarly named - see title mappings
         # above. What is the deal here?
-        "macro expansion": "A macro expansion."
+        "macro expansion": "A macro expansion.",
+        "macro definition": "A macro definition.",
+        "inclusion directive": "An inclusion directive."
     }
 
     def display_items(self, item):
@@ -613,9 +619,10 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         kind_extension_keys = []
         for key in output_json.keys():
             if not key in RtagsSymbolInfoCommand.FILTER_TITLES:
+                # Check if bookean types does well as a kind extension.
                 if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
-                    # TODO(tillt): We should also check if the value was `True`.
-                    kind_extension_keys.append(key)
+                    if output_json[key]:
+                        kind_extension_keys.append(key)
                 else:
                     if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
                         priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
