@@ -639,6 +639,9 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         sorted_keys.extend(priorized_keys)
         sorted_keys.extend(alphabetic_keys)
 
+        if len(kind_extension_keys) > 1:
+            kind_extension_keys=sorted(kind_extension_keys)
+
         displayed_items = []
 
         for key in sorted_keys:
