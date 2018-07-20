@@ -331,7 +331,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'sizeof':       '5'
     }
 
-    # Human readable type descriptions.
+    # Human readable type descriptions of clang's cursor kind types.
     # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
     MAP_KINDS={
         'UnexposedDecl': 'A declaration whose specific kind is not exposed via this interface.',
@@ -358,9 +358,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'Namespace': 'A C++ namespace.',
         'LinkageSpec': 'A linkage specification, e.g. \'extern \"C\"\'.',
         'Constructor': 'A C++ constructor.',
-        'CXXConstructor': 'A C++ constructor.',
         'Destructor': 'A C++ destructor.',
-        'CXXDestructor': 'A C++ destructor.',
         'ConversionFunction': 'A C++ conversion function.',
         'TemplateTypeParameter': 'A C++ template type parameter.',
         'NonTypeTemplateParameter': 'A C++ non-type template parameter.',
@@ -430,7 +428,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'ObjCSelfExpr': 'Represents the "self" expression in an Objective-C method.',
         'OMPArraySectionExpr': 'OpenMP 4.0 [2.4, Array Section].',
         'ObjCAvailabilityCheckExpr': 'Represents an (...) check.',
-        'FixedPointLiteral': 'Fixed point literal',
+        'FixedPointLiteral': 'Fixed point literal.',
         'UnexposedStmt': 'A statement whose specific kind is not exposed via this interface.',
         'LabelStmt': 'A labelled statement in a function.',
         'CompoundStmt': 'A group of statements like { stmt stmt }.',
@@ -516,7 +514,22 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'ModuleImportDecl': 'A module import declaration.',
         'StaticAssert': 'A static_assert or _Static_assert node.',
         'FriendDecl': 'A friend declaration.',
-        'OverloadCandidate': 'A code completion overload candidate.'
+        'OverloadCandidate': 'A code completion overload candidate.',
+
+        #
+        # Aliases or unexpexted but received results.
+        # Aliases apparently change over time in clang's internal usage.
+        #
+
+        # Alias of "Constructor".
+        'CXXConstructor': 'A C++ constructor.',
+        # Alias of "Destructor".
+        'CXXDestructor': 'A C++ destructor.',
+        # Super confusing result - none of the clang-c cursor kind type
+        # definitions or RTags sources show this string result. Instead we
+        # would have expected a key similarly named - see title mappings
+        # above. What is the deal here?
+        "macro expansion": "A macro expansion."
     }
 
     def display_items(self, item):
