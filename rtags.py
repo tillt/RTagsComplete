@@ -31,6 +31,7 @@ from .plugin import indicator
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
+from .plugin import status
 
 
 log = logging.getLogger("RTags")
@@ -115,7 +116,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if 'col' in kwargs:
             location = self.view.text_point(kwargs['row'], kwargs['col'])
 
-        fixits_controller.signal_status(view=self.view, error=error)
+        status_controller.signal_status(view=self.view, error=error)
 
         if error:
             log.error("Command task failed: {}".format(error.message))
@@ -178,7 +179,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
                 switches + [self._query(*args, **kwargs)],
                 **job_args),
             partial(self.command_done, **kwargs),
-            progress_indicator)
+            status_controller.progress)
 
     def on_select(self, res):
         if res == -1:
@@ -560,7 +561,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         (job_id, out, error) = future.result()
 
-        fixits_controller.signal_status(view=self.view, error=error)
+        status_controller.signal_status(view=self.view, error=error)
 
         if error:
             log.error("Command task failed: {}".format(error.message))
@@ -834,7 +835,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         (completion_job_id, suggestions, error, view) = future.result()
 
-        fixits_controller.signal_status(view=self.view, error=error)
+        status_controller.signal_status(view=self.view, error=error)
 
         if error:
             log.debug("Completion job {} failed: {}".format(completion_job_id, error.message))
@@ -943,7 +944,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
                 col,
                 view),
             self.completion_done,
-            progress_indicator)
+            status_controller.progress)
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
@@ -993,10 +994,10 @@ def init():
     update_settings()
 
     globals()['navigation_helper'] = NavigationHelper()
-    globals()['progress_indicator'] = indicator.ProgressIndicator()
+    globals()['status_controller'] = status.StatusController(indicator.ProgressIndicator())
     globals()['fixits_controller'] = fixits.Controller(
         settings.SettingsManager.get('fixits'),
-        progress_indicator)
+        status_controller)
     globals()['idle_controller'] = idle.Controller(
         settings.SettingsManager.get('auto_reindex'),
         settings.SettingsManager.get('auto_reindex_threshold'),

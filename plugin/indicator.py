@@ -44,16 +44,15 @@ class ProgressIndicator():
 
     def start(self, view):
         with ProgressIndicator.lock:
-            if self.active_counter > 0:
-                log.debug("Indicator already active")
-                return
+            needs_start = not self.active_counter
             self.active_counter += 1
             log.debug("Indicator now running for {} processes".format(self.active_counter))
 
-        log.debug("Starting indicator")
-        self.len = ProgressIndicator.MSG_LEN
-        self.view = view
-        sublime.set_timeout_async(lambda self=self: self.run(), 0)
+        if needs_start:
+            log.debug("Starting indicator")
+            self.len = ProgressIndicator.MSG_LEN
+            self.view = view
+            sublime.set_timeout_async(lambda self=self: self.run(), 0)
 
     def stop(self, total=False):
         log.debug("Stopping one indication")
@@ -67,7 +66,7 @@ class ProgressIndicator():
             else:
                 self.stop_counter += 1
 
-            log.debug("Indicator now running for {} processes".format(self.active_counter))
+            log.debug("Indicator still running for {} processes".format(self.active_counter))
 
     def run(self):
         with ProgressIndicator.lock:
