@@ -25,12 +25,10 @@ from os import path
 from functools import partial
 
 from .plugin import completion
-from .plugin import fixits
-from .plugin import idle
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
-from .plugin import status
+from .plugin import vc
 
 
 log = logging.getLogger("RTags")
@@ -56,10 +54,24 @@ def get_view_text(view):
 
 def supported_view(view):
     if not view:
+        log.warning("There is no view")
+        return False
+
+    selection = view.sel()
+
+    if not selection:
+        log.warning("Coulnt get a selection from this view")
+        return False
+
+    scope = view.scope_name(selection[0].a)
+
+    if not scope:
+        log.warning("Coulnt get a scope from this view")
         return False
 
     file_types = settings.SettingsManager.get('file_types', ["source.c", "source.c++"])
-    if not view.scope_name(view.sel()[0].a).split()[0] in file_types:
+
+    if not scope.split()[0] in file_types:
         return False
 
     if not view.file_name():
@@ -115,7 +127,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if 'col' in kwargs:
             location = self.view.text_point(kwargs['row'], kwargs['col'])
 
-        status_controller.signal_status(view=self.view, error=error)
+        vc_manager.view_controller(self.view).status.update_status(error=error)
 
         if error:
             log.error("Command task failed: {}".format(error.message))
@@ -165,10 +177,11 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             navigation_helper.switches = switches
             navigation_helper.data = get_view_text(self.view)
             navigation_helper.flag = NavigationHelper.NAVIGATION_REQUESTED
-            fixits_controller.reindex(view=self.view, saved=False)
+            vc_manager.view_controller(self.view).fixits.reindex(saved=False)
             # Never go further.
             return
 
+        # Run an `RTagsJob` named 'RTBaseCommandXXXX' for this is a command job.
         job_args = kwargs
         job_args.update({'view': self.view})
 
@@ -178,7 +191,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
                 switches + [self._query(*args, **kwargs)],
                 **job_args),
             partial(self.command_done, **kwargs),
-            status_controller.progress_controller(self.view))
+            vc_manager.view_controller(self.view).status.progress)
 
     def on_select(self, res):
         if res == -1:
@@ -244,13 +257,13 @@ class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         if not supported_view(self.view):
             return
-        fixits_controller.show_selector(self.view)
+        vc_manager.view_controller(self.view).fixits.show_selector()
 
 
 class RtagsFixitCommand(RtagsBaseCommand):
 
     def run(self, edit, **args):
-        fixits_controller.update(args['filename'], args['issues'])
+        vc_manager.view_controller(self.view).fixits.update(args['filename'], args['issues'])
 
 
 class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
@@ -560,7 +573,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         (job_id, out, error) = future.result()
 
-        status_controller.signal_status(view=self.view, error=error)
+        vc_manager.view_controller(self.view).status.update_status(error=error)
 
         if error:
             log.error("Command task failed: {}".format(error.message))
@@ -701,7 +714,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                 oldrow=row,
                 oldcol=col,
                 oldfile=file),
-            status_controller.progress_controller(self.view))
+            vc_manager.view_controller(self.view).status.progress)
 
 
 class RtagsHoverInfo(sublime_plugin.EventListener):
@@ -739,12 +752,26 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             pos = pos[0].a
         return view.rowcol(pos)
 
+    def on_activated_async(self, view):
+        if not supported_view(view):
+            log.debug("Unsupported view")
+            return
+        log.debug("Activated supported view for view-id {}".format(view.id()))
+        vc_manager.activate_view_controller(view)
+
+    def on_close(self, view):
+        if not supported_view(view):
+            log.debug("Unsupported view")
+            return
+        log.debug("Closing view for view-id {}".format(view.id()))
+        vc_manager.close(view)
+
     def on_modified(self, view):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
-        fixits_controller.clear(view)
-        idle_controller.trigger(view)
+        vc_manager.view_controller(view).fixits.clear()
+        vc_manager.view_controller(view).idle.trigger()
 
 #    def on_selection_modified(self, view):
 #        (row, col) = self.cursor_pos(view)
@@ -760,7 +787,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             return
 
         # Do nothing if we dont want to support fixits.
-        if not fixits_controller.supported:
+        if not vc_manager.view_controller(view).fixits.supported:
             logging.debug("Fixits are disabled")
             # Run rc --check-reindex to reindex just saved files.
             # We do this manually even though rtags SHOULD watch
@@ -773,7 +800,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
                     view.file_name(),
                     b'',
                     view),
-                indicator=status_controller.progress_controller(view)
+                indicator=vc_manager.view_controller(self.view).status.progress
             )
             return
 
@@ -787,8 +814,8 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
 
         #log.debug("Bizarrely delayed save scheduled")
 
-        idle_controller.sleep()
-        fixits_controller.reindex(view=view, saved=True)
+        vc_manager.view_controller(view).idle.sleep()
+        vc_manager.view_controller(view).fixits.reindex(saved=True)
 
 
     def on_post_text_command(self, view, command_name, args):
@@ -800,7 +827,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         # If view get 'clean' after undo check if we need reindex.
         if command_name == 'undo' and not view.is_dirty():
 
-            if not fixits_controller.supported:
+            if not vc_manager.view_controller(view).fixits.supported:
                 logging.debug("Fixits are disabled")
                 # Run rc --check-reindex to reindex just saved files.
                 # We do this manually even though rtags SHOULD watch
@@ -813,11 +840,11 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
                         view.file_name(),
                         b'',
                         view),
-                    indicator=status_controller.progress_controller(view))
+                    indicator=vc_manager.view_controller(view).status.progress)
                 return
 
-            idle_controller.sleep()
-            fixits_controller.reindex(view=view, saved=True)
+            vc_manager.view_controller(view).idle.sleep()
+            vc_manager.view_controller(view).fixits.reindex(saved=True)
 
 
 class RtagsCompleteListener(sublime_plugin.EventListener):
@@ -841,7 +868,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         (completion_job_id, suggestions, error, view) = future.result()
 
-        status_controller.signal_status(view=self.view, error=error)
+        vc_manager.view_controller(view).status.update_status(error=error)
 
         if error:
             log.debug("Completion job {} failed: {}".format(completion_job_id, error.message))
@@ -950,7 +977,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
                 col,
                 view),
             self.completion_done,
-            status_controller.progress_controller(view))
+            vc_manager.view_controller(view).status.progress)
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
@@ -1000,14 +1027,7 @@ def init():
     update_settings()
 
     globals()['navigation_helper'] = NavigationHelper()
-    globals()['status_controller'] = status.StatusController()
-    globals()['fixits_controller'] = fixits.Controller(
-        settings.SettingsManager.get('fixits'),
-        status_controller)
-    globals()['idle_controller'] = idle.Controller(
-        settings.SettingsManager.get('auto_reindex'),
-        settings.SettingsManager.get('auto_reindex_threshold'),
-        partial(fixits.Controller.reindex, self=fixits_controller, saved=False))
+    globals()['vc_manager'] = vc.VCManager()
 
 def plugin_loaded():
     tools.Reloader.reload_all()
@@ -1015,3 +1035,4 @@ def plugin_loaded():
 
 def plugin_unloaded():
     jobs.JobController.stop_all()
+    vc_manager.unload()
