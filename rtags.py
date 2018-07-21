@@ -27,7 +27,6 @@ from functools import partial
 from .plugin import completion
 from .plugin import fixits
 from .plugin import idle
-from .plugin import indicator
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
@@ -179,7 +178,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
                 switches + [self._query(*args, **kwargs)],
                 **job_args),
             partial(self.command_done, **kwargs),
-            status_controller.progress)
+            status_controller.progress_controller(self.view))
 
     def on_select(self, res):
         if res == -1:
@@ -692,15 +691,17 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                 [
                     '--absolute-path',
                     '-f',
-                    '{}:{}:{}'.format(file, row + 1, col + 1)
-                ]
+                    '{}:{}:{}'.format(file, row + 1, col + 1),
+                ],
+                **{'view': self.view}
             ),
-            callback=partial(
+            partial(
                 self.symbol_location_callback,
                 displayed_items=displayed_items,
                 oldrow=row,
                 oldcol=col,
-                oldfile=file))
+                oldfile=file),
+            status_controller.progress_controller(self.view))
 
 
 class RtagsHoverInfo(sublime_plugin.EventListener):
@@ -766,11 +767,14 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             # all our files and reindex accordingly. However on macOS
             # this feature is broken.
             # See https://github.com/Andersbakken/rtags/issues/1052
-            jobs.JobsController.run_async(jobs.ReindexJob(
-                "RTPostSaveReindex" + jobs.JobController.next_id(),
-                view.file_name(),
-                b'',
-                view))
+            jobs.JobsController.run_async(
+                jobs.ReindexJob(
+                    "RTPostSaveReindex" + jobs.JobController.next_id(),
+                    view.file_name(),
+                    b'',
+                    view),
+                indicator=status_controller.progress_controller(view)
+            )
             return
 
         # For some bizarre reason, we need to delay our re-indexing task
@@ -803,11 +807,13 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
                 # all our files and reindex accordingly. However on macOS
                 # this feature is broken.
                 # See https://github.com/Andersbakken/rtags/issues/1052
-                jobs.JobController.run_async(jobs.ReindexJob(
-                    "RTPostUndoReindex" + jobs.JobController.next_id(),
-                    view.file_name(),
-                    b'',
-                    view))
+                jobs.JobController.run_async(
+                    jobs.ReindexJob(
+                        "RTPostUndoReindex" + jobs.JobController.next_id(),
+                        view.file_name(),
+                        b'',
+                        view),
+                    indicator=status_controller.progress_controller(view))
                 return
 
             idle_controller.sleep()
@@ -944,7 +950,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
                 col,
                 view),
             self.completion_done,
-            status_controller.progress)
+            status_controller.progress_controller(view))
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
@@ -994,7 +1000,7 @@ def init():
     update_settings()
 
     globals()['navigation_helper'] = NavigationHelper()
-    globals()['status_controller'] = status.StatusController(indicator.ProgressIndicator())
+    globals()['status_controller'] = status.StatusController()
     globals()['fixits_controller'] = fixits.Controller(
         settings.SettingsManager.get('fixits'),
         status_controller)

@@ -210,7 +210,7 @@ class Controller():
     def indexing_done_callback(self, complete, error=None):
         log.debug("Indexing callback hit")
 
-        self.status.progress.stop()
+        self.status.progress_controller(self.view).stop()
 
         self.status.signal_status(self.view, error)
 
@@ -223,9 +223,15 @@ class Controller():
         # For some bizarre reason a reindexed file that does not have any
         # fixits or warnings will not return anything in `rc -m`, hence
         # we need to force such result again via `rc --diagnose`.
-        jobs.JobController.run_async(jobs.RTagsJob(
-            "RTDiagnoseJob" + jobs.JobController.next_id(),
-            ['--diagnose', self.filename]))
+        jobs.JobController.run_async(
+            jobs.RTagsJob(
+                "RTDiagnoseJob" + jobs.JobController.next_id(),
+                [
+                    '--diagnose', self.filename
+                ],
+                **{'view': self.view}
+            ),
+            indicator=self.status.progress_controller(self.view))
 
     def reindex(self, view, saved):
         log.debug("Reindex hit {} {} {}".format(self, view, saved))
@@ -239,7 +245,7 @@ class Controller():
         self.filename = view.file_name()
         self.view = view
 
-        self.status.progress.start(view)
+        self.status.progress_controller(self.view).start(self.view)
 
         jobs.JobController.run_async(jobs.MonitorJob("RTMonitorJob"))
 
