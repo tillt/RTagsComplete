@@ -33,12 +33,7 @@ This is a fork of the original [sublime-rtags](https://github.com/rampage644/sub
 
 # Installation
 
-Make sure you installed RTags:
-
-    git clone https://github.com/Andersbakken/rtags
-    cd rtags
-    mkdir build && cd build && cmake ..
-    make install
+Make sure you installed RTags - for all of the latest features, version 2.5 is the oldest we support.
 
 ### Via Package Control
 
@@ -59,7 +54,7 @@ Make sure you installed RTags:
 
 ## Symbol information
 
-![Symbol Info Example](site/images/symbol_info_ng.png)
+![Symbol Info Example](site/images/symbol_info.png)
 
 ## Code completion
 
@@ -180,7 +175,7 @@ Customize your own key bindings via "Preferences - Package Settings - RtagsCompl
   # Find virtual function re-implementations
   {"keys": ["ctrl+shift+x"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-k", "-r"]} },
 
-  # Symbol information
+  # Symbol information - needs RTags version 2.5 or higher.
   {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--json", "--symbol-info"]} },
 
   # Jump to definition
@@ -229,6 +224,9 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
 
   # Enable displaying fixits, warnings and errors
   "fixits": true,
+
+  # Enable hover symbol info - needs at least RTags V2.5.
+  "hover": true,
 
   # Enable enhanced, rather verbose logging for troubleshooting
   "verbose_log": true,

@@ -25,35 +25,31 @@ class ProgressIndicator():
 
     lock = RLock()
 
-    def __init__(self):
-        self.view = None
+    def __init__(self, view):
+        self.view = view
         self.step = 0
         self.len = 1
         self.active_counter = 0
         self.stop_counter = 0
         self.status_key = settings.SettingsManager.get('progress_key')
 
-    def clear(self, view=None):
-        if not self.view:
-            return
+    def unload(self):
+        self.stop(total=True)
+        self.clear()
 
-        if not view:
-            view = self.view
+    def clear(self):
+        self.view.erase_status(self.status_key)
 
-        view.erase_status(self.status_key)
-
-    def start(self, view):
+    def start(self):
         with ProgressIndicator.lock:
-            if self.active_counter > 0:
-                log.debug("Indicator already active")
-                return
+            needs_start = not self.active_counter
             self.active_counter += 1
             log.debug("Indicator now running for {} processes".format(self.active_counter))
 
-        log.debug("Starting indicator")
-        self.len = ProgressIndicator.MSG_LEN
-        self.view = view
-        sublime.set_timeout_async(lambda self=self: self.run(), 0)
+        if needs_start:
+            log.debug("Starting indicator")
+            self.len = ProgressIndicator.MSG_LEN
+            sublime.set_timeout_async(lambda self=self: self.run(), 0)
 
     def stop(self, total=False):
         log.debug("Stopping one indication")
@@ -67,7 +63,7 @@ class ProgressIndicator():
             else:
                 self.stop_counter += 1
 
-            log.debug("Indicator now running for {} processes".format(self.active_counter))
+            log.debug("Indicator still running for {} processes".format(self.active_counter))
 
     def run(self):
         with ProgressIndicator.lock:

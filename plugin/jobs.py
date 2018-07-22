@@ -294,10 +294,12 @@ class JobController():
     thread_map = {}
     unique_index = 0
 
+    @staticmethod
     def next_id():
         JobController.unique_index += 1
         return "{}".format(JobController.unique_index)
 
+    @staticmethod
     def run_async(job, callback=None, indicator=None):
         with JobController.lock:
             if job.job_id in JobController.thread_map.keys():
@@ -306,8 +308,8 @@ class JobController():
 
             log.debug("Starting async job {}".format(job.job_id))
 
-            if indicator and job.view:
-                indicator.start(job.view)
+            if indicator:
+                indicator.start()
 
             future = JobController.pool.submit(job.run)
             if callback:
@@ -317,12 +319,14 @@ class JobController():
 
             JobController.thread_map[job.job_id] = (future, job)
 
+    @staticmethod
     def run_sync(job, timeout=None):
         # Debug logging every single run_sync request is too verbose
         # if polling is used for gathering rc's indexing status
         #log.debug("Starting blocking job {} with timeout {}".format(job.job_id, timeout))
         return job.run_process(timeout)
 
+    @staticmethod
     def stop(job_id):
         future = None
         job = None
@@ -361,6 +365,7 @@ class JobController():
         if future.cancelled():
             log.debug("Cancelled job {}".format(job_id))
 
+    @staticmethod
     def done(future, job, indicator):
         log.debug("Job {} done".format(job.job_id))
 
@@ -370,25 +375,28 @@ class JobController():
         if future.cancelled():
             log.debug("Job was cancelled")
 
-        if indicator and job.view:
+        if indicator:
             indicator.stop()
 
         with JobController.lock:
             del JobController.thread_map[job.job_id]
             log.debug("Removed bookkeeping for job {}".format(job.job_id))
 
+    @staticmethod
     def job(job_id):
         job = None
         with JobController.lock:
             (_, job) = JobController.thread_map[job_id]
         return job
 
+    @staticmethod
     def future(job_id):
         future = None
         with JobController.lock:
             (future, _) = JobController.thread_map[job_id]
         return future
 
+    @staticmethod
     def stop_all():
         with JobController.lock:
             log.debug("Stopping running threads {}".format(list(JobController.thread_map)))

@@ -2,7 +2,8 @@
 
 """Idle Controller.
 
-Manages idle timeout tasks.
+Manages idle timeout tasks. Uses coarse grained period for this low
+priority work.
 
 """
 
@@ -26,23 +27,24 @@ class Mode:
 class Controller:
     PERIOD = 5000.0
 
-    def __init__(self, auto_reindex, threshold, callback):
+    def __init__(self, view, auto_reindex, threshold, callback):
         self.counter = 0
         self.auto_reindex = auto_reindex
         self.counter_threshold = (threshold * 1000.0) / Controller.PERIOD
-        self.view = None
+        self.view = view
         self.active = False
         self.callback = callback
 
-    def trigger(self, view):
+    def deactivated(self):
+        log.debug("Deactivated")
+        self.sleep()
+
+    def activated(self):
+        log.debug("Activated")
+
+    def trigger(self):
         if not self.auto_reindex:
             return
-
-        # We should always have a valid view object.
-        if not view:
-            return
-
-        self.view = view
 
         sublime.set_timeout_async(lambda self=self: self.run(Mode.RESET), 0)
 
@@ -54,27 +56,31 @@ class Controller:
 
     def run(self, mode=Mode.RUN):
         if mode == Mode.SLEEP:
-            log.debug("Sleep idle controller")
+            log.debug("Sleep idle control for view-id {}".format(self.view.id()))
             self.active = False
             return
 
         if mode == Mode.RESET:
             self.counter = 0
+            log.debug("Reset idle control for view-id {}".format(self.view.id()))
             if self.active:
                 return
             self.active = True
 
         if not self.active:
-            log.debug("Not active")
+            log.debug("Not active for view-id {}".format(self.view.id()))
             return
 
         if self.counter >= self.counter_threshold:
-            log.debug("Threshold reached")
+            log.debug("Idle control threshold reached for view-id {}".format(self.view.id()))
             self.active = False
-            self.callback(view=self.view)
+            self.callback()
             return
 
         if mode == Mode.RUN:
             self.counter += 1
 
         sublime.set_timeout_async(lambda self=self: self.run(Mode.RUN), Controller.PERIOD)
+
+    def unload(self):
+        self.sleep()

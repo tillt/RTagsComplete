@@ -25,12 +25,10 @@ from os import path
 from functools import partial
 
 from .plugin import completion
-from .plugin import fixits
-from .plugin import idle
-from .plugin import indicator
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
+from .plugin import vc
 
 
 log = logging.getLogger("RTags")
@@ -56,10 +54,24 @@ def get_view_text(view):
 
 def supported_view(view):
     if not view:
+        log.warning("There is no view")
+        return False
+
+    selection = view.sel()
+
+    if not selection:
+        log.warning("Coulnt get a selection from this view")
+        return False
+
+    scope = view.scope_name(selection[0].a)
+
+    if not scope:
+        log.warning("Coulnt get a scope from this view")
         return False
 
     file_types = settings.SettingsManager.get('file_types', ["source.c", "source.c++"])
-    if not view.scope_name(view.sel()[0].a).split()[0] in file_types:
+
+    if not scope.split()[0] in file_types:
         return False
 
     if not view.file_name():
@@ -115,7 +127,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if 'col' in kwargs:
             location = self.view.text_point(kwargs['row'], kwargs['col'])
 
-        fixits_controller.signal_status(view=self.view, error=error)
+        vc_manager.view_controller(self.view).status.update_status(error=error)
 
         if error:
             log.error("Command task failed: {}".format(error.message))
@@ -165,10 +177,11 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             navigation_helper.switches = switches
             navigation_helper.data = get_view_text(self.view)
             navigation_helper.flag = NavigationHelper.NAVIGATION_REQUESTED
-            fixits_controller.reindex(view=self.view, saved=False)
+            vc_manager.view_controller(self.view).fixits.reindex(saved=False)
             # Never go further.
             return
 
+        # Run an `RTagsJob` named 'RTBaseCommandXXXX' for this is a command job.
         job_args = kwargs
         job_args.update({'view': self.view})
 
@@ -178,7 +191,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
                 switches + [self._query(*args, **kwargs)],
                 **job_args),
             partial(self.command_done, **kwargs),
-            progress_indicator)
+            vc_manager.view_controller(self.view).status.progress)
 
     def on_select(self, res):
         if res == -1:
@@ -244,13 +257,13 @@ class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         if not supported_view(self.view):
             return
-        fixits_controller.show_selector(self.view)
+        vc_manager.view_controller(self.view).fixits.show_selector()
 
 
 class RtagsFixitCommand(RtagsBaseCommand):
 
     def run(self, edit, **args):
-        fixits_controller.update(args['filename'], args['issues'])
+        vc_manager.view_controller(self.view).fixits.update(args['filename'], args['issues'])
 
 
 class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
@@ -331,7 +344,29 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'sizeof':       '5'
     }
 
-    # Human readable type descriptions.
+    # Kind extensions.
+    # TODO(tillt): Find a complete list of possible boolean kind extensions.
+    KIND_EXTENSION_BOOL_TYPES=[
+        'auto',
+        'virtual',
+        'container',
+        'definition',
+        'reference',
+        'templatereference'
+    ]
+
+    # Human readable type descriptions of clang's cursor linkage types.
+    # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
+    MAP_LINKAGES={
+        'NoLinkage': 'Variables, parameters, and so on that have automatic storage.',
+        'Internal': 'Static variables and static functions.',
+        'UniqueExternal': 'External linkage that live in C++ anonymous namespaces.',
+        'External': 'True, external linkage.',
+        # 'Invalid' just means that there is no information available - skip this entry when displaying.
+        'Invalid': ''
+    }
+
+    # Human readable type descriptions of clang's cursor kind types.
     # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
     MAP_KINDS={
         'UnexposedDecl': 'A declaration whose specific kind is not exposed via this interface.',
@@ -358,9 +393,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'Namespace': 'A C++ namespace.',
         'LinkageSpec': 'A linkage specification, e.g. \'extern \"C\"\'.',
         'Constructor': 'A C++ constructor.',
-        'CXXConstructor': 'A C++ constructor.',
         'Destructor': 'A C++ destructor.',
-        'CXXDestructor': 'A C++ destructor.',
         'ConversionFunction': 'A C++ conversion function.',
         'TemplateTypeParameter': 'A C++ template type parameter.',
         'NonTypeTemplateParameter': 'A C++ non-type template parameter.',
@@ -430,7 +463,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'ObjCSelfExpr': 'Represents the "self" expression in an Objective-C method.',
         'OMPArraySectionExpr': 'OpenMP 4.0 [2.4, Array Section].',
         'ObjCAvailabilityCheckExpr': 'Represents an (...) check.',
-        'FixedPointLiteral': 'Fixed point literal',
+        'FixedPointLiteral': 'Fixed point literal.',
         'UnexposedStmt': 'A statement whose specific kind is not exposed via this interface.',
         'LabelStmt': 'A labelled statement in a function.',
         'CompoundStmt': 'A group of statements like { stmt stmt }.',
@@ -516,7 +549,28 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'ModuleImportDecl': 'A module import declaration.',
         'StaticAssert': 'A static_assert or _Static_assert node.',
         'FriendDecl': 'A friend declaration.',
-        'OverloadCandidate': 'A code completion overload candidate.'
+        'OverloadCandidate': 'A code completion overload candidate.',
+
+        #
+        # Aliases or unexpexted but received results.
+        # Aliases apparently change over time in clang's internal usage.
+        #
+
+        # This one should in theory come back from RTags on auto->build-in.
+        # See https://github.com/Andersbakken/rtags/commit/3b8b9d51cec478e566b86d74659c78ac2b73ae4f.
+       'NoDeclFound': 'Build-in type probably.',
+
+        # Alias of "Constructor".
+        'CXXConstructor': 'A C++ constructor.',
+        # Alias of "Destructor".
+        'CXXDestructor': 'A C++ destructor.',
+        # Super confusing result - none of the clang-c cursor kind type
+        # definitions or RTags sources show this string result. Instead we
+        # would have expected a key similarly named - see title mappings
+        # above. What is the deal here?
+        "macro expansion": "A macro expansion.",
+        "macro definition": "A macro definition.",
+        "inclusion directive": "An inclusion directive."
     }
 
     def display_items(self, item):
@@ -535,7 +589,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         (job_id, out, error) = future.result()
 
-        fixits_controller.signal_status(view=self.view, error=error)
+        vc_manager.view_controller(self.view).status.update_status(error=error)
 
         if error:
             log.error("Command task failed: {}".format(error.message))
@@ -591,12 +645,21 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         # Naive filtering, translation and sorting.
         priority_lane = {}
         alphabetic_keys = []
+        kind_extension_keys = []
         for key in output_json.keys():
             if not key in RtagsSymbolInfoCommand.FILTER_TITLES:
-                if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
-                    priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
+                # Check if bookean types does well as a kind extension.
+                if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
+                    if output_json[key]:
+                        title = key
+                        if key in RtagsSymbolInfoCommand.MAP_TITLES:
+                            title = RtagsSymbolInfoCommand.MAP_TITLES[key]
+                        kind_extension_keys.append(title)
                 else:
-                    alphabetic_keys.append(key)
+                    if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
+                        priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
+                    else:
+                        alphabetic_keys.append(key)
 
         priorized_keys = []
         for index in sorted(priority_lane.keys()):
@@ -608,24 +671,36 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         sorted_keys.extend(priorized_keys)
         sorted_keys.extend(alphabetic_keys)
 
+        if len(kind_extension_keys) > 1:
+            kind_extension_keys=sorted(kind_extension_keys)
+
         displayed_items = []
+
         for key in sorted_keys:
             title = key
+            info = str(output_json[key])
+
             if key in RtagsSymbolInfoCommand.MAP_TITLES:
                 title = RtagsSymbolInfoCommand.MAP_TITLES[key]
 
-            if key == "kind" and output_json[key] in RtagsSymbolInfoCommand.MAP_KINDS:
-                info = RtagsSymbolInfoCommand.MAP_KINDS[output_json[key]]
-            else:
-                info = str(output_json[key])
+            if key == "kind":
+                if len(kind_extension_keys):
+                    title += "  (" + ", ".join(kind_extension_keys) + ")"
 
+                if output_json[key] in RtagsSymbolInfoCommand.MAP_KINDS:
+                    info = RtagsSymbolInfoCommand.MAP_KINDS[output_json[key]]
+            elif key == "linkage":
+                if output_json[key] in RtagsSymbolInfoCommand.MAP_LINKAGES:
+                    info = RtagsSymbolInfoCommand.MAP_LINKAGES[output_json[key]]
+                if not len(info):
+                    continue;
             displayed_items.append([title.strip(), info.strip()])
 
         displayed_html_items = list(map(self.display_items, displayed_items))
 
         info = '\n'.join(displayed_html_items)
 
-        rendered = settings.SettingsManager.template_as_html("info","popup", info)
+        rendered = settings.SettingsManager.template_as_html("info", "popup", info)
 
         location = -1
         row = 0
@@ -652,20 +727,26 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                 [
                     '--absolute-path',
                     '-f',
-                    '{}:{}:{}'.format(file, row + 1, col + 1)
-                ]
+                    '{}:{}:{}'.format(file, row + 1, col + 1),
+                ],
+                **{'view': self.view}
             ),
-            callback=partial(
+            partial(
                 self.symbol_location_callback,
                 displayed_items=displayed_items,
                 oldrow=row,
                 oldcol=col,
-                oldfile=file))
+                oldfile=file),
+            vc_manager.view_controller(self.view).status.progress)
+
 
 class RtagsHoverInfo(sublime_plugin.EventListener):
 
     def on_hover(self, view, point, hover_zone):
         if hover_zone != sublime.HOVER_TEXT:
+            return
+
+        if not settings.SettingsManager.get("hover"):
             return
 
         (row, col) = view.rowcol(point)
@@ -694,12 +775,26 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             pos = pos[0].a
         return view.rowcol(pos)
 
+    def on_activated_async(self, view):
+        if not supported_view(view):
+            log.debug("Unsupported view")
+            return
+        log.debug("Activated supported view for view-id {}".format(view.id()))
+        vc_manager.activate_view_controller(view)
+
+    def on_close(self, view):
+        if not supported_view(view):
+            log.debug("Unsupported view")
+            return
+        log.debug("Closing view for view-id {}".format(view.id()))
+        vc_manager.close(view)
+
     def on_modified(self, view):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
-        fixits_controller.clear(view)
-        idle_controller.trigger(view)
+        vc_manager.view_controller(view).fixits.clear()
+        vc_manager.view_controller(view).idle.trigger()
 
 #    def on_selection_modified(self, view):
 #        (row, col) = self.cursor_pos(view)
@@ -715,18 +810,21 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             return
 
         # Do nothing if we dont want to support fixits.
-        if not fixits_controller.supported:
+        if not vc_manager.view_controller(view).fixits.supported:
             logging.debug("Fixits are disabled")
             # Run rc --check-reindex to reindex just saved files.
             # We do this manually even though rtags SHOULD watch
             # all our files and reindex accordingly. However on macOS
             # this feature is broken.
             # See https://github.com/Andersbakken/rtags/issues/1052
-            jobs.JobsController.run_async(jobs.ReindexJob(
-                "RTPostSaveReindex" + jobs.JobController.next_id(),
-                view.file_name(),
-                b'',
-                view))
+            jobs.JobsController.run_async(
+                jobs.ReindexJob(
+                    "RTPostSaveReindex" + jobs.JobController.next_id(),
+                    view.file_name(),
+                    b'',
+                    view),
+                indicator=vc_manager.view_controller(self.view).status.progress
+            )
             return
 
         # For some bizarre reason, we need to delay our re-indexing task
@@ -739,8 +837,8 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
 
         #log.debug("Bizarrely delayed save scheduled")
 
-        idle_controller.sleep()
-        fixits_controller.reindex(view=view, saved=True)
+        vc_manager.view_controller(view).idle.sleep()
+        vc_manager.view_controller(view).fixits.reindex(saved=True)
 
 
     def on_post_text_command(self, view, command_name, args):
@@ -752,22 +850,24 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         # If view get 'clean' after undo check if we need reindex.
         if command_name == 'undo' and not view.is_dirty():
 
-            if not fixits_controller.supported:
+            if not vc_manager.view_controller(view).fixits.supported:
                 logging.debug("Fixits are disabled")
                 # Run rc --check-reindex to reindex just saved files.
                 # We do this manually even though rtags SHOULD watch
                 # all our files and reindex accordingly. However on macOS
                 # this feature is broken.
                 # See https://github.com/Andersbakken/rtags/issues/1052
-                jobs.JobController.run_async(jobs.ReindexJob(
-                    "RTPostUndoReindex" + jobs.JobController.next_id(),
-                    view.file_name(),
-                    b'',
-                    view))
+                jobs.JobController.run_async(
+                    jobs.ReindexJob(
+                        "RTPostUndoReindex" + jobs.JobController.next_id(),
+                        view.file_name(),
+                        b'',
+                        view),
+                    indicator=vc_manager.view_controller(view).status.progress)
                 return
 
-            idle_controller.sleep()
-            fixits_controller.reindex(view=view, saved=True)
+            vc_manager.view_controller(view).idle.sleep()
+            vc_manager.view_controller(view).fixits.reindex(saved=True)
 
 
 class RtagsCompleteListener(sublime_plugin.EventListener):
@@ -791,7 +891,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         (completion_job_id, suggestions, error, view) = future.result()
 
-        fixits_controller.signal_status(view=self.view, error=error)
+        vc_manager.view_controller(view).status.update_status(error=error)
 
         if error:
             log.debug("Completion job {} failed: {}".format(completion_job_id, error.message))
@@ -900,7 +1000,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
                 col,
                 view),
             self.completion_done,
-            progress_indicator)
+            vc_manager.view_controller(view).status.progress)
 
         return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
 
@@ -921,6 +1021,7 @@ def update_settings():
     settings.SettingsManager.get('rc_timeout', 0.5)
     settings.SettingsManager.get('rc_path', "/usr/local/bin/rc")
     settings.SettingsManager.get('fixits', False)
+    settings.SettingsManager.get('hover', False)
     settings.SettingsManager.get('auto_reindex', False)
     settings.SettingsManager.get('auto_reindex_threshold', 30)
 
@@ -949,14 +1050,7 @@ def init():
     update_settings()
 
     globals()['navigation_helper'] = NavigationHelper()
-    globals()['progress_indicator'] = indicator.ProgressIndicator()
-    globals()['fixits_controller'] = fixits.Controller(
-        settings.SettingsManager.get('fixits'),
-        progress_indicator)
-    globals()['idle_controller'] = idle.Controller(
-        settings.SettingsManager.get('auto_reindex'),
-        settings.SettingsManager.get('auto_reindex_threshold'),
-        partial(fixits.Controller.reindex, self=fixits_controller, saved=False))
+    globals()['vc_manager'] = vc.VCManager()
 
 def plugin_loaded():
     tools.Reloader.reload_all()
@@ -964,3 +1058,4 @@ def plugin_loaded():
 
 def plugin_unloaded():
     jobs.JobController.stop_all()
+    vc_manager.unload()
