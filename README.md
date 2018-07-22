@@ -59,7 +59,7 @@ Make sure you installed RTags - for all of the latest features, Version 2.5 is t
 
 ## Symbol information
 
-![Symbol Info Example](site/images/symbol_info_ng.png)
+![Symbol Info Example](site/images/symbol_info.png)
 
 ## Code completion
 
