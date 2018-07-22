@@ -351,7 +351,8 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'virtual',
         'container',
         'definition',
-        'reference'
+        'reference',
+        'templatereference'
     ]
 
     # Human readable type descriptions of clang's cursor linkage types.
@@ -555,6 +556,10 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         # Aliases apparently change over time in clang's internal usage.
         #
 
+        # This one should in theory come back from RTags on auto->build-in.
+        # See https://github.com/Andersbakken/rtags/commit/3b8b9d51cec478e566b86d74659c78ac2b73ae4f.
+       'NoDeclFound': 'Build-in type probably.',
+
         # Alias of "Constructor".
         'CXXConstructor': 'A C++ constructor.',
         # Alias of "Destructor".
@@ -646,7 +651,10 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                 # Check if bookean types does well as a kind extension.
                 if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
                     if output_json[key]:
-                        kind_extension_keys.append(key)
+                        title = key
+                        if key in RtagsSymbolInfoCommand.MAP_TITLES:
+                            title = RtagsSymbolInfoCommand.MAP_TITLES[key]
+                        kind_extension_keys.append(title)
                 else:
                     if key in RtagsSymbolInfoCommand.POSITION_TITLES.keys():
                         priority_lane[RtagsSymbolInfoCommand.POSITION_TITLES[key]]=key
