@@ -354,6 +354,17 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'reference'
     ]
 
+    # Human readable type descriptions of clang's cursor linkage types.
+    # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
+    MAP_LINKAGES={
+        'NoLinkage': 'Variables, parameters, and so on that have automatic storage.',
+        'Internal': 'Static variables and static functions.',
+        'UniqueExternal': 'External linkage that live in C++ anonymous namespaces.',
+        'External': 'True, external linkage.',
+        # 'Invalid' just means that there is no information available - skip this entry when displaying.
+        'Invalid': ''
+    }
+
     # Human readable type descriptions of clang's cursor kind types.
     # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
     MAP_KINDS={
@@ -668,9 +679,13 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                 if len(kind_extension_keys):
                     title += "  (" + ", ".join(kind_extension_keys) + ")"
 
-            if output_json[key] in RtagsSymbolInfoCommand.MAP_KINDS:
-                info = RtagsSymbolInfoCommand.MAP_KINDS[output_json[key]]
-
+                if output_json[key] in RtagsSymbolInfoCommand.MAP_KINDS:
+                    info = RtagsSymbolInfoCommand.MAP_KINDS[output_json[key]]
+            elif key == "linkage":
+                if output_json[key] in RtagsSymbolInfoCommand.MAP_LINKAGES:
+                    info = RtagsSymbolInfoCommand.MAP_LINKAGES[output_json[key]]
+                if not len(info):
+                    continue;
             displayed_items.append([title.strip(), info.strip()])
 
         displayed_html_items = list(map(self.display_items, displayed_items))
