@@ -352,6 +352,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'container',
         'definition',
         'reference',
+        'staticmethod',
         'templatereference'
     ]
 
