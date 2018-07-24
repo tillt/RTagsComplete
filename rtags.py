@@ -750,6 +750,10 @@ class RtagsHoverInfo(sublime_plugin.EventListener):
         if not settings.SettingsManager.get("hover"):
             return
 
+        # Make sure the underlying view is in focus - enables in turn
+        # that the view-controller shows its status.
+        view.window().focus_view(view)
+
         (row, col) = view.rowcol(point)
         view.run_command(
             'rtags_symbol_info',
