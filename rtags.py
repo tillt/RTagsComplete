@@ -747,6 +747,10 @@ class RtagsHoverInfo(sublime_plugin.EventListener):
         if hover_zone != sublime.HOVER_TEXT:
             return
 
+        if not supported_view(view):
+            log.debug("Unsupported view")
+            return
+
         if not settings.SettingsManager.get("hover"):
             return
 
