@@ -77,8 +77,14 @@ class VCManager():
 
     def activate_view_controller(self, view):
         view_id = view.id()
+
         if not view_id in self.controllers.keys():
             self.controllers[view_id] = ViewController(view)
+
+        if self.active_controller and self.active_controller.view.id() == view_id:
+            log.debug("Viewcontroller for view-id {} is already active".format(view_id))
+            return
+
         if self.active_controller:
             self.active_controller.deactivated()
         self.active_controller = self.controllers[view_id]
@@ -140,6 +146,8 @@ class VCManager():
         self.controllers = {}
 
     def view_controller(self, view):
+        if not view:
+            return None
         view_id = view.id()
         if not view_id in self.controllers.keys():
             self.controllers[view_id] = ViewController(view)
