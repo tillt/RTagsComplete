@@ -13,9 +13,9 @@ import logging
 import sys
 import imp
 
+PKG_NAME = path.basename(path.dirname(path.dirname(__file__)))
 
 log = logging.getLogger("RTags")
-
 
 class Reloader:
     """Reloader for all dependencies."""

@@ -39,13 +39,12 @@ class Controller():
         self.supported = supported
         self.regions = {}
         self.issues = None
-        self.waiting = False
-        self.expecting = False
         self.navigation_items = None
         self.view = view
         self.filename = view.file_name()
         self.status = status
         self.watchdog = watchdog.IndexWatchdog()
+        self.reindex_job_id = None
 
     def activated(self):
         log.debug("Activated")
@@ -195,6 +194,8 @@ class Controller():
 
         self.status.progress.stop()
 
+        self.reindex_job_id = None
+
         self.status.update_status(error)
 
         if not complete:
@@ -219,11 +220,15 @@ class Controller():
     def reindex(self, saved):
         log.debug("Reindex hit {} {} {}".format(self, self.view, saved))
 
-        self.clear()
-
         if not self.supported:
             log.debug("Fixits are disabled")
             return
+
+        if self.reindex_job_id:
+            log.debug("Reindex already requested")
+            return
+
+        self.clear()
 
         self.status.progress.start()
 
@@ -234,9 +239,11 @@ class Controller():
         if not saved:
             text = bytes(self.view.substr(sublime.Region(0, self.view.size())), "utf-8")
 
+        self.reindex_job_id = "RTReindexJob"
+
         jobs.JobController.run_async(
             jobs.ReindexJob(
-                "RTReindexJob",
+                self.reindex_job_id,
                 self.filename,
                 text,
                 self.view
