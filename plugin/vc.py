@@ -119,7 +119,7 @@ class VCManager():
         return self.data
 
     def push_history(self, file, line, col):
-        self.history.append(file, line, col)
+        self.history.append([file, line, col])
 
         if len(self.history) > int(settings.SettingsManager.get('jump_limit', 10)):
             self.pop_history()
