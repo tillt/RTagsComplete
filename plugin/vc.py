@@ -29,6 +29,7 @@ class ViewController():
         self.idle = idle.Controller(
             view,
             settings.SettingsManager.get('auto_reindex'),
+            5000.0,
             settings.SettingsManager.get('auto_reindex_threshold'),
             partial(fixits.Controller.reindex, self=self.fixits, saved=False))
 

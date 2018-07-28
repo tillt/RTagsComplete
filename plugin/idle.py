@@ -25,14 +25,12 @@ class Mode:
 
 
 class Controller:
-    PERIOD = 5000.0
-
-    def __init__(self, view, auto_reindex, threshold, callback):
+    def __init__(self, view, auto_reindex, period, threshold, callback):
         self.counter = 0
+        self.period = period
         self.auto_reindex = auto_reindex
-        self.counter_threshold = (threshold * 1000.0) / Controller.PERIOD
+        self.counter_threshold = (threshold * 1000.0) / self.period
         self.view = view
-        self.active = False
         self.callback = callback
 
     def deactivated(self):
