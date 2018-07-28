@@ -80,11 +80,13 @@ class RTagsJob():
         return [settings.SettingsManager.get('rc_path')] + self.command_info
 
     def stop(self):
-        log.debug("Killing job {}".format(self.p))
-        if self.p:
-            self.p.kill()
+        try:
+            log.debug("Killing job {}".format(self.p))
+            if self.p:
+                self.p.kill()
+        except ProcessLookupError:
+            pass
         self.p = None
-        return
 
     def communicate(self, process, timeout=None):
         if not self.nodebug:
