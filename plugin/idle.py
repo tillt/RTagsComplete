@@ -2,8 +2,8 @@
 
 """Idle Controller.
 
-Manages idle timeout tasks. Uses coarse grained period for this low
-priority work.
+Manages idle timeout tasks. Typically uses coarse grained period for
+this low priority work.
 
 """
 

@@ -195,47 +195,75 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
 
 ```python
 {
-  # Path to rc utility if not found in $PATH
+  # Path to rc utility if not found in $PATH.
   "rc_path": "/usr/local/bin/rc",
 
-  # Seconds for rc utility communication timeout default
+  # Seconds for rc utility communication timeout default.
   "rc_timeout": 0.5,
 
-  # max number of jump steps
+  # max number of jump steps.
   "jump_limit": 10,
 
-  # Supported source file types
+  # Supported source file types.
   "file_types": ["source.c", "source.c++", "source.c++.11"],
 
-  # Statusbar status key - sorting is done alphabetically
+  # Statusbar status key - sorting is done alphabetically.
   "status_key": "000000_rtags_status",
 
-  # Statusbar results key - sorting is done alphabetically
+  # Statusbar results key - sorting is done alphabetically.
   "results_key": "000001_rtags_status",
 
-  # Statusbar progress indicator key - sorting is done alphabetically
+  # Statusbar progress indicator key - sorting is done alphabetically.
   "progress_key": "000002_rtags_status",
 
-  # Enable auto-completion
+  # Enable auto-completion.
   "auto_complete": true,
 
-  # Auto-completion triggers internal to RTagsComplete
+  # Auto-completion triggers internal to RTagsComplete.
   "triggers" : [ ".", "->", "::", " ", "  ", "(", "[" ],
 
-  # Enable displaying fixits, warnings and errors
+  # Enable displaying fixits, warnings and errors.
   "fixits": true,
 
   # Enable hover symbol info - needs at least RTags V2.5.
   "hover": true,
 
-  # Enable enhanced, rather verbose logging for troubleshooting
+  # Enable enhanced, rather verbose logging for troubleshooting.
   "verbose_log": true,
 
-  # Enable auto-reindex unsaved file
+  # Enable auto-reindex unsaved file.
   "auto_reindex": true,
 
-  # Seconds of idle-time before auto-reindex is triggered
-  "auto_reindex_threshold": 30
+  # Seconds of idle-time before auto-reindex is triggered.
+  "auto_reindex_threshold": 30,
+
+  # clang cursor kind as returned by RTags not adding value to the
+  # symbol information popup.
+  "filtered_clang_cursor_kind": [
+    "arguments",
+    "baseClasses",
+    "cf",
+    "cfl",
+    "cflcontext",
+    "context",
+    "endLine",
+    "endColumn",
+    "functionArgumentCursor",
+    "functionArgumentLength",
+    "functionArgumentLocation",
+    "functionArgumentLocationContext",
+    "invocation",
+    "invocationContext",
+    "invokedFunction",
+    "location",
+    "parent",
+    "range",
+    "startLine",
+    "startColumn",
+    "symbolLength",
+    "usr",
+    "xmlComment"
+  ]
 }
 ```
 

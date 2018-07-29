@@ -260,38 +260,12 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     MAX_POPUP_WIDTH = 1800
     MAX_POPUP_HEIGHT = 900
 
-    # Not useful for our users, we hereby decide.
-    FILTER_TITLES=[
-        'arguments',
-        'baseClasses',
-        'cf',
-        'cfl',
-        'cflcontext',
-        'context',
-        'endLine',
-        'endColumn',
-        'functionArgumentCursor',
-        'functionArgumentLength',
-        'functionArgumentLocation',
-        'functionArgumentLocationContext',
-        'invocation',
-        'invocationContext',
-        'invokedFunction',
-        'location',
-        'parent',
-        'range',
-        'startLine',
-        'startColumn',
-        'symbolLength',
-        'usr',
-        'xmlComment'
-    ]
-
     # Camelcase doesn't look so nice on interfaces.
     MAP_TITLES={
         'argumentIndex':            'argument index',
         'briefComment':             'brief comment',
         'constmethod':              'const method',
+        'fieldOffset':              'field offset',
         'purevirtual':              'pure virtual',
         'macroexpansion':           'macro expansion',
         'templatespecialization':   'template specialization',
@@ -606,8 +580,11 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         priority_lane = {}
         alphabetic_keys = []
         kind_extension_keys = []
+
+        filtered_kind = settings.SettingsManager.get("filtered_clang_cursor_kind", [])
+
         for key in output_json.keys():
-            if not key in RtagsSymbolInfoCommand.FILTER_TITLES:
+            if not key in filtered_kind:
                 # Check if bookean types does well as a kind extension.
                 if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
                     if output_json[key]:
@@ -743,7 +720,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             pos = pos[0].a
         return view.rowcol(pos)
 
-    def on_activated_async(self, view):
+    def on_activated(self, view):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
@@ -996,6 +973,8 @@ def update_settings():
     settings.SettingsManager.get('status_key', 'rtags_status_indicator')
     settings.SettingsManager.get('progress_key', 'rtags_progress_indicator')
 
+    settings.SettingsManager.add_on_change('filtered_clang_cursor_kind')
+
     settings.SettingsManager.add_on_change('rc_timeout')
     settings.SettingsManager.add_on_change('rc_path')
     settings.SettingsManager.add_on_change('auto_complete')
@@ -1017,9 +996,11 @@ def init():
     globals()['vc_manager'] = vc.VCManager()
     update_settings()
 
+
 def plugin_loaded():
     tools.Reloader.reload_all()
     sublime.set_timeout(init, 200)
+
 
 def plugin_unloaded():
     jobs.JobController.stop_all()

@@ -62,7 +62,7 @@ class SettingsManager():
         if not SettingsManager.settings:
             SettingsManager.update()
         value = SettingsManager.settings.get(key, default)
-        log.debug("Setting {}={}".format(key, value))
+        # log.debug("Setting {}={}".format(key, value))
         return value
 
     def add_on_change(key):

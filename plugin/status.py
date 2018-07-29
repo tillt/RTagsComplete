@@ -29,7 +29,7 @@ class StatusController():
         self.clear_results()
 
     def clear_status(self):
-        log.debug("Clearing status from view {}".format(self.view))
+        log.debug("Clearing status from view-id {}".format(self.view.id()))
 
         self.view.erase_status(self.status_key)
 
@@ -42,7 +42,7 @@ class StatusController():
             self.view.set_status(self.status_key, "RTags ❌")
 
     def clear_results(self):
-        log.debug("Clearing results from view {}".format(self.view))
+        log.debug("Clearing results from view-id {}".format(self.view.id()))
 
         self.view.erase_status(self.results_key)
 
