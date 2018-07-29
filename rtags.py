@@ -993,8 +993,8 @@ def update_settings():
 
 
 def init():
-    globals()['vc_manager'] = vc.VCManager()
     update_settings()
+    globals()['vc_manager'] = vc.VCManager()
 
 
 def plugin_loaded():
