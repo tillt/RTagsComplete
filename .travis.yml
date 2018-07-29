@@ -1,0 +1,47 @@
+env:
+    global:
+        # Your package name
+        - PACKAGE="RTagsComplete"
+        - SUBLIME_TEXT_VERSION="3" PCINSTALL=true
+
+language:
+    - python
+
+matrix:
+    include:
+    - os: linux
+      env: DISTRO="Ubuntu"
+      dist: trusty
+      sudo: required
+    - os: osx
+      env: DISTRO="OSX"
+      language: generic
+
+before_install:
+    - curl -OL https://raw.githubusercontent.com/randy3k/UnitTesting/master/sbin/travis.sh
+    # enable gui, see https://docs.travis-ci.com/user/gui-and-headless-browsers
+    - if [ "$TRAVIS_OS_NAME" == "linux"  ]; then
+            export DISPLAY=:99.0;
+            sh -e /etc/init.d/xvfb start;
+            sudo apt-get update -yqq;
+            sudo apt-get install -y clang;
+            sudo pip install --upgrade pycodestyle pep257;
+            sudo pip install coverage codacy-coverage;
+      fi
+
+install:
+    - sh travis.sh bootstrap
+    - if [ "$PCINSTALL" == true ]; then sh travis.sh install_package_control; fi
+
+script:
+    - ls
+    - sh travis.sh run_tests --coverage
+    - if [ "$TRAVIS_OS_NAME" == "linux"  ]; then
+            coverage xml -o coverage.xml;
+      fi
+
+after_success:
+    - python-codacy-coverage -r coverage.xml
+
+notifications:
+    email: false
