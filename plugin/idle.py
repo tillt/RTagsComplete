@@ -23,7 +23,6 @@ class Mode:
     SLEEP = 1
     RUN = 2
 
-
 class Controller:
     def __init__(self, view, auto_reindex, period, threshold, callback):
         self.counter = 0
@@ -78,7 +77,7 @@ class Controller:
         if mode == Mode.RUN:
             self.counter += 1
 
-        sublime.set_timeout_async(lambda self=self: self.run(Mode.RUN), Controller.PERIOD)
+        sublime.set_timeout_async(lambda self=self: self.run(Mode.RUN), self.period)
 
     def unload(self):
         self.sleep()

@@ -51,9 +51,11 @@ class JobError:
                 "Can't seem to connect to server")
 
         if code != 0:
-            return JobError(
-                JobError.UNKNOWN,
-                "RTags client returns {}".format(code))
+            if out:
+                message = "RTags failed with status {} and message:\n{}".format(code, out.decode('utf-8'))
+            else:
+                message = "RTags failed with status {}".format(code)
+            return JobError(JobError.UNKNOWN, message)
 
         return None
 
