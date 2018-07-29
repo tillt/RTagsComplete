@@ -51,9 +51,11 @@ class JobError:
                 "Can't seem to connect to server")
 
         if code != 0:
-            return JobError(
-                JobError.UNKNOWN,
-                "RTags client returns {}".format(code))
+            if out:
+                message = "RTags failed with status {} and message:\n{}".format(code, out.decode('utf-8'))
+            else:
+                message = "RTags failed with status {}".format(code)
+            return JobError(JobError.UNKNOWN, message)
 
         return None
 
@@ -80,11 +82,13 @@ class RTagsJob():
         return [settings.SettingsManager.get('rc_path')] + self.command_info
 
     def stop(self):
-        log.debug("Killing job {}".format(self.p))
-        if self.p:
-            self.p.kill()
+        try:
+            log.debug("Killing job {}".format(self.p))
+            if self.p:
+                self.p.kill()
+        except ProcessLookupError:
+            pass
         self.p = None
-        return
 
     def communicate(self, process, timeout=None):
         if not self.nodebug:

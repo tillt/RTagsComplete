@@ -12,7 +12,6 @@ Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 TODO(tillt): The current tests are broken and need to get redone.
 """
 
-import collections
 import logging
 import html
 import re
@@ -88,25 +87,6 @@ def supported_view(view):
 
     return True
 
-
-class NavigationHelper(object):
-    NAVIGATION_REQUESTED = 1
-    NAVIGATION_DONE = 2
-
-    def __init__(self):
-        # navigation indicator, possible values are:
-        # - NAVIGATION_REQUESTED
-        # - NAVIGATION_DONE
-        self.flag = NavigationHelper.NAVIGATION_DONE
-        # rc utility switches to use for callback
-        self.switches = []
-        # File contents that has been passed to reindexer last time.
-        self.data = ''
-        # History of navigations.
-        # Elements are tuples (filename, line, col).
-        self.history = collections.deque()
-
-
 class RtagsBaseCommand(sublime_plugin.TextCommand):
     FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
 
@@ -155,9 +135,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         #    sublime.set_timeout_async(rerun, 500)
         #    return
 
-        # Drop the flag, we are going to navigate.
-        navigation_helper.flag = NavigationHelper.NAVIGATION_DONE
-        navigation_helper.switches = []
+        vc_manager.navigation_done()
 
         self._action(out, **kwargs)
 
@@ -171,12 +149,11 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         # 3. current text is different from previous one
         # It takes ~40-50 ms to reindex 2.5K C file and
         # miserable amount of time to check text difference.
-        if (navigation_helper.flag == NavigationHelper.NAVIGATION_DONE and
-                self.view.is_dirty() and
-                navigation_helper.data != get_view_text(self.view)):
-            navigation_helper.switches = switches
-            navigation_helper.data = get_view_text(self.view)
-            navigation_helper.flag = NavigationHelper.NAVIGATION_REQUESTED
+        if (vc_manager.is_navigation_done() and
+            self.view.is_dirty() and
+            vc_manager.navigation_data() != get_view_text(self.view)):
+
+            vc_manager.request_navigation(self.view, switches, get_view_text(self.view))
             vc_manager.view_controller(self.view).fixits.reindex(saved=False)
             # Never go further.
             return
@@ -199,29 +176,19 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         (row, col) = self.view.rowcol(self.view.sel()[0].a)
 
-        navigation_helper.history.append(
-            (self.view.file_name(), row + 1, col + 1))
+        vc_manager.push_history(self.view.file_name(), int(row) + 1, int(col) + 1)
 
-        (file, line, col, _) = re.findall(
-            RtagsBaseCommand.FILE_INFO_REG,
-            self.last_references[res])[0]
+        (file, line, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, vc_manager.references()[res])[0]
 
-        if len(navigation_helper.history) > int(settings.SettingsManager.get('jump_limit', 10)):
-            navigation_helper.history.popleft()
-
-        view = self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+        self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
 
     def on_highlight(self, res):
         if res == -1:
             return
 
-        (file, line, col, _) = re.findall(
-            RtagsBaseCommand.FILE_INFO_REG,
-            self.last_references[res])[0]
+        (file, line, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, vc_manager.references()[res])[0]
 
-        view = self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
+        self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
     def _query(self, *args, **kwargs):
         return ''
@@ -230,7 +197,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         # Pretty format the results.
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
-        self.last_references = items
+        vc_manager.set_references(items)
 
         def out_to_items(item):
             (file, line, _, usage) = re.findall(RtagsBaseCommand.FILE_INFO_REG, item)[0]
@@ -270,7 +237,7 @@ class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
 
     def run(self, edit):
         try:
-            file, line, col = navigation_helper.history.pop()
+            file, line, col = vc_manager.pop_history()
             view = self.view.window().open_file(
                 '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
         except IndexError:
@@ -293,38 +260,12 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     MAX_POPUP_WIDTH = 1800
     MAX_POPUP_HEIGHT = 900
 
-    # Not useful for our users, we hereby decide.
-    FILTER_TITLES=[
-        'arguments',
-        'baseClasses',
-        'cf',
-        'cfl',
-        'cflcontext',
-        'context',
-        'endLine',
-        'endColumn',
-        'functionArgumentCursor',
-        'functionArgumentLength',
-        'functionArgumentLocation',
-        'functionArgumentLocationContext',
-        'invocation',
-        'invocationContext',
-        'invokedFunction',
-        'location',
-        'parent',
-        'range',
-        'startLine',
-        'startColumn',
-        'symbolLength',
-        'usr',
-        'xmlComment'
-    ]
-
     # Camelcase doesn't look so nice on interfaces.
     MAP_TITLES={
         'argumentIndex':            'argument index',
         'briefComment':             'brief comment',
         'constmethod':              'const method',
+        'fieldOffset':              'field offset',
         'purevirtual':              'pure virtual',
         'macroexpansion':           'macro expansion',
         'templatespecialization':   'template specialization',
@@ -352,6 +293,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'container',
         'definition',
         'reference',
+        'staticmethod',
         'templatereference'
     ]
 
@@ -629,15 +571,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
             r'(\S+):(\d+):(\d+):(\S+):(\d+):(\d+)',
             href)[0]
 
-        self.last_references = ["{}:{}:{}".format(oldfile, oldline, oldcol)]
-
-        navigation_helper.history.append((oldfile, int(oldline) + 1, int(oldcol) + 1))
-
-        if len(navigation_helper.history) > int(settings.SettingsManager.get('jump_limit', 10)):
-            navigation_helper.history.popleft()
-
-        view = self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+        vc_manager.navigate(self.view, oldfile, oldline, oldcol, file, line, col)
 
     def _action(self, out, **kwargs):
         output_json = json.loads(out.decode("utf-8"))
@@ -646,8 +580,11 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         priority_lane = {}
         alphabetic_keys = []
         kind_extension_keys = []
+
+        filtered_kind = settings.SettingsManager.get("filtered_clang_cursor_kind", [])
+
         for key in output_json.keys():
-            if not key in RtagsSymbolInfoCommand.FILTER_TITLES:
+            if not key in filtered_kind:
                 # Check if bookean types does well as a kind extension.
                 if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
                     if output_json[key]:
@@ -746,8 +683,16 @@ class RtagsHoverInfo(sublime_plugin.EventListener):
         if hover_zone != sublime.HOVER_TEXT:
             return
 
+        if not supported_view(view):
+            log.debug("Unsupported view")
+            return
+
         if not settings.SettingsManager.get("hover"):
             return
+
+        # Make sure the underlying view is in focus - enables in turn
+        # that the view-controller shows its status.
+        view.window().focus_view(view)
 
         (row, col) = view.rowcol(point)
         view.run_command(
@@ -775,7 +720,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             pos = pos[0].a
         return view.rowcol(pos)
 
-    def on_activated_async(self, view):
+    def on_activated(self, view):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
@@ -823,8 +768,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
                     view.file_name(),
                     b'',
                     view),
-                indicator=vc_manager.view_controller(self.view).status.progress
-            )
+                indicator=vc_manager.view_controller(view).status.progress)
             return
 
         # For some bizarre reason, we need to delay our re-indexing task
@@ -1029,6 +973,8 @@ def update_settings():
     settings.SettingsManager.get('status_key', 'rtags_status_indicator')
     settings.SettingsManager.get('progress_key', 'rtags_progress_indicator')
 
+    settings.SettingsManager.add_on_change('filtered_clang_cursor_kind')
+
     settings.SettingsManager.add_on_change('rc_timeout')
     settings.SettingsManager.add_on_change('rc_path')
     settings.SettingsManager.add_on_change('auto_complete')
@@ -1047,15 +993,14 @@ def update_settings():
 
 
 def init():
+    globals()['vc_manager'] = vc.VCManager()
     update_settings()
 
-    globals()['navigation_helper'] = NavigationHelper()
-    globals()['vc_manager'] = vc.VCManager()
 
 def plugin_loaded():
     tools.Reloader.reload_all()
     sublime.set_timeout(init, 200)
 
+
 def plugin_unloaded():
     jobs.JobController.stop_all()
-    vc_manager.unload()

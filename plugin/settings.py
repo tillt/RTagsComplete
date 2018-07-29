@@ -9,13 +9,15 @@ Settings manager.
 import sublime
 import logging
 
+from . import tools
+
 from os import path
 from threading import RLock
 
 log = logging.getLogger("RTags")
 
 class SettingsManager():
-    PACKAGE_PATH = "Packages/RTagsComplete"
+    PACKAGE_PATH = "Packages"
     THEMES_PATH = "themes"
     THEME_NAME = "Default"
 
@@ -23,6 +25,10 @@ class SettingsManager():
     templates = {}
 
     def template_as_html(category, typename, message):
+        if not typename in SettingsManager.templates.keys():
+            return None
+        if not category in SettingsManager.templates[typename].keys():
+            return None
         template = SettingsManager.templates[typename][category]
         padded = template.replace('{', '{{').replace('}', '}}')
         substituted = padded.replace('[', '{').replace(']', '}')
@@ -44,6 +50,7 @@ class SettingsManager():
             for name in types[key]:
                 filepath = path.join(
                     SettingsManager.PACKAGE_PATH,
+                    tools.PKG_NAME,
                     SettingsManager.THEMES_PATH,
                     SettingsManager.THEME_NAME,
                     "{}_{}.html".format(name, key))
@@ -55,7 +62,7 @@ class SettingsManager():
         if not SettingsManager.settings:
             SettingsManager.update()
         value = SettingsManager.settings.get(key, default)
-        log.debug("Setting {}={}".format(key, value))
+        # log.debug("Setting {}={}".format(key, value))
         return value
 
     def add_on_change(key):

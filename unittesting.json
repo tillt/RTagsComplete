@@ -1,3 +1,9 @@
 {
-  "async" : true
+    "tests_dir" : "tests",
+    "pattern" : "test*.py",
+    "async": true,
+    "deferred": false,
+    "verbosity": 5,
+    "output": "<panel>",
+    "capture_console": true
 }
