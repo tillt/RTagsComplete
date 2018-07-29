@@ -1,0 +1,10 @@
+[run]
+omit =
+    /*/tests/*
+    /*/rtags.py
+
+[report]
+ignore_errors = True
+
+[xml]
+output = .coverage
