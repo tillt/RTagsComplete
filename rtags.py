@@ -89,6 +89,8 @@ def supported_view(view):
 
 class RtagsBaseCommand(sublime_plugin.TextCommand):
     FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
+    MAX_POPUP_WIDTH = 1800
+    MAX_POPUP_HEIGHT = 900
 
     def command_done(self, future, **kwargs):
         log.debug("Command done callback hit {}".format(future))
