@@ -90,7 +90,7 @@ Key bindings were originally inspired by Qt Creator.
 
 ### Keybindings
 
-Customize your own key bindings via "Preferences - Package Settings - RtagsComplete - Key Bindings - User"
+Customize your own key bindings via *Preferences* > *Package Settings* > *RTagsComplete* > *Key Bindings* > *User*
 
 ```python
 [
@@ -116,7 +116,7 @@ Customize your own key bindings via "Preferences - Package Settings - RtagsCompl
 
 ### Settings
 
-Customize settings via "Preferences - Package Settings - RtagsComplete - Settings - User"
+Customize settings via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
 
 ```python
 {
@@ -192,7 +192,7 @@ Customize settings via "Preferences - Package Settings - RtagsComplete - Setting
 }
 ```
 
-If you need auto-completion add following to "Preferences - Settings - User"
+If you need auto-completion add following to *Preferences* > *Settings* > *User*
 
 ```json
 "auto_complete_triggers":
