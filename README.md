@@ -24,6 +24,7 @@
      \/__/        \/__/        \/__/        \/__/     \/__/        \/__/         \/__/ \/__/
 ```
 
+Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=master)](https://travis-ci.org/tillt/RTagsComplete) Staging [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=staging)](https://travis-ci.org/tillt/RTagsComplete)
 
 # About
 

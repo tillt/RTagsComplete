@@ -163,7 +163,7 @@ class CompletionJob(RTagsJob):
         # Make this query block until getting answered.
         command_info.append('--synchronous-completions')
 
-        RTagsJob.__init__(self, completion_job_id, command_info, **{'data': text, 'view': view})
+        super().__init__(completion_job_id, command_info, **{'data': text, 'view': view})
 
     def run(self):
         (job_id, out, error)  = self.run_process(60)
@@ -198,7 +198,7 @@ class ReindexJob(RTagsJob):
         if len(text):
             command_info += [ "--unsaved-file", "{}:{}".format(filename,len(text)) ]
 
-        RTagsJob.__init__(self, job_id, command_info, **{'data': text, 'view': view})
+        super().__init__(job_id, command_info, **{'data': text, 'view': view})
 
     def run(self):
         return self.run_process(300)
@@ -207,7 +207,7 @@ class ReindexJob(RTagsJob):
 class MonitorJob(RTagsJob):
 
     def __init__(self, job_id):
-        RTagsJob.__init__(self, job_id, ['-m'], **{'communicate': self.communicate})
+        super().__init__(job_id, ['-m'], **{'communicate': self.communicate})
 
     def run(self):
         return self.run_process()
