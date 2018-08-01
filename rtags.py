@@ -740,6 +740,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
+
         vc_manager.view_controller(view).fixits.clear()
         vc_manager.view_controller(view).idle.trigger()
 
@@ -994,14 +995,10 @@ def update_settings():
     log.info("Settings updated")
 
 
-def init():
-    update_settings()
-    globals()['vc_manager'] = vc.VCManager()
-
-
 def plugin_loaded():
     tools.Reloader.reload_all()
-    sublime.set_timeout(init, 200)
+    update_settings()
+    globals()['vc_manager'] = vc.VCManager()
 
 
 def plugin_unloaded():
