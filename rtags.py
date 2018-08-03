@@ -259,8 +259,6 @@ class RtagsLocationCommand(RtagsBaseCommand):
 
 
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
-    MAX_POPUP_WIDTH = 1800
-    MAX_POPUP_HEIGHT = 900
 
     # Camelcase doesn't look so nice on interfaces.
     MAP_TITLES={
@@ -645,10 +643,15 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         row = 0
         col = 0
 
+        # Hover will give us coordinates here, keyboard-called symbol-
+        # info will not give us coordinates, so we need to get em now.
         if 'col' in kwargs:
             row = kwargs['row']
             col = kwargs['col']
-            location = self.view.text_point(kwargs['row'], kwargs['col'])
+        else:
+            row, col = self.view.rowcol(self.view.sel()[0].a)
+
+        location = self.view.text_point(row, col)
 
         file = self.view.file_name()
 
