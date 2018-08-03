@@ -259,8 +259,6 @@ class RtagsLocationCommand(RtagsBaseCommand):
 
 
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
-    MAX_POPUP_WIDTH = 1800
-    MAX_POPUP_HEIGHT = 900
 
     # Camelcase doesn't look so nice on interfaces.
     MAP_TITLES={
