@@ -584,8 +584,9 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         filtered_kind = settings.SettingsManager.get("filtered_clang_cursor_kind", [])
 
         for key in output_json.keys():
+            # Do not include filtered cursor kind keys.
             if not key in filtered_kind:
-                # Check if bookean types does well as a kind extension.
+                # Check if boolean type does well as a kind extension.
                 if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
                     if output_json[key]:
                         title = key
@@ -598,15 +599,15 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                     else:
                         alphabetic_keys.append(key)
 
-        priorized_keys = []
-        for index in sorted(priority_lane.keys()):
-            priorized_keys.append(priority_lane[index])
-
-        alphabetic_keys = sorted(alphabetic_keys)
-
+        # Render a list of keys in the order we want to see;
+        # 1st: All the priorized keys, in their exact order.
+        # 2nd: All remaining keys, in alphabetic order.
         sorted_keys = []
-        sorted_keys.extend(priorized_keys)
-        sorted_keys.extend(alphabetic_keys)
+
+        for index in sorted(priority_lane.keys()):
+            sorted_keys.append(priority_lane[index])
+
+        sorted_keys.extend(sorted(alphabetic_keys))
 
         if len(kind_extension_keys) > 1:
             kind_extension_keys=sorted(kind_extension_keys)
@@ -638,10 +639,6 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         info = '\n'.join(displayed_html_items)
 
         rendered = settings.SettingsManager.template_as_html("info", "popup", info)
-
-        location = -1
-        row = 0
-        col = 0
 
         # Hover will give us coordinates here, keyboard-called symbol-
         # info will not give us coordinates, so we need to get em now.
