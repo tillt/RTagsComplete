@@ -12,16 +12,15 @@ Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 TODO(tillt): The current tests are broken and need to get redone.
 """
 
-import logging
 import html
+import json
+import logging
 import re
 import sublime
 import sublime_plugin
-import json
 
-from datetime import datetime
-from os import path
 from functools import partial
+from os import path
 
 from .plugin import completion
 from .plugin import jobs
@@ -86,6 +85,7 @@ def supported_view(view):
         return False
 
     return True
+
 
 class RtagsBaseCommand(sublime_plugin.TextCommand):
     FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
