@@ -54,6 +54,9 @@ class ViewController():
         self.idle.unload()
 
 
+"""ViewController manager singleton.
+Manages ViewControllers, attaching them to views.
+"""
 class VCManager():
 
     NAVIGATION_REQUESTED = 1
@@ -91,6 +94,15 @@ class VCManager():
         self.active_controller = self.controllers[view_id]
         self.active_controller.activated()
 
+    # Get the viewcontroller for the specified view.
+    def view_controller(self, view):
+        if not view:
+            return None
+        view_id = view.id()
+        if not view_id in self.controllers.keys():
+            self.controllers[view_id] = ViewController(view)
+        return self.controllers[view_id]
+
     def references(self):
         return self.last_references
 
@@ -100,6 +112,7 @@ class VCManager():
     def add_reference(self, reference):
         self.last_references = [reference]
 
+    # Run a navigational transaction.
     def navigate(self, view, oldfile, oldline, oldcol, file, line, col):
         self.add_reference("{}:{}:{}".format(oldfile, oldline, oldcol))
 
@@ -108,6 +121,7 @@ class VCManager():
         return view.window().open_file(
             '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
 
+    # Prepare a navigational transaction.
     def request_navigation(self, view, switches, data):
         self.switches = switches
         self.data = data
@@ -125,9 +139,11 @@ class VCManager():
         if len(self.history) > int(settings.SettingsManager.get('jump_limit', 10)):
             self.pop_history()
 
+    # Check if we are still in a navigation transaction.
     def is_navigation_done(self):
         return self.flag == VCManager.NAVIGATION_DONE
 
+    # Finalize navigational transaction.
     def navigation_done(self):
         self.flag = VCManager.NAVIGATION_DONE
         self.switches = []
@@ -145,11 +161,3 @@ class VCManager():
         for view_id in self.controllers.keys():
             self.controllers[view_id].unload()
         self.controllers = {}
-
-    def view_controller(self, view):
-        if not view:
-            return None
-        view_id = view.id()
-        if not view_id in self.controllers.keys():
-            self.controllers[view_id] = ViewController(view)
-        return self.controllers[view_id]
