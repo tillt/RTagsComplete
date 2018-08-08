@@ -48,13 +48,13 @@ class JobError:
         elif out.startswith("Can't seem to connect to server"):
             return JobError(
                 JobError.RDM_DOWN,
-                "Can't seem to connect to server")
+                "Can't seem to connect to RTags server.")
 
         if code != 0:
             if out:
-                message = "RTags failed with status {} and message:\n{}".format(code, out.decode('utf-8'))
+                message = "RTags failed with status {} and message:\n{}.".format(code, out.decode('utf-8'))
             else:
-                message = "RTags failed with status {}".format(code)
+                message = "RTags failed with status {}.".format(code)
             return JobError(JobError.UNKNOWN, message)
 
         return None
