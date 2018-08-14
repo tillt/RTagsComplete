@@ -16,6 +16,7 @@ from threading import RLock
 
 log = logging.getLogger("RTags")
 
+
 class SettingsManager():
     PACKAGE_PATH = "Packages"
     THEMES_PATH = "themes"

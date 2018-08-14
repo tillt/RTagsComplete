@@ -52,36 +52,47 @@ def get_view_text(view):
 
 def supported_view(view):
     if not view:
-        log.warning("There is no view")
+        log.error("There is no view")
+        return False
+
+    if view.is_scratch():
+        log.error("View is scratch view")
+        return False
+
+    if view.buffer_id() == 0:
+        log.error("View buffer id is 0")
         return False
 
     selection = view.sel()
 
     if not selection:
-        log.warning("Coulnt get a selection from this view")
+        log.error("Could not get a selection from this view")
+        return False
+
+    if not len(selection):
+        log.error("Selection for this view is empty")
         return False
 
     scope = view.scope_name(selection[0].a)
 
     if not scope:
-        log.warning("Coulnt get a scope from this view")
+        log.error("Could not get a scope from this view position")
+        return False
+
+    scope_types = scope.split()
+
+    if not len(scope_types):
+        log.error("Scope types for this view is empty")
         return False
 
     file_types = settings.SettingsManager.get('file_types', ["source.c", "source.c++"])
 
-    if not scope.split()[0] in file_types:
+    if not len(file_types):
+        log.error("No supported file types set - go update your settings")
         return False
 
-    if not view.file_name():
-        return False
-
-    if view.is_scratch():
-        return False
-
-    if view.buffer_id() == 0:
-        return False
-
-    if not path.exists(view.file_name()):
+    if not scope_types[0] in file_types:
+        log.debug("File type is not supported")
         return False
 
     return True
@@ -726,6 +737,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
+
         log.debug("Activated supported view for view-id {}".format(view.id()))
         vc_manager.activate_view_controller(view)
 
@@ -733,6 +745,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
+
         log.debug("Closing view for view-id {}".format(view.id()))
         vc_manager.close(view)
 
