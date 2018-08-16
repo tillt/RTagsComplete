@@ -12,16 +12,15 @@ Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 TODO(tillt): The current tests are broken and need to get redone.
 """
 
-import logging
 import html
+import json
+import logging
 import re
 import sublime
 import sublime_plugin
-import json
 
-from datetime import datetime
-from os import path
 from functools import partial
+from os import path
 
 from .plugin import completion
 from .plugin import jobs
@@ -53,39 +52,51 @@ def get_view_text(view):
 
 def supported_view(view):
     if not view:
-        log.warning("There is no view")
+        log.error("There is no view")
+        return False
+
+    if view.is_scratch():
+        log.error("View is scratch view")
+        return False
+
+    if view.buffer_id() == 0:
+        log.error("View buffer id is 0")
         return False
 
     selection = view.sel()
 
     if not selection:
-        log.warning("Coulnt get a selection from this view")
+        log.error("Could not get a selection from this view")
+        return False
+
+    if not len(selection):
+        log.error("Selection for this view is empty")
         return False
 
     scope = view.scope_name(selection[0].a)
 
     if not scope:
-        log.warning("Coulnt get a scope from this view")
+        log.error("Could not get a scope from this view position")
+        return False
+
+    scope_types = scope.split()
+
+    if not len(scope_types):
+        log.error("Scope types for this view is empty")
         return False
 
     file_types = settings.SettingsManager.get('file_types', ["source.c", "source.c++"])
 
-    if not scope.split()[0] in file_types:
+    if not len(file_types):
+        log.error("No supported file types set - go update your settings")
         return False
 
-    if not view.file_name():
-        return False
-
-    if view.is_scratch():
-        return False
-
-    if view.buffer_id() == 0:
-        return False
-
-    if not path.exists(view.file_name()):
+    if not scope_types[0] in file_types:
+        log.debug("File type is not supported")
         return False
 
     return True
+
 
 class RtagsBaseCommand(sublime_plugin.TextCommand):
     FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
@@ -259,8 +270,6 @@ class RtagsLocationCommand(RtagsBaseCommand):
 
 
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
-    MAX_POPUP_WIDTH = 1800
-    MAX_POPUP_HEIGHT = 900
 
     # Camelcase doesn't look so nice on interfaces.
     MAP_TITLES={
@@ -586,8 +595,9 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         filtered_kind = settings.SettingsManager.get("filtered_clang_cursor_kind", [])
 
         for key in output_json.keys():
+            # Do not include filtered cursor kind keys.
             if not key in filtered_kind:
-                # Check if bookean types does well as a kind extension.
+                # Check if boolean type does well as a kind extension.
                 if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
                     if output_json[key]:
                         title = key
@@ -600,15 +610,15 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                     else:
                         alphabetic_keys.append(key)
 
-        priorized_keys = []
-        for index in sorted(priority_lane.keys()):
-            priorized_keys.append(priority_lane[index])
-
-        alphabetic_keys = sorted(alphabetic_keys)
-
+        # Render a list of keys in the order we want to see;
+        # 1st: All the priorized keys, in their exact order.
+        # 2nd: All remaining keys, in alphabetic order.
         sorted_keys = []
-        sorted_keys.extend(priorized_keys)
-        sorted_keys.extend(alphabetic_keys)
+
+        for index in sorted(priority_lane.keys()):
+            sorted_keys.append(priority_lane[index])
+
+        sorted_keys.extend(sorted(alphabetic_keys))
 
         if len(kind_extension_keys) > 1:
             kind_extension_keys=sorted(kind_extension_keys)
@@ -641,14 +651,15 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         rendered = settings.SettingsManager.template_as_html("info", "popup", info)
 
-        location = -1
-        row = 0
-        col = 0
-
+        # Hover will give us coordinates here, keyboard-called symbol-
+        # info will not give us coordinates, so we need to get em now.
         if 'col' in kwargs:
             row = kwargs['row']
             col = kwargs['col']
-            location = self.view.text_point(kwargs['row'], kwargs['col'])
+        else:
+            row, col = self.view.rowcol(self.view.sel()[0].a)
+
+        location = self.view.text_point(row, col)
 
         file = self.view.file_name()
 
@@ -726,6 +737,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
+
         log.debug("Activated supported view for view-id {}".format(view.id()))
         vc_manager.activate_view_controller(view)
 
@@ -733,6 +745,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         if not supported_view(view):
             log.debug("Unsupported view")
             return
+
         log.debug("Closing view for view-id {}".format(view.id()))
         vc_manager.close(view)
 
