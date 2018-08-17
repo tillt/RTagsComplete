@@ -28,7 +28,7 @@ Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=mas
 
 # About
 
-Sublime Text 3 C/C++ code completion, navigation plugin. It is based on [RTags](https://github.com/Andersbakken/rtags).
+Sublime Text 3 C/C++ code completion, navigation plugin based on [RTags](https://github.com/Andersbakken/rtags).
 
 This is a fork of the original [sublime-rtags](https://github.com/rampage644/sublime-rtags) by Sergei Turukin. New features have been added and merging those back into the original sublime-rtags has become a bottleneck this fork avoids.
 
@@ -61,7 +61,7 @@ Make sure you installed RTags - for all of the latest features, version 2.5 is t
 
 ![Completion Example](site/images/completion.png)
 
-## File re-indexing results after save and idle timeout - shows errors and warnings inline
+## Code validation - shows errors and warnings inline
 
 ![Fixits Example](site/images/fixits.png)
 
@@ -72,7 +72,7 @@ Make sure you installed RTags - for all of the latest features, version 2.5 is t
 - [Make sure `rdm` is active](https://github.com/tillt/RTagsComplete/wiki/Make-sure-rdm-is-active).
 - [Obtain compile_commands.json from the build chain of your project/s](https://github.com/tillt/RTagsComplete/wiki/Obtaining-compile_commands.json).
 - [Supply rdm with compile_commands.json of your project/s](https://github.com/tillt/RTagsComplete/wiki/Supply-rdm-with-compile_commands.json).
-- Start _Sublime Text 3_
+- That's it - ready to code with ease.
 
 # Default key bindings
 
