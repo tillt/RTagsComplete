@@ -38,3 +38,48 @@ class Reloader:
             if name.startswith(prefix):
                 log.debug("Reloading module: '%s'", name)
                 imp.reload(module)
+
+
+class Utilities:
+    """Random utilities."""
+
+    @staticmethod
+    def replace_in_file(old, new, file, target_map):
+        """
+        Replace 'old' with 'new' in 'file' at locations identified
+        by 'target_map' dictionary { row => [col] }.
+        """
+        with open(file) as in_file:
+            file_lines = in_file.read().splitlines()
+
+            for row, cols in target_map.items():
+                col_skew = 0
+
+                for col in cols:
+                    start = col_skew + col - 1
+
+                    # We may have a leading '~' here.
+                    # TODO(tillt): Is that really the only case where
+                    # the reference location does not match the exact
+                    # string position?
+                    if file_lines[row - 1][start:start + 1] == "~":
+                        start += 1
+                        col_skew += 1
+
+                    # Safety first, only replace matching symbols.
+                    if file_lines[row - 1][start:start+len(old)] == old:
+                        out_line = file_lines[row - 1][:start]
+                        out_line += new
+                        out_line += file_lines[row - 1][start + len(old):]
+
+                        col_skew += len(new) - len(old)
+
+                        file_lines[row - 1] = out_line
+                    else:
+                        log.error(
+                            "Symbol name does not match,"
+                            " skipping line {} column {} in file {}".format(row, col, file))
+
+                with open(file, 'w') as out_file:
+                    for line in file_lines:
+                        out_file.write("{}\n".format(line))

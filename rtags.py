@@ -269,6 +269,71 @@ class RtagsLocationCommand(RtagsBaseCommand):
                                  row + 1, col + 1)
 
 
+class RtagsSymbolRenameCommand(RtagsLocationCommand):
+
+    def _action(self, out, **kwargs):
+
+        items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
+
+        def out_to_items(item):
+            (file, row, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, item)[0]
+            return [file, int(row), int(col)]
+
+        items = list(map(out_to_items, items))
+
+        if len(items) == 0:
+            return
+
+        self.old_name = ""
+
+        for region in self.view.sel():
+            if region.begin() == region.end():
+                word = self.view.word(region)
+            else:
+                word = region
+            if not word.empty():
+                self.old_name = self.view.substr(word)
+
+        if len(self.old_name) == 0:
+            return
+
+        self.mutations = {}
+
+        for (file, row, col) in items:
+            log.debug("file {}, row {}, col {}".format(file, row, col))
+
+            # Group all source file and line mutations.
+            if not file in self.mutations:
+                self.mutations[file] = {}
+            if not row in self.mutations[file]:
+                self.mutations[file][row] = []
+
+            self.mutations[file][row].append(col)
+
+        self.view.window().show_input_panel(
+            "Rename {} occurance/s in {} file/s to".format(len(items), len(self.mutations)),
+            self.old_name,
+            self.on_done,
+            None,
+            None)
+
+    def on_done(self, new_name):
+        active_view = self.view
+
+        for file in self.mutations:
+            # Make sure we got the file opened, for undo context.
+            self.view.window().open_file(file)
+
+            tools.Utilities.replace_in_file(
+                self.old_name,
+                new_name,
+                file,
+                self.mutations[file])
+
+        # Switch focus back to the orignal active view to reduce confusion.
+        self.view.window().focus_view(active_view)
+
+
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
     # Camelcase doesn't look so nice on interfaces.
