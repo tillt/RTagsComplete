@@ -31,6 +31,7 @@ class Controller:
         self.counter_threshold = (threshold * 1000.0) / self.period
         self.view = view
         self.callback = callback
+        self.active = False
 
     def deactivated(self):
         log.debug("Deactivated")

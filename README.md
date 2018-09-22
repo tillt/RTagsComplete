@@ -53,6 +53,8 @@ Make sure you installed RTags - for all of the latest features, version 2.5 is t
 
 ## Find usages (Find symbol references, Find virtual function re-implementations)
 
+## Rename symbol
+
 ## Symbol information
 
 ![Symbol Info Example](site/images/symbol_info.png)
@@ -80,6 +82,7 @@ Key bindings were originally inspired by Qt Creator.
 
 + Symbol navigation - `F2`
 + Find usages - `Ctrl+Shift+u`
++ Rename symbol - `Ctrl+Shift+Alt+u`
 + Find virtual function re-implementations - `Ctrl+Shift+x`
 + Symbol information - `Ctrl+Shift+i`
 + Use `Alt+/` explicitly for auto-completion
@@ -96,6 +99,9 @@ Customize your own key bindings via *Preferences* > *Package Settings* > *RTagsC
 [
   # Find usages
   {"keys": ["ctrl+shift+u"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-r"]} },
+
+  # Rename symbol
+  {"keys": ["ctrl+shift+alt+u"], "command": "rtags_symbol_rename", "args": {"switches": ["--absolute-path", "--rename", "-e", "-r"]} },
 
   # Find virtual function re-implementations
   {"keys": ["ctrl+shift+x"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-k", "-r"]} },
