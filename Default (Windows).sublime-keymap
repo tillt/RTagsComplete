@@ -1,5 +1,6 @@
 [
   {"keys": ["ctrl+shift+u"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-r"]} },
+  {"keys": ["ctrl+shift+alt+u"], "command": "rtags_symbol_rename", "args": {"switches": ["--absolute-path", "--rename", "-e", "-r"]} },
   {"keys": ["ctrl+shift+x"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-k", "-r"]} },
   {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--json", "--symbol-info"]} },
   {"keys": ["f2"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-f"]} },
