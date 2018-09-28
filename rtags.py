@@ -210,6 +210,8 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         # Pretty format the results.
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
+        log.debug("Got items from command: {}".format(items))
+
         vc_manager.set_references(items)
 
         def out_to_items(item):
@@ -230,6 +232,27 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             sublime.MONOSPACE_FONT,
             -1,
             self.on_highlight)
+
+
+# Commands that need the current filename and the cursor location
+# in their query.
+class RtagsLocationCommand(RtagsBaseCommand):
+
+    def _query(self, *args, **kwargs):
+        if 'col' in kwargs:
+            col = kwargs['col']
+            row = kwargs['row']
+        else:
+            row, col = self.view.rowcol(self.view.sel()[0].a)
+        return '{}:{}:{}'.format(self.view.file_name(),
+                                 row + 1, col + 1)
+
+
+# Commands that need the current filename in their query.
+class RtagsFileCommand(RtagsBaseCommand):
+
+    def _query(self, *args, **kwargs):
+        return '{}'.format(self.view.file_name())
 
 
 class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
@@ -255,18 +278,6 @@ class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
                 '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
         except IndexError:
             pass
-
-
-class RtagsLocationCommand(RtagsBaseCommand):
-
-    def _query(self, *args, **kwargs):
-        if 'col' in kwargs:
-            col = kwargs['col']
-            row = kwargs['row']
-        else:
-            row, col = self.view.rowcol(self.view.sel()[0].a)
-        return '{}:{}:{}'.format(self.view.file_name(),
-                                 row + 1, col + 1)
 
 
 class RtagsSymbolRenameCommand(RtagsLocationCommand):

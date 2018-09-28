@@ -34,7 +34,7 @@ This is a fork of the original [sublime-rtags](https://github.com/rampage644/sub
 
 # Installation
 
-Make sure you installed RTags - for all of the latest features, version 2.5 is the oldest we support.
+Make sure you installed RTags - for all of the latest features, version 2.19 is the oldest we support. You will however get most functionality with RTags version 2.0 already.
 
 ### Via Package Control
 
@@ -51,7 +51,7 @@ Make sure you installed RTags - for all of the latest features, version 2.5 is t
 
 ## Symbol navigation (Goto definition/declaration)
 
-## Find usages (Find symbol references, Find virtual function re-implementations)
+## Find usages (Find symbol references, Find virtual function re-implementations, Find unused functions)
 
 ## Rename symbol
 
@@ -88,6 +88,7 @@ Key bindings were originally inspired by Qt Creator.
 + Use `Alt+/` explicitly for auto-completion
 + Mouse _button8_ to go backwards (mouse wheel left)
 + Error, fixit and warning navigation - `Ctrl-Shift-e`
++ Find unused functions - `Alt-Super-Shift-d`
 
 # Customization
 
@@ -116,7 +117,10 @@ Customize your own key bindings via *Preferences* > *Package Settings* > *RTagsC
   {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
 
   # Show errors, warnings and fixits
-  {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" }
+  {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" },
+
+  # Find unused / dead functions - needs RTags version 2.19 or higher.
+  {"keys": ["alt+super+shift+d"], "command": "rtags_file", "args": {"switches": ["--absolute-path", "--find-dead-functions"]} }
 ]
 ```
 
