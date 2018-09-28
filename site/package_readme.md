@@ -10,9 +10,11 @@ Sublime Text 3 C/C++ code completion, navigation and validation plugin based on 
 
 - Symbol navigation (Goto definition/declaration)
 
-- Find usages (Find symbol references, Find virtual function re-implementations)
+- Find usages (Find symbol references, Find virtual function re-implementations, Find unused / dead functions)
 
 - Symbol information
+
+- Rename symbol
 
 - Code completion
 
