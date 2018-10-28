@@ -9,8 +9,6 @@ this low priority work.
 
 
 import sublime
-import sublime_plugin
-import subprocess
 
 import logging
 
@@ -22,6 +20,7 @@ class Mode:
     RESET = 0
     SLEEP = 1
     RUN = 2
+
 
 class Controller:
     def __init__(self, view, auto_reindex, period, threshold, callback):

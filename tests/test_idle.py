@@ -28,7 +28,7 @@ class TestIdleController(GuiTestWrapper):
         self.assertIsNotNone(controller)
         self.assertIsNotNone(controller.idle)
 
-    def idle_callback():
+    def idle_callback(self):
         self.idle_callback_hit = True
 
     def test_idle(self):
