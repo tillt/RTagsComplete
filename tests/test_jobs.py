@@ -1,9 +1,6 @@
 """Tests for Job Controller."""
 import logging
 import time
-import sys
-
-from os import path
 
 from functools import partial
 from unittest import TestCase
@@ -20,10 +17,12 @@ formatter_verbose = logging.Formatter(
     '%(name)s:%(levelname)s: %(asctime)-15s %(filename)s::%(funcName)s'
     ' [%(threadName)s]: %(message)s')
 
+
 class TestJob(jobs.RTagsJob):
 
     def __init__(self, test_job_id, command_info):
-        jobs.RTagsJob.__init__(self, test_job_id, command_info, **{'data': b'', 'view': None})
+        jobs.RTagsJob.__init__(
+            self, test_job_id, command_info, **{'data': b'', 'view': None})
 
     def prepare_command(self):
         return self.command_info
@@ -34,7 +33,13 @@ class TestJobController(TestCase):
 
     expect = 0
 
-    def command_done(self, future, expect_error, expect_out, expect_job_id, **kwargs):
+    def command_done(
+        self,
+        future,
+        expect_error,
+        expect_out,
+        expect_job_id,
+            **kwargs):
         log.debug("Command done callback hit {}".format(future))
 
         self.expect = self.expect - 1
@@ -76,7 +81,11 @@ class TestJobController(TestCase):
 
         jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 1']),
-            partial(self.command_done, expect_error=None, expect_out='', expect_job_id=job_id))
+            partial(
+                self.command_done,
+                expect_error=None,
+                expect_out='',
+                expect_job_id=job_id))
 
         self.assertEqual(self.expect, 1)
 
