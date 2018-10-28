@@ -12,7 +12,6 @@ import logging
 from . import tools
 
 from os import path
-from threading import RLock
 
 log = logging.getLogger("RTags")
 
@@ -26,9 +25,9 @@ class SettingsManager():
     templates = {}
 
     def template_as_html(category, typename, message):
-        if not typename in SettingsManager.templates.keys():
+        if typename not in SettingsManager.templates.keys():
             return None
-        if not category in SettingsManager.templates[typename].keys():
+        if category not in SettingsManager.templates[typename].keys():
             return None
         template = SettingsManager.templates[typename][category]
         padded = template.replace('{', '{{').replace('}', '}}')
@@ -37,7 +36,8 @@ class SettingsManager():
 
     def update():
         log.debug("Settings update")
-        SettingsManager.settings = sublime.load_settings('RTagsComplete.sublime-settings')
+        SettingsManager.settings = sublime.load_settings(
+            'RTagsComplete.sublime-settings')
 
         # Init templates.
         SettingsManager.templates = {}
