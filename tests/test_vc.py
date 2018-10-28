@@ -1,15 +1,11 @@
 """Tests for VC Manager."""
-import sublime
-import sys
-
 from os import path
-from unittest import TestCase
 
 from RTagsComplete.plugin import vc
 from RTagsComplete.plugin import settings
 
-from RTagsComplete.plugin.tools import PKG_NAME
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
+
 
 class TestVC(GuiTestWrapper):
     """Test VC Manager."""
