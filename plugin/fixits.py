@@ -7,26 +7,23 @@ Indexing result evaluation, the frontend for the monitor process.
 """
 
 import sublime
-import sublime_plugin
 
 import logging
 
-from os import path
-
 from . import jobs
 from . import settings
-from . import indicator
-from . import status
 from . import watchdog
 
 log = logging.getLogger("RTags")
+
 
 class Category:
     WARNING = "warning"
     ERROR = "error"
 
+
 class Controller():
-    CATEGORIES = [ Category.WARNING, Category.ERROR ]
+    CATEGORIES = [Category.WARNING, Category.ERROR]
 
     CATEGORY_FLAGS = {
         Category.WARNING: sublime.DRAW_NO_FILL,
@@ -54,19 +51,22 @@ class Controller():
 
     def on_select(self, res):
         (file, line, col) = self.navigation_items[res]
-        view = self.view.window().open_file(
+        self.view.window().open_file(
             '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
 
     def on_highlight(self, res):
         (file, line, col) = self.navigation_items[res]
-        view = self.view.window().open_file(
+        self.view.window().open_file(
             '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
     def show_selector(self):
         def issue_to_panel_item(issue):
             return [
                 issue['message'],
-                "{}:{}:{}".format(self.filename.split('/')[-1], issue['line'], issue['column'])]
+                "{}:{}:{}".format(
+                    self.filename.split('/')[-1],
+                    issue['line'],
+                    issue['column'])]
 
         if not self.issues:
             log.debug("No warnings, errors or fixits to show")
@@ -78,8 +78,12 @@ class Controller():
         def issue_to_navigation_item(issue):
             return [self.filename, issue['line'], issue['column']]
 
-        self.navigation_items = list(map(issue_to_navigation_item, self.issues['error']))
-        self.navigation_items += list(map(issue_to_navigation_item, self.issues['warning']))
+        self.navigation_items = list(map(
+            issue_to_navigation_item,
+            self.issues['error']))
+        self.navigation_items += list(map(
+            issue_to_navigation_item,
+            self.issues['warning']))
 
         # If there is only one result no need to show it to user
         # just do navigation directly.
@@ -100,7 +104,7 @@ class Controller():
     def clear_regions(self):
         log.debug("Clearing regions from view")
         for key in self.regions.keys():
-            self.view.erase_regions(self.category_key(key));
+            self.view.erase_regions(self.category_key(key))
 
     def show_regions(self):
         scope_names = {'error': 'region.redish', 'warning': 'region.yellowish'}
@@ -117,7 +121,9 @@ class Controller():
         self.view.erase_phantoms(Controller.PHANTOMS_TAG)
 
     def update_phantoms(self, issues):
-        self.phantom_set = sublime.PhantomSet(self.view, Controller.PHANTOMS_TAG)
+        self.phantom_set = sublime.PhantomSet(
+            self.view,
+            Controller.PHANTOMS_TAG)
 
         def issue_to_phantom(category, issue):
             point = self.view.text_point(issue['line']-1, 0)
@@ -130,8 +136,12 @@ class Controller():
                     issue['message']),
                 sublime.LAYOUT_BLOCK)
 
-        phantoms = list(map(lambda p: issue_to_phantom('error', p), issues['error']))
-        phantoms += list(map(lambda p: issue_to_phantom('warning', p), issues['warning']))
+        phantoms = list(map(
+            lambda p: issue_to_phantom('error', p),
+            issues['error']))
+        phantoms += list(map(
+            lambda p: issue_to_phantom('warning', p),
+            issues['warning']))
 
         self.phantom_set.update(phantoms)
 
@@ -141,7 +151,9 @@ class Controller():
             start = self.view.text_point(issue['line']-1, issue['column']-1)
 
             if issue['length'] > 0:
-                end = self.view.text_point(issue['line']-1, issue['column']-1 + issue['length'])
+                end = self.view.text_point(
+                    issue['line']-1,
+                    issue['column']-1 + issue['length'])
             else:
                 end = self.view.line(start).b
 
@@ -180,7 +192,9 @@ class Controller():
             return
 
         if filename != self.filename:
-            log.warning("Got update for {} which is not {}".format(filename, self.filename))
+            log.warning("Got update for {} which is not {}".format(
+                filename,
+                self.filename))
             return
 
         self.status.update_results(issues)
@@ -237,7 +251,9 @@ class Controller():
         text = b''
 
         if not saved:
-            text = bytes(self.view.substr(sublime.Region(0, self.view.size())), "utf-8")
+            text = bytes(
+                self.view.substr(sublime.Region(0, self.view.size())),
+                "utf-8")
 
         self.reindex_job_id = "RTReindexJob"
 
