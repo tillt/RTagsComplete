@@ -70,6 +70,11 @@ class TestProgressIndicator(GuiTestWrapper):
 
         controller.status.progress.start()
         controller.status.progress.start()
+
+        time.sleep(0.5)
+
+        self.assertEqual(controller.status.progress.active_counter, 2)
+
         controller.status.progress.stop()
         controller.status.progress.stop()
 
