@@ -12,6 +12,7 @@ from . import settings
 
 log = logging.getLogger("RTags")
 
+
 class PositionStatus:
     """Enum class for position status.
     Taken from EasyClangComplete by Igor Bogoslavskyi
@@ -24,6 +25,7 @@ class PositionStatus:
     COMPLETION_NEEDED = 0
     COMPLETION_NOT_NEEDED = 1
     WRONG_TRIGGER = 2
+
 
 def position_status(point, view):
     """Check if the cursor focuses a valid trigger.
