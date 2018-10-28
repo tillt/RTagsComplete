@@ -1,11 +1,9 @@
 """Tests for Idle Controller."""
-import time
-
 from os import path
 
 from RTagsComplete.plugin import vc
-from RTagsComplete.plugin import idle
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
+
 
 class TestIdleController(GuiTestWrapper):
     """Test Idle Controller."""
