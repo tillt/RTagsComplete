@@ -88,8 +88,8 @@ class IndexWatchdog():
             return
 
         # Repeat as long as we are still indexing OR we are still trying
-        # to recognize the first indication of an indexing before the
-        # theshold expires.
+        # to recognize the first indication of an ongoing indexing before
+        # the theshold expires.
         sublime.set_timeout_async(
             lambda self=self: self.run(False),
             self.period)
