@@ -4,13 +4,13 @@
 
 """
 
-import sublime
 import logging
 
 from . import settings
 from . import indicator
 
 log = logging.getLogger("RTags")
+
 
 class StatusController():
 
@@ -61,4 +61,6 @@ class StatusController():
         if len(results) == 0:
             results.append("✅")
 
-        self.view.set_status(self.results_key, "Diagnose {}".format(" ".join(results)))
+        self.view.set_status(
+            self.results_key,
+            "Diagnose {}".format(" ".join(results)))
