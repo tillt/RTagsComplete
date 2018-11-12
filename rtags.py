@@ -20,7 +20,6 @@ import sublime
 import sublime_plugin
 
 from functools import partial
-from os import path
 
 from .plugin import completion
 from .plugin import jobs
@@ -85,7 +84,9 @@ def supported_view(view):
         log.error("Scope types for this view is empty")
         return False
 
-    file_types = settings.SettingsManager.get('file_types', ["source.c", "source.c++"])
+    file_types = settings.SettingsManager.get(
+        'file_types',
+        ["source.c", "source.c++"])
 
     if not len(file_types):
         log.error("No supported file types set - go update your settings")
@@ -125,7 +126,10 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if error:
             log.error("Command task failed: {}".format(error.message))
 
-            rendered = settings.SettingsManager.template_as_html("error","popup", error.message)
+            rendered = settings.SettingsManager.template_as_html(
+                "error",
+                "popup",
+                error.message)
 
             self.view.show_popup(
                 rendered,
@@ -142,7 +146,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         # Dirty hack.
         # TODO figure out why rdm responds with 'Project loading'
         # for now just repeat query.
-        #if error and error.code == jobs.JobError.PROJECT_LOADING:
+        # if error and error.code == jobs.JobError.PROJECT_LOADING:
         #    def rerun():
         #        self.view.run_command('rtags_location', {'switches': switches})
         #    sublime.set_timeout_async(rerun, 500)
@@ -171,7 +175,8 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             # Never go further.
             return
 
-        # Run an `RTagsJob` named 'RTBaseCommandXXXX' for this is a command job.
+        # Run an `RTagsJob` named 'RTBaseCommandXXXX' for this is a
+        # command job.
         job_args = kwargs
         job_args.update({'view': self.view})
 
@@ -215,7 +220,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         vc_manager.set_references(items)
 
         def out_to_items(item):
-            (file, line, _, usage) = re.findall(RtagsBaseCommand.FILE_INFO_REG, item)[0]
+            (file, line, _, usage) = re.findall(
+                RtagsBaseCommand.FILE_INFO_REG,
+                item)[0]
             return [usage.strip(), "{}:{}".format(file.split('/')[-1], line)]
 
         items = list(map(out_to_items, items))
@@ -274,7 +281,7 @@ class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         try:
             file, line, col = vc_manager.pop_history()
-            view = self.view.window().open_file(
+            self.view.window().open_file(
                 '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
         except IndexError:
             pass
@@ -287,7 +294,9 @@ class RtagsSymbolRenameCommand(RtagsLocationCommand):
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
 
         def out_to_items(item):
-            (file, row, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, item)[0]
+            (file, row, col, _) = re.findall(
+                RtagsBaseCommand.FILE_INFO_REG,
+                item)[0]
             return [file, int(row), int(col)]
 
         items = list(map(out_to_items, items))
@@ -314,15 +323,17 @@ class RtagsSymbolRenameCommand(RtagsLocationCommand):
             log.debug("file {}, row {}, col {}".format(file, row, col))
 
             # Group all source file and line mutations.
-            if not file in self.mutations:
+            if file not in self.mutations:
                 self.mutations[file] = {}
-            if not row in self.mutations[file]:
+            if row not in self.mutations[file]:
                 self.mutations[file][row] = []
 
             self.mutations[file][row].append(col)
 
         self.view.window().show_input_panel(
-            "Rename {} occurance/s in {} file/s to".format(len(items), len(self.mutations)),
+            "Rename {} occurance/s in {} file/s to".format(
+                len(items),
+                len(self.mutations)),
             self.old_name,
             self.on_done,
             None,
@@ -348,7 +359,7 @@ class RtagsSymbolRenameCommand(RtagsLocationCommand):
 class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
     # Camelcase doesn't look so nice on interfaces.
-    MAP_TITLES={
+    MAP_TITLES = {
         'argumentIndex':            'argument index',
         'briefComment':             'brief comment',
         'constmethod':              'const method',
@@ -363,7 +374,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     }
 
     # Prefixed positions.
-    POSITION_TITLES={
+    POSITION_TITLES = {
         'symbolName':   '0',
         'briefComment': '1',
         'type':         '2',
@@ -374,7 +385,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
     # Kind extensions.
     # TODO(tillt): Find a complete list of possible boolean kind extensions.
-    KIND_EXTENSION_BOOL_TYPES=[
+    KIND_EXTENSION_BOOL_TYPES = [
         'auto',
         'virtual',
         'container',
@@ -386,7 +397,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
     # Human readable type descriptions of clang's cursor linkage types.
     # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
-    MAP_LINKAGES={
+    MAP_LINKAGES = {
         'NoLinkage': 'Variables, parameters, and so on that have automatic storage.',
         'Internal': 'Static variables and static functions.',
         'UniqueExternal': 'External linkage that live in C++ anonymous namespaces.',
@@ -397,7 +408,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
     # Human readable type descriptions of clang's cursor kind types.
     # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
-    MAP_KINDS={
+    MAP_KINDS = {
         'UnexposedDecl': 'A declaration whose specific kind is not exposed via this interface.',
         'StructDecl': 'A C or C++ struct.',
         'UnionDecl': 'A C or C++ union.',
@@ -636,7 +647,13 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
             RtagsBaseCommand.FILE_INFO_REG,
             items[0])[0]
 
-        link = "{}:{}:{}:{}:{}:{}".format(oldfile, oldrow, oldcol, file, row, col)
+        link = "{}:{}:{}:{}:{}:{}".format(
+            oldfile,
+            oldrow,
+            oldcol,
+            file,
+            row,
+            col)
 
         log.debug("Symbol location resulted in {}".format(link))
 
@@ -645,11 +662,16 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
             html.escape(link, quote=False),
             html.escape(displayed_items[0][1], quote=False))
 
-        displayed_html_items = list(map(self.display_items, displayed_items[1:]))
+        displayed_html_items = list(map(
+            self.display_items,
+            displayed_items[1:]))
 
         info += '\n'.join(displayed_html_items)
 
-        rendered = settings.SettingsManager.template_as_html("info", "popup", info)
+        rendered = settings.SettingsManager.template_as_html(
+            "info",
+            "popup",
+            info)
 
         self.view.update_popup(rendered)
 
@@ -668,11 +690,13 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         alphabetic_keys = []
         kind_extension_keys = []
 
-        filtered_kind = settings.SettingsManager.get("filtered_clang_cursor_kind", [])
+        filtered_kind = settings.SettingsManager.get(
+            "filtered_clang_cursor_kind",
+            [])
 
         for key in output_json.keys():
             # Do not include filtered cursor kind keys.
-            if not key in filtered_kind:
+            if key not in filtered_kind:
                 # Check if boolean type does well as a kind extension.
                 if key in RtagsSymbolInfoCommand.KIND_EXTENSION_BOOL_TYPES:
                     if output_json[key]:
@@ -697,7 +721,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         sorted_keys.extend(sorted(alphabetic_keys))
 
         if len(kind_extension_keys) > 1:
-            kind_extension_keys=sorted(kind_extension_keys)
+            kind_extension_keys = sorted(kind_extension_keys)
 
         displayed_items = []
 
@@ -718,14 +742,17 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
                 if output_json[key] in RtagsSymbolInfoCommand.MAP_LINKAGES:
                     info = RtagsSymbolInfoCommand.MAP_LINKAGES[output_json[key]]
                 if not len(info):
-                    continue;
+                    continue
             displayed_items.append([title.strip(), info.strip()])
 
         displayed_html_items = list(map(self.display_items, displayed_items))
 
         info = '\n'.join(displayed_html_items)
 
-        rendered = settings.SettingsManager.template_as_html("info", "popup", info)
+        rendered = settings.SettingsManager.template_as_html(
+            "info",
+            "popup",
+            info)
 
         # Hover will give us coordinates here, keyboard-called symbol-
         # info will not give us coordinates, so we need to get em now.
@@ -876,7 +903,6 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         vc_manager.view_controller(view).idle.sleep()
         vc_manager.view_controller(view).fixits.reindex(saved=True)
 
-
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
         if not supported_view(view):
@@ -930,10 +956,14 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         vc_manager.view_controller(view).status.update_status(error=error)
 
         if error:
-            log.debug("Completion job {} failed: {}".format(completion_job_id, error.message))
+            log.debug("Completion job {} failed: {}".format(
+                completion_job_id,
+                error.message))
             return
 
-        log.debug("Finished completion job {} for view {}".format(completion_job_id, view))
+        log.debug("Finished completion job {} for view {}".format(
+            completion_job_id,
+            view))
 
         if view != self.view:
             log.debug("Completion done for different view")
@@ -965,7 +995,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         self.suggestions = suggestions
 
-        #log.debug("suggestiongs: {}".format(suggestions))
+        # log.debug("suggestiongs: {}".format(suggestions))
 
         # Hide the completion we might currently see as those are sublime's
         # own completions which are not that useful to us C++ coders.
@@ -990,8 +1020,8 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
         log.debug("Completion prefix: {}".format(prefix))
 
-        # libclang does auto-complete _only_ at whitespace and punctuation chars
-        # so "rewind" location to that character
+        # libclang does auto-complete _only_ at whitespace and
+        # punctuation chars so "rewind" location to that character
         trigger_position = locations[0] - len(prefix)
 
         pos_status = completion.position_status(trigger_position, view)
@@ -1019,7 +1049,9 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
             jobs.JobController.stop(self.completion_job_id)
 
         # We do need to trigger a new completion.
-        log.debug("Completion job {} triggered on view {}".format(completion_job_id, view))
+        log.debug("Completion job {} triggered on view {}".format(
+            completion_job_id,
+            view))
 
         self.view = view
         self.completion_job_id = completion_job_id
@@ -1076,10 +1108,10 @@ def update_settings():
     settings.SettingsManager.add_on_change('progress_key')
 
     # TODO(tillt): Allow "fixits" setting to get live-updated.
-    #settings.add_on_change('fixits', update_settings)
+    # settings.add_on_change('fixits', update_settings)
 
     # TODO(tillt): Allow "verbose_log" settings to get live-updated.
-    #settings.add_on_change('verbose_log', update_settings)
+    # settings.add_on_change('verbose_log', update_settings)
 
     log.info("Settings updated")
 

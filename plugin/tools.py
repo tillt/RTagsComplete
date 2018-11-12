@@ -17,6 +17,7 @@ PKG_NAME = path.basename(path.dirname(path.dirname(__file__)))
 
 log = logging.getLogger("RTags")
 
+
 class Reloader:
     """Reloader for all dependencies."""
 
@@ -78,7 +79,10 @@ class Utilities:
                     else:
                         log.error(
                             "Symbol name does not match,"
-                            " skipping line {} column {} in file {}".format(row, col, file))
+                            " skipping line {} column {} in file {}".format(
+                                row,
+                                col,
+                                file))
 
                 with open(file, 'w') as out_file:
                     for line in file_lines:

@@ -6,6 +6,7 @@ from os import path
 from RTagsComplete.plugin import vc
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
 
+
 class TestFixitsController(GuiTestWrapper):
     """Test Progress Indicator."""
 
@@ -31,7 +32,8 @@ class TestFixitsController(GuiTestWrapper):
         self.assertIsNotNone(controller.fixits)
 
     def test_reindex(self):
-        """Test that triggering fixits in quick succession has no quirky effects."""
+        """Test that triggering fixits in quick succession has no
+           quirky effects."""
         vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
@@ -49,5 +51,6 @@ class TestFixitsController(GuiTestWrapper):
         time.sleep(10.0)
 
         self.assertEqual(controller.status.progress.active_counter, 0)
-        self.assertEqual(self.view.get_status(controller.status.progress.status_key), '')
-
+        self.assertEqual(self.view.get_status(
+            controller.status.progress.status_key),
+            '')

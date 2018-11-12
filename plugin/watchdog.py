@@ -5,11 +5,8 @@
 """
 
 import sublime
-import sublime_plugin
 
 import logging
-
-from os import path
 
 from . import jobs
 
@@ -19,11 +16,11 @@ log = logging.getLogger("RTags")
 class IndexWatchdog():
 
     def __init__(self):
-        self.active=False
-        self.period=500
-        self.threshold=10
-        self.indexing=False
-        self.callback=None
+        self.active = False
+        self.period = 500
+        self.threshold = 10
+        self.indexing = False
+        self.callback = None
 
     def stop(self):
         if not self.active:
@@ -38,10 +35,10 @@ class IndexWatchdog():
             return
 
         log.debug("Watchdog starting")
-        self.active=True
-        self.threshold=10
-        self.callback=callback
-        self.indexing=False
+        self.active = True
+        self.threshold = 10
+        self.callback = callback
+        self.indexing = False
 
         # Schadule into timer-thread.
         sublime.set_timeout_async(lambda self=self: self.run(False), 0)
@@ -59,7 +56,9 @@ class IndexWatchdog():
             return
 
         (_, out, error) = jobs.JobController.run_sync(jobs.RTagsJob(
-            "ReindexWatchdogJob", ["--is-indexing", "--silent-query"], **{'nodebug': True}))
+            "ReindexWatchdogJob",
+            ["--is-indexing", "--silent-query"],
+            **{'nodebug': True}))
 
         if error:
             log.error("Watchdog failed to poll: {}".format(error.message))
@@ -70,8 +69,9 @@ class IndexWatchdog():
                 # We are now indexing!
                 self.indexing = True
             else:
-                # In case we did detect activity before, we now assume a done state.
-                if self.indexing == True:
+                # In case we did detect activity before, we now assume
+                # a done state.
+                if self.indexing is True:
                     self.active = False
                     if self.callback:
                         self.callback(True)
@@ -88,6 +88,8 @@ class IndexWatchdog():
             return
 
         # Repeat as long as we are still indexing OR we are still trying
-        # to recognize the first indication of an indexing before the
-        # theshold expires.
-        sublime.set_timeout_async(lambda self=self: self.run(False), self.period)
+        # to recognize the first indication of an ongoing indexing before
+        # the theshold expires.
+        sublime.set_timeout_async(
+            lambda self=self: self.run(False),
+            self.period)

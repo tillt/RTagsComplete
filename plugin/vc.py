@@ -17,6 +17,7 @@ from functools import partial
 
 log = logging.getLogger("RTags")
 
+
 class ViewController():
 
     def __init__(self, view):
@@ -54,10 +55,10 @@ class ViewController():
         self.idle.unload()
 
 
-"""ViewController manager singleton.
-Manages ViewControllers, attaching them to views.
-"""
 class VCManager():
+    """ViewController manager singleton.
+    Manages ViewControllers, attaching them to views.
+    """
 
     NAVIGATION_REQUESTED = 1
     NAVIGATION_DONE = 2
@@ -82,7 +83,7 @@ class VCManager():
     def activate_view_controller(self, view):
         view_id = view.id()
 
-        if not view_id in self.controllers.keys():
+        if view_id not in self.controllers.keys():
             self.controllers[view_id] = ViewController(view)
 
         if self.active_controller and self.active_controller.view.id() == view_id:
@@ -99,7 +100,7 @@ class VCManager():
         if not view:
             return None
         view_id = view.id()
-        if not view_id in self.controllers.keys():
+        if view_id not in self.controllers.keys():
             self.controllers[view_id] = ViewController(view)
         return self.controllers[view_id]
 

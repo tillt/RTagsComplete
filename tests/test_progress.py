@@ -6,6 +6,7 @@ from os import path
 from RTagsComplete.plugin import vc
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
 
+
 class TestProgressIndicator(GuiTestWrapper):
     """Test Progress Indicator."""
 
@@ -23,16 +24,19 @@ class TestProgressIndicator(GuiTestWrapper):
         self.tear_down()
 
     def test_init(self):
-        """Test that the progress indicator is loaded but inactive, as expected."""
+        """Test that the progress indicator is loaded but inactive, as
+           expected."""
         vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
         self.assertIsNotNone(controller)
         self.assertIsNotNone(controller.status.progress)
-        self.assertEqual(self.view.get_status(controller.status.progress.status_key), '')
+        self.assertEqual(self.view.get_status(
+            controller.status.progress.status_key), '')
 
     def test_startstop(self):
-        """Test that starting the progress indicator makes it show something in the statusbar."""
+        """Test that starting the progress indicator makes it show
+           something in the statusbar."""
         vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
@@ -44,17 +48,20 @@ class TestProgressIndicator(GuiTestWrapper):
         time.sleep(0.5)
 
         self.assertEqual(controller.status.progress.active_counter, 1)
-        self.assertNotEqual(self.view.get_status(controller.status.progress.status_key), '')
+        self.assertNotEqual(self.view.get_status(
+            controller.status.progress.status_key), '')
 
         controller.status.progress.stop()
 
         time.sleep(0.5)
 
         self.assertEqual(controller.status.progress.active_counter, 0)
-        self.assertEqual(self.view.get_status(controller.status.progress.status_key), '')
+        self.assertEqual(self.view.get_status(
+            controller.status.progress.status_key), '')
 
     def test_interleaved(self):
-        """Test that the progress indicator allows stacking of start and stop operations."""
+        """Test that the progress indicator allows stacking of start
+           and stop operations."""
         vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
@@ -63,16 +70,23 @@ class TestProgressIndicator(GuiTestWrapper):
 
         controller.status.progress.start()
         controller.status.progress.start()
+
+        time.sleep(0.5)
+
+        self.assertEqual(controller.status.progress.active_counter, 2)
+
         controller.status.progress.stop()
         controller.status.progress.stop()
 
         time.sleep(0.5)
 
         self.assertEqual(controller.status.progress.active_counter, 0)
-        self.assertEqual(self.view.get_status(controller.status.progress.status_key), '')
+        self.assertEqual(self.view.get_status(
+            controller.status.progress.status_key), '')
 
     def test_rapid(self):
-        """Test that the starting and stopping in quick succession shows no surprises."""
+        """Test that the starting and stopping in quick succession
+           shows no surprises."""
         vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
@@ -87,4 +101,5 @@ class TestProgressIndicator(GuiTestWrapper):
         time.sleep(0.5)
 
         self.assertEqual(controller.status.progress.active_counter, 0)
-        self.assertEqual(self.view.get_status(controller.status.progress.status_key), '')
+        self.assertEqual(self.view.get_status(
+            controller.status.progress.status_key), '')

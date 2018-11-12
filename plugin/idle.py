@@ -9,8 +9,6 @@ this low priority work.
 
 
 import sublime
-import sublime_plugin
-import subprocess
 
 import logging
 
@@ -22,6 +20,7 @@ class Mode:
     RESET = 0
     SLEEP = 1
     RUN = 2
+
 
 class Controller:
     def __init__(self, view, auto_reindex, period, threshold, callback):
@@ -54,23 +53,28 @@ class Controller:
 
     def run(self, mode=Mode.RUN):
         if mode == Mode.SLEEP:
-            log.debug("Sleep idle control for view-id {}".format(self.view.id()))
+            log.debug(
+                "Sleep idle control for view-id {}".format(self.view.id()))
             self.active = False
             return
 
         if mode == Mode.RESET:
             self.counter = 0
-            log.debug("Reset idle control for view-id {}".format(self.view.id()))
+            log.debug(
+                "Reset idle control for view-id {}".format(self.view.id()))
             if self.active:
                 return
             self.active = True
 
         if not self.active:
-            log.debug("Not active for view-id {}".format(self.view.id()))
+            log.debug(
+                "Not active for view-id {}".format(self.view.id()))
             return
 
         if self.counter >= self.counter_threshold:
-            log.debug("Idle control threshold reached for view-id {}".format(self.view.id()))
+            log.debug(
+                "Idle control threshold reached for view-id {}".format(
+                    self.view.id()))
             self.active = False
             self.callback()
             return
@@ -78,7 +82,8 @@ class Controller:
         if mode == Mode.RUN:
             self.counter += 1
 
-        sublime.set_timeout_async(lambda self=self: self.run(Mode.RUN), self.period)
+        sublime.set_timeout_async(
+            lambda self=self: self.run(Mode.RUN), self.period)
 
     def unload(self):
         self.sleep()

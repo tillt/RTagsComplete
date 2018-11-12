@@ -8,7 +8,6 @@ Jobs are scheduled process runs.
 
 import re
 import sublime
-import sublime_plugin
 import subprocess
 
 import logging
@@ -23,6 +22,7 @@ from threading import RLock
 from . import settings
 
 log = logging.getLogger("RTags")
+
 
 class JobError:
     UNKNOWN = 0
@@ -92,7 +92,9 @@ class RTagsJob():
 
     def communicate(self, process, timeout=None):
         if not self.nodebug:
-            log.debug("Static communicate with timeout {} for {}".format(timeout, self.callback))
+            log.debug("Static communicate with timeout {} for {}".format(
+                timeout,
+                self.callback))
 
         if not timeout:
             timeout = settings.SettingsManager.get('rc_timeout')
@@ -101,7 +103,9 @@ class RTagsJob():
         if not self.nodebug:
             log.debug("Static communicate terminating")
 
-        return out, JobError.from_results(out.decode('utf-8'), process.returncode)
+        return out, JobError.from_results(
+            out.decode('utf-8'),
+            process.returncode)
 
     def run_process(self, timeout=None):
         out = b''
@@ -137,7 +141,8 @@ class RTagsJob():
             log.debug("Process job ran for {:2.2f} seconds".format(time() - start_time))
 
         if error:
-             log.error("Failed to run process job {} with error: {}".format(command, error.message))
+             log.error("Failed to run process job {} with error: {}".format(
+                command, error.message))
 
         return (self.job_id, out, error)
 
@@ -157,16 +162,19 @@ class CompletionJob(RTagsJob):
         # We want to complete on an unsaved file.
         command_info.append('--unsaved-file')
         # We launch rc utility with both filename:line:col and filename:length
-        # because we're using modified file which is passed via stdin (see --unsaved-file
-        # switch)
+        # because we're using modified file which is passed via stdin
+        # (see --unsaved-file switch)
         command_info.append('{}:{}'.format(filename, size))
         # Make this query block until getting answered.
         command_info.append('--synchronous-completions')
 
-        super().__init__(completion_job_id, command_info, **{'data': text, 'view': view})
+        super().__init__(
+            completion_job_id,
+            command_info,
+            **{'data': text, 'view': view})
 
     def run(self):
-        (job_id, out, error)  = self.run_process(60)
+        (job_id, out, error) = self.run_process(60)
 
         suggestions = []
 
@@ -174,14 +182,15 @@ class CompletionJob(RTagsJob):
             for line in out.splitlines():
                 # log.debug(line)
                 # line is like this
-                # "process void process(CompletionThread::Request *request) CXXMethod"
-                # "reparseTime int reparseTime VarDecl"
+                # "process void process(CompletionThread::Request *request)
+                # CXXMethod" "reparseTime int reparseTime VarDecl"
                 # "dump String dump() CXXMethod"
                 # "request CompletionThread::Request * request ParmDecl"
                 # we want it to show as process()\tCXXMethod
                 #
-                # output is list of tuples: first tuple element is what we see in popup menu
-                # second is what inserted into file. '$0' is where to place cursor.
+                # output is list of tuples: first tuple element is what
+                # we see in popup menu second is what inserted into file.
+                # '$0' is where to place cursor.
                 # TODO play with $1, ${2:int}, ${3:string} and so on.
                 elements = line.decode('utf-8').split()
                 suggestions.append(('{}\t{}'.format(' '.join(elements[1:-1]), elements[-1]),
@@ -194,7 +203,7 @@ class CompletionJob(RTagsJob):
 class ReindexJob(RTagsJob):
 
     def __init__(self, job_id, filename, text=b'', view=None):
-        command_info = ["-V", filename ]
+        command_info = ["-V", filename]
         if len(text):
             command_info += [ "--unsaved-file", "{}:{}".format(filename,len(text)) ]
 
@@ -248,9 +257,7 @@ class MonitorJob(RTagsJob):
                         'rtags_location',
                         {'switches': navigation_helper.switches})
 
-                if  tree.tag == 'checkstyle':
-                    key = 0
-
+                if tree.tag == 'checkstyle':
                     mapping = {
                         'warning': 'warning',
                         'error': 'error',
@@ -269,7 +276,8 @@ class MonitorJob(RTagsJob):
                                 issue['line'] = int(error.attrib["line"])
                                 issue['column'] = int(error.attrib["column"])
                                 if 'length' in error.attrib:
-                                    issue['length'] = int(error.attrib["length"])
+                                    issue['length'] = int(
+                                        error.attrib["length"])
                                 else:
                                     issue['length'] = -1
                                 issue['message'] = error.attrib["message"]
@@ -327,7 +335,6 @@ class JobController():
     def run_sync(job, timeout=None):
         # Debug logging every single run_sync request is too verbose
         # if polling is used for gathering rc's indexing status
-        #log.debug("Starting blocking job {} with timeout {}".format(job.job_id, timeout))
         return job.run_process(timeout)
 
     @staticmethod
@@ -403,6 +410,7 @@ class JobController():
     @staticmethod
     def stop_all():
         with JobController.lock:
-            log.debug("Stopping running threads {}".format(list(JobController.thread_map)))
+            log.debug("Stopping running threads {}".format(list(
+                JobController.thread_map)))
             for job_id in list(JobController.thread_map):
                 JobController.stop(job_id)

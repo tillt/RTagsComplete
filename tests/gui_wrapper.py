@@ -2,12 +2,10 @@
 import sublime
 import time
 
-from os import path
 from unittest import TestCase
 
-from RTagsComplete.plugin import vc
-from RTagsComplete.plugin import settings
 from RTagsComplete.plugin.tools import PKG_NAME
+
 
 class GuiTestWrapper(TestCase):
     """A class that makes gui tests easier.
