@@ -20,7 +20,7 @@ from time import time
 from threading import RLock
 
 from . import settings
-from . import vc_manager
+# from . import vc_manager
 
 log = logging.getLogger("RTags")
 
@@ -265,13 +265,13 @@ class MonitorJob(RTagsJob):
                 tree = etree.fromstring(buffer)
                 # OK, we received some chunk
                 # check if it is progress update
-                if (tree.tag == 'progress' and
-                    tree.attrib['index'] == tree.attrib['total'] and
-                        vc_manager.flag == vc_manager.NAVIGATION_REQUESTED):
-                    # notify about event
-                    sublime.active_window().active_view().run_command(
-                        'rtags_location',
-                        {'switches': vc_manager.switches})
+                # if (tree.tag == 'progress' and
+                #    tree.attrib['index'] == tree.attrib['total'] and
+                #        vc_manager.flag == vc_manager.NAVIGATION_REQUESTED):
+                #    # notify about event
+                #    sublime.active_window().active_view().run_command(
+                #        'rtags_location',
+                #        {'switches': vc_manager.switches})
 
                 if tree.tag == 'checkstyle':
                     mapping = {

@@ -1,7 +1,10 @@
 """Tests for VC Manager."""
+
+import collections
+
 from os import path
 
-from RTagsComplete.plugin import vc
+from RTagsComplete.plugin import vc_manager
 from RTagsComplete.plugin import settings
 
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
@@ -24,14 +27,12 @@ class TestVC(GuiTestWrapper):
 
     def test_invalid(self):
         """Test asking for an invalid view's viewcontroller."""
-        vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(None)
 
         self.assertIsNone(controller)
 
     def test_init(self):
         """Test asking for a view's viewcontroller and its expected members."""
-        vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
         self.assertIsNotNone(controller)
@@ -41,7 +42,7 @@ class TestVC(GuiTestWrapper):
 
     def test_small_history(self):
         """Test checking if a small history remains in order and complete ."""
-        vc_manager = vc.VCManager()
+        vc_manager.history = collections.deque()
 
         vc_manager.push_history("matilda", 1969, 12)
         vc_manager.push_history("till", 2012, 10)
@@ -60,7 +61,7 @@ class TestVC(GuiTestWrapper):
 
     def test_large_history(self):
         """Test checking if a large history remains in order and shortened."""
-        vc_manager = vc.VCManager()
+        vc_manager.history = collections.deque()
 
         size = int(settings.SettingsManager.get('jump_limit', 10))
 
