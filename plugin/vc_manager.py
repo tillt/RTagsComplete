@@ -4,9 +4,9 @@
 
 """
 
-import sublime
-import logging
 import collections
+import logging
+import sublime
 
 from . import jobs
 from . import settings
@@ -172,7 +172,7 @@ def close_all():
 
 
 def on_post_updated(view):
-        # Reindex if we support fixits.
+    # Reindex if we support fixits.
     if not view_controller(view).fixits.supported:
         log.debug("Fixits are disabled")
         # Run rc --check-reindex to reindex just saved files.

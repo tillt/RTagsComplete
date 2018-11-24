@@ -8,8 +8,6 @@ based on RTags.
 Original code by Sergei Turukin.
 Hacked with plenty of new features by Till Toenshoff.
 Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
-
-TODO(tillt): The current tests are broken and need to get redone.
 """
 
 import html
