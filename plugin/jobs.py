@@ -86,7 +86,7 @@ class RTagsJob():
             log.debug("Killing job {}".format(self.p))
             if self.p:
                 self.p.kill()
-        except ProcessLookupError:
+        except subprocess.ProcessLookupError:
             pass
         self.p = None
 
