@@ -8,8 +8,6 @@ based on RTags.
 Original code by Sergei Turukin.
 Hacked with plenty of new features by Till Toenshoff.
 Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
-
-TODO(tillt): The current tests are broken and need to get redone.
 """
 
 import html
@@ -25,7 +23,7 @@ from .plugin import completion
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
-from .plugin import vc
+from .plugin import vc_manager
 
 
 log = logging.getLogger("RTags")
@@ -168,7 +166,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         # miserable amount of time to check text difference.
         if (vc_manager.is_navigation_done() and
             self.view.is_dirty() and
-            vc_manager.navigation_data() != get_view_text(self.view)):
+                vc_manager.navigation_data() != get_view_text(self.view)):
 
             vc_manager.request_navigation(self.view, switches, get_view_text(self.view))
             vc_manager.view_controller(self.view).fixits.reindex(saved=False)
@@ -194,9 +192,14 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         (row, col) = self.view.rowcol(self.view.sel()[0].a)
 
-        vc_manager.push_history(self.view.file_name(), int(row) + 1, int(col) + 1)
+        vc_manager.push_history(
+            self.view.file_name(),
+            int(row) + 1,
+            int(col) + 1)
 
-        (file, line, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, vc_manager.references()[res])[0]
+        (file, line, col, _) = re.findall(
+            RtagsBaseCommand.FILE_INFO_REG,
+            vc_manager.references()[res])[0]
 
         self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
 
@@ -204,7 +207,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if res == -1:
             return
 
-        (file, line, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, vc_manager.references()[res])[0]
+        (file, line, col, _) = re.findall(
+            RtagsBaseCommand.FILE_INFO_REG,
+            vc_manager.references()[res])[0]
 
         self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
@@ -273,7 +278,9 @@ class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
 class RtagsFixitCommand(RtagsBaseCommand):
 
     def run(self, edit, **args):
-        vc_manager.view_controller(self.view).fixits.update(args['filename'], args['issues'])
+        vc_manager.view_controller(self.view).fixits.update(
+            args['filename'],
+            args['issues'])
 
 
 class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
@@ -351,6 +358,8 @@ class RtagsSymbolRenameCommand(RtagsLocationCommand):
                 new_name,
                 file,
                 self.mutations[file])
+
+            vc_manager.on_post_updated(self.view)
 
         # Switch focus back to the orignal active view to reduce confusion.
         self.view.window().focus_view(active_view)
@@ -873,35 +882,7 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             log.debug("Unsupported view")
             return
 
-        # Do nothing if we dont want to support fixits.
-        if not vc_manager.view_controller(view).fixits.supported:
-            logging.debug("Fixits are disabled")
-            # Run rc --check-reindex to reindex just saved files.
-            # We do this manually even though rtags SHOULD watch
-            # all our files and reindex accordingly. However on macOS
-            # this feature is broken.
-            # See https://github.com/Andersbakken/rtags/issues/1052
-            jobs.JobsController.run_async(
-                jobs.ReindexJob(
-                    "RTPostSaveReindex" + jobs.JobController.next_id(),
-                    view.file_name(),
-                    b'',
-                    view),
-                indicator=vc_manager.view_controller(view).status.progress)
-            return
-
-        # For some bizarre reason, we need to delay our re-indexing task
-        # by substantial amounts of time until we may relatively risk-
-        # free will truly be attached to the lifetime of a
-        # fully functioning `rc -V ... --wait`. `rc ... --wait` appears to
-        # prevent concurrent instances by aborting the old "wait" when new
-        # "wait"-request comes in.
-        #sublime.set_timeout(lambda self=self,view=view: self._save(view), 400)
-
-        #log.debug("Bizarrely delayed save scheduled")
-
-        vc_manager.view_controller(view).idle.sleep()
-        vc_manager.view_controller(view).fixits.reindex(saved=True)
+        vc_manager.on_post_updated(view)
 
     def on_post_text_command(self, view, command_name, args):
         # Do nothing if not called from supported code.
@@ -909,27 +890,8 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
             log.debug("Unsupported view")
             return
 
-        # If view get 'clean' after undo check if we need reindex.
         if command_name == 'undo' and not view.is_dirty():
-
-            if not vc_manager.view_controller(view).fixits.supported:
-                logging.debug("Fixits are disabled")
-                # Run rc --check-reindex to reindex just saved files.
-                # We do this manually even though rtags SHOULD watch
-                # all our files and reindex accordingly. However on macOS
-                # this feature is broken.
-                # See https://github.com/Andersbakken/rtags/issues/1052
-                jobs.JobController.run_async(
-                    jobs.ReindexJob(
-                        "RTPostUndoReindex" + jobs.JobController.next_id(),
-                        view.file_name(),
-                        b'',
-                        view),
-                    indicator=vc_manager.view_controller(view).status.progress)
-                return
-
-            vc_manager.view_controller(view).idle.sleep()
-            vc_manager.view_controller(view).fixits.reindex(saved=True)
+            vc_manager.on_post_updated(view)
 
 
 class RtagsCompleteListener(sublime_plugin.EventListener):
@@ -1119,7 +1081,6 @@ def update_settings():
 def plugin_loaded():
     tools.Reloader.reload_all()
     update_settings()
-    globals()['vc_manager'] = vc.VCManager()
 
 
 def plugin_unloaded():

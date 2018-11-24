@@ -3,7 +3,7 @@ import time
 
 from os import path
 
-from RTagsComplete.plugin import vc
+from RTagsComplete.plugin import vc_manager
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
 
 
@@ -25,7 +25,6 @@ class TestFixitsController(GuiTestWrapper):
 
     def test_init(self):
         """Test that a viewcontroller has set fixits controller member."""
-        vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
         self.assertIsNotNone(controller)
@@ -34,7 +33,6 @@ class TestFixitsController(GuiTestWrapper):
     def test_reindex(self):
         """Test that triggering fixits in quick succession has no
            quirky effects."""
-        vc_manager = vc.VCManager()
         controller = vc_manager.view_controller(self.view)
 
         self.assertIsNotNone(controller)

@@ -20,6 +20,7 @@ from time import time
 from threading import RLock
 
 from . import settings
+# from . import vc_manager
 
 log = logging.getLogger("RTags")
 
@@ -52,7 +53,8 @@ class JobError:
 
         if code != 0:
             if out:
-                message = "RTags failed with status {} and message:\n{}.".format(code, out.decode('utf-8'))
+                message = "RTags failed with status {} and message:\n{}." \
+                          .format(code, out.decode('utf-8'))
             else:
                 message = "RTags failed with status {}.".format(code)
             return JobError(JobError.UNKNOWN, message)
@@ -86,7 +88,7 @@ class RTagsJob():
             log.debug("Killing job {}".format(self.p))
             if self.p:
                 self.p.kill()
-        except ProcessLookupError:
+        except subprocess.ProcessLookupError:
             pass
         self.p = None
 
@@ -123,26 +125,31 @@ class RTagsJob():
                 command,
                 stderr=subprocess.STDOUT,
                 stdout=subprocess.PIPE,
-                stdin=subprocess.PIPE) as process:
+                    stdin=subprocess.PIPE) as process:
 
                 self.p = process
 
                 if not self.nodebug:
-                    log.debug("Process running with timeout {}, input-length {}".format(timeout, len(self.data)))
-                    log.debug("Communicating with process via {}".format(self.callback))
+                    log.debug("Process running with timeout {},"
+                              " input-length {}".format(
+                                timeout, len(self.data)))
+                    log.debug("Communicating with process via {}"
+                              .format(self.callback))
 
                 (out, error) = self.callback(process, timeout)
 
         except Exception as e:
-            error = JobError(JobError.EXCEPTION, "Aborting with exception: {}".format(e))
+            error = JobError(JobError.EXCEPTION, "Aborting with exception: {}"
+                                                 .format(e))
 
         if not self.nodebug:
             log.debug("Output-length: {}".format(len(out)))
-            log.debug("Process job ran for {:2.2f} seconds".format(time() - start_time))
+            log.debug("Process job ran for {:2.2f} seconds".format(
+                time() - start_time))
 
         if error:
-             log.error("Failed to run process job {} with error: {}".format(
-                command, error.message))
+            log.error("Failed to run process job {} with error: {}"
+                      .format(command, error.message))
 
         return (self.job_id, out, error)
 
@@ -152,7 +159,14 @@ class RTagsJob():
 
 class CompletionJob(RTagsJob):
 
-    def __init__(self, completion_job_id, filename, text, size, row, col, view):
+    def __init__(self,
+                 completion_job_id,
+                 filename,
+                 text,
+                 size,
+                 row,
+                 col,
+                 view):
         command_info = []
 
         # Auto-complete switch.
@@ -205,7 +219,8 @@ class ReindexJob(RTagsJob):
     def __init__(self, job_id, filename, text=b'', view=None):
         command_info = ["-V", filename]
         if len(text):
-            command_info += [ "--unsaved-file", "{}:{}".format(filename,len(text)) ]
+            command_info += ["--unsaved-file", "{}:{}"
+                             .format(filename, len(text))]
 
         super().__init__(job_id, command_info, **{'data': text, 'view': view})
 
@@ -219,6 +234,7 @@ class MonitorJob(RTagsJob):
         super().__init__(job_id, ['-m'], **{'communicate': self.communicate})
 
     def run(self):
+        log.debug("Running MonitorJob process NOW...")
         return self.run_process()
 
     def communicate(self, process, timeout=None):
@@ -249,13 +265,13 @@ class MonitorJob(RTagsJob):
                 tree = etree.fromstring(buffer)
                 # OK, we received some chunk
                 # check if it is progress update
-                if (tree.tag == 'progress' and
-                        tree.attrib['index'] == tree.attrib['total'] and
-                        navigation_helper.flag == NavigationHelper.NAVIGATION_REQUESTED):
-                    # notify about event
-                    sublime.active_window().active_view().run_command(
-                        'rtags_location',
-                        {'switches': navigation_helper.switches})
+                # if (tree.tag == 'progress' and
+                #    tree.attrib['index'] == tree.attrib['total'] and
+                #        vc_manager.flag == vc_manager.NAVIGATION_REQUESTED):
+                #    # notify about event
+                #    sublime.active_window().active_view().run_command(
+                #        'rtags_location',
+                #        {'switches': vc_manager.switches})
 
                 if tree.tag == 'checkstyle':
                     mapping = {
