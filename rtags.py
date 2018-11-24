@@ -25,7 +25,7 @@ from .plugin import completion
 from .plugin import jobs
 from .plugin import settings
 from .plugin import tools
-from .plugin import vc
+from .plugin import vc_manager
 
 
 log = logging.getLogger("RTags")
@@ -168,7 +168,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         # miserable amount of time to check text difference.
         if (vc_manager.is_navigation_done() and
             self.view.is_dirty() and
-            vc_manager.navigation_data() != get_view_text(self.view)):
+                vc_manager.navigation_data() != get_view_text(self.view)):
 
             vc_manager.request_navigation(self.view, switches, get_view_text(self.view))
             vc_manager.view_controller(self.view).fixits.reindex(saved=False)
@@ -194,9 +194,14 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         (row, col) = self.view.rowcol(self.view.sel()[0].a)
 
-        vc_manager.push_history(self.view.file_name(), int(row) + 1, int(col) + 1)
+        vc_manager.push_history(
+            self.view.file_name(),
+            int(row) + 1,
+            int(col) + 1)
 
-        (file, line, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, vc_manager.references()[res])[0]
+        (file, line, col, _) = re.findall(
+            RtagsBaseCommand.FILE_INFO_REG,
+            vc_manager.references()[res])[0]
 
         self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
 
@@ -204,7 +209,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if res == -1:
             return
 
-        (file, line, col, _) = re.findall(RtagsBaseCommand.FILE_INFO_REG, vc_manager.references()[res])[0]
+        (file, line, col, _) = re.findall(
+            RtagsBaseCommand.FILE_INFO_REG,
+            vc_manager.references()[res])[0]
 
         self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
@@ -273,7 +280,9 @@ class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
 class RtagsFixitCommand(RtagsBaseCommand):
 
     def run(self, edit, **args):
-        vc_manager.view_controller(self.view).fixits.update(args['filename'], args['issues'])
+        vc_manager.view_controller(self.view).fixits.update(
+            args['filename'],
+            args['issues'])
 
 
 class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
@@ -1119,7 +1128,6 @@ def update_settings():
 def plugin_loaded():
     tools.Reloader.reload_all()
     update_settings()
-    globals()['vc_manager'] = vc.VCManager()
 
 
 def plugin_unloaded():
