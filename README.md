@@ -89,6 +89,7 @@ Key bindings were originally inspired by Qt Creator.
 + Mouse _button8_ to go backwards (mouse wheel left)
 + Error, fixit and warning navigation - `Ctrl-Shift-e`
 + Find unused functions - `Alt-Super-Shift-d`
++ Find include file for symbol - `Ctrl+i`
 
 # Customization
 
@@ -109,6 +110,9 @@ Customize your own key bindings via *Preferences* > *Package Settings* > *RTagsC
 
   # Symbol information - needs RTags version 2.5 or higher.
   {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--json", "--symbol-info"]} },
+
+  # Get include file.
+  { "keys": ["ctrl+i"], "command": "rtags_get_include" },
 
   # Jump to definition
   {"keys": ["f2"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-f"]} },
