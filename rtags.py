@@ -127,7 +127,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             rendered = settings.SettingsManager.template_as_html(
                 "error",
                 "popup",
-                error.message)
+                error.html_message())
 
             self.view.show_popup(
                 rendered,
