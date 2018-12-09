@@ -36,6 +36,9 @@ class JobError:
         self.code = code
         self.message = message
 
+    def html_message(self):
+        return self.message.replace('\n', '<br />')
+
     def from_results(out, code=0):
         # Check if the file in question is not indexed by rtags.
         if out == "Not indexed\n":
@@ -52,12 +55,19 @@ class JobError:
                 "Can't seem to connect to RTags server.")
 
         if code != 0:
+            message = "RTags failed with status {}".format(code)
+
             if out:
-                message = "RTags failed with status {} and message:\n{}." \
-                          .format(code, out.decode('utf-8'))
-            else:
-                message = "RTags failed with status {}.".format(code)
-            return JobError(JobError.UNKNOWN, message)
+                # In rare cases or due to invalid invocations we might
+                # get a string instead of bytes.
+                if isinstance(out, bytes):
+                    details = out.decode('utf-8')
+                else:
+                    details = out
+
+                message += " and message:\n{}".format(details)
+
+            return JobError(JobError.UNKNOWN, message + ".")
 
         return None
 
