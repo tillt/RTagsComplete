@@ -139,17 +139,6 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
         log.debug("Finished Command job {}".format(job_id))
 
-        # We never needed this - maybe it got fixed in RTags?
-        #
-        # Dirty hack.
-        # TODO figure out why rdm responds with 'Project loading'
-        # for now just repeat query.
-        # if error and error.code == jobs.JobError.PROJECT_LOADING:
-        #    def rerun():
-        #        self.view.run_command('rtags_location', {'switches': switches})
-        #    sublime.set_timeout_async(rerun, 500)
-        #    return
-
         vc_manager.navigation_done()
 
         self._action(out, **kwargs)
@@ -168,7 +157,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             self.view.is_dirty() and
                 vc_manager.navigation_data() != get_view_text(self.view)):
 
-            vc_manager.request_navigation(self.view, switches, get_view_text(self.view))
+            vc_manager.request_navigation(
+                self.view, switches,
+                get_view_text(self.view))
             vc_manager.view_controller(self.view).fixits.reindex(saved=False)
             # Never go further.
             return
@@ -201,7 +192,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             RtagsBaseCommand.FILE_INFO_REG,
             vc_manager.references()[res])[0]
 
-        self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+        self.view.window().open_file(
+            '%s:%s:%s' % (file, line, col),
+            sublime.ENCODED_POSITION)
 
     def on_highlight(self, res):
         if res == -1:
@@ -211,7 +204,9 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             RtagsBaseCommand.FILE_INFO_REG,
             vc_manager.references()[res])[0]
 
-        self.view.window().open_file('%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
+        self.view.window().open_file(
+            '%s:%s:%s' % (file, line, col),
+            sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
     def _query(self, *args, **kwargs):
         return ''
@@ -405,25 +400,31 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     ]
 
     # Human readable type descriptions of clang's cursor linkage types.
-    # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
+    # Extracted from
+    # https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
     MAP_LINKAGES = {
-        'NoLinkage': 'Variables, parameters, and so on that have automatic storage.',
+        'NoLinkage': 'Variables, parameters, and so on that have automatic'
+        ' storage.',
         'Internal': 'Static variables and static functions.',
-        'UniqueExternal': 'External linkage that live in C++ anonymous namespaces.',
+        'UniqueExternal': 'External linkage that live in C++ anonymous'
+        ' namespaces.',
         'External': 'True, external linkage.',
-        # 'Invalid' just means that there is no information available - skip this entry when displaying.
+        # 'Invalid' just means that there is no information available -
+        # skip this entry when displaying.
         'Invalid': ''
     }
 
     # Human readable type descriptions of clang's cursor kind types.
     # Extracted from https://raw.githubusercontent.com/llvm-mirror/clang/master/include/clang-c/Index.h
     MAP_KINDS = {
-        'UnexposedDecl': 'A declaration whose specific kind is not exposed via this interface.',
+        'UnexposedDecl': 'A declaration whose specific kind is not'
+        ' exposed via this interface.',
         'StructDecl': 'A C or C++ struct.',
         'UnionDecl': 'A C or C++ union.',
         'ClassDecl': 'A C++ class.',
         'EnumDecl': 'An enumeration.',
-        'FieldDecl': 'A field (in C) or non-static data member (in C++) in a struct, union, or C++ class.',
+        'FieldDecl': 'A field (in C) or non-static data member (in C++)'
+        ' in a struct, union, or C++ class.',
         'EnumConstantDecl': 'An enumerator constant.',
         'FunctionDecl': 'A function.',
         'VarDecl': 'A variable.',
@@ -436,7 +437,8 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'ObjCInstanceMethodDecl': 'An Objective-C instance method.',
         'ObjCClassMethodDecl': 'An Objective-C class method.',
         'ObjCImplementationDecl': 'An Objective-C @implementation.',
-        'ObjCCategoryImplDecl': 'An Objective-C @implementation for a category.',
+        'ObjCCategoryImplDecl': 'An Objective-C @implementation for a'
+        ' category.',
         'TypedefDecl': 'A typedef.',
         'CXXMethod': 'A C++ class method.',
         'Namespace': 'A C++ namespace.',
@@ -449,7 +451,8 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'TemplateTemplateParameter': 'A C++ template template parameter.',
         'FunctionTemplate': 'A C++ function template.',
         'ClassTemplate': 'A C++ class template.',
-        'ClassTemplatePartialSpecialization': 'A C++ class template partial specialization.',
+        'ClassTemplatePartialSpecialization': 'A C++ class template partial'
+        ' specialization.',
         'NamespaceAlias': 'A C++ namespace alias declaration.',
         'UsingDirective': 'A C++ using directive.',
         'UsingDeclaration': 'A C++ using declaration.',
@@ -458,17 +461,28 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'ObjCDynamicDecl': 'An Objective-C @dynamic definition.',
         'CXXAccessSpecifier': 'An access specifier.',
         'TypeRef': 'A reference to a type declaration.',
-        'TemplateRef': 'A reference to a class template, function template, template template parameter, or class template partial specialization.',
+        'TemplateRef': 'A reference to a class template, function'
+        ' template, template template parameter, or class template'
+        ' partial specialization.',
         'NamespaceRef': 'A reference to a namespace or namespace alias.',
-        'MemberRef': 'A reference to a member of a struct, union, or class that occurs in some non-expression context, e.g., a designated initializer.',
+        'MemberRef': 'A reference to a member of a struct, union, or'
+        ' class that occurs in some non-expression context, e.g., a'
+        ' designated initializer.',
         'LabelRef': 'A reference to a labeled statement.',
-        'OverloadedDeclRef': 'A reference to a set of overloaded functions or function templates that has not yet been resolved to a specific function or function template.',
-        'VariableRef': 'A reference to a variable that occurs in some non-expression context, e.g., a C++ lambda capture list.',
-        'UnexposedExpr': 'An expression whose specific kind is not exposed via this interface.',
-        'DeclRefExpr': 'An expression that refers to some value declaration, such as a function, variable, or enumerator.',
-        'MemberRefExpr': 'An expression that refers to a member of a struct, union, class, Objective-C class, etc.',
+        'OverloadedDeclRef': 'A reference to a set of overloaded functions'
+        ' or function templates that has not yet been resolved to a'
+        ' specific function or function template.',
+        'VariableRef': 'A reference to a variable that occurs in some'
+        ' non-expression context, e.g., a C++ lambda capture list.',
+        'UnexposedExpr': 'An expression whose specific kind is not'
+        ' exposed via this interface.',
+        'DeclRefExpr': 'An expression that refers to some value'
+        ' declaration, such as a function, variable, or enumerator.',
+        'MemberRefExpr': 'An expression that refers to a member of a'
+        ' struct, union, class, Objective-C class, etc.',
         'CallExpr': 'An expression that calls a function.',
-        'ObjCMessageExpr': 'An expression that sends a message to an Objective-C object or class.',
+        'ObjCMessageExpr': 'An expression that sends a message to an'
+        ' Objective-C object or class.',
         'BlockExpr': 'An expression that represents a block literal.',
         'IntegerLiteral': 'An integer literal.',
         'FloatingLiteral': 'A floating point number literal.',
@@ -476,44 +490,60 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'StringLiteral': 'A string literal.',
         'CharacterLiteral': 'A character literal.',
         'ParenExpr': 'A parenthesized expression, e.g. \"(1)\".',
-        'UnaryOperator': 'This represents the unary-expression\'s (except sizeof and alignof).',
+        'UnaryOperator': 'This represents the unary-expression\'s (except'
+        ' sizeof and alignof).',
         'ArraySubscriptExpr': '[C99 6.5.2.1] Array Subscripting.',
-        'BinaryOperator': 'A builtin binary operation expression such as "x + y" or "x <= y".',
+        'BinaryOperator': 'A builtin binary operation expression such'
+        ' as "x + y" or "x <= y".',
         'CompoundAssignOperator': 'Compound assignment such as "+=".',
         'ConditionalOperator': 'The ?: ternary operator.',
-        'CStyleCastExpr': 'An explicit cast in C (C99 6.5.4) or a C-style cast in C++ (C++ [expr.cast]), which uses the syntax (Type)expr.',
+        'CStyleCastExpr': 'An explicit cast in C (C99 6.5.4) or a C-style'
+        ' cast in C++ (C++ [expr.cast]), which uses the syntax (Type)expr.',
         'CompoundLiteralExpr': '[C99 6.5.2.5]',
         'InitListExpr': 'Describes an C or C++ initializer list.',
-        'AddrLabelExpr': 'The GNU address of label extension, representing &&label.',
-        'StmtExpr': 'This is the GNU Statement Expression extension: ({int X=4; X;}).',
+        'AddrLabelExpr': 'The GNU address of label extension, representing'
+        ' &&label.',
+        'StmtExpr': 'This is the GNU Statement Expression extension:'
+        ' ({int X=4; X;}).',
         'GenericSelectionExpr': 'Represents a C11 generic selection.',
-        'GNUNullExpr': 'Implements the GNU __null extension, which is a name for a null pointer constant that has integral type (e.g., int or long) and is the same size and alignment as a pointer.',
+        'GNUNullExpr': 'Implements the GNU __null extension, which is a'
+        ' name for a null pointer constant that has integral type (e.g.,'
+        ' int or long) and is the same size and alignment as a pointer.',
         'CXXStaticCastExpr': 'C++\'s static_cast<> expression.',
         'CXXDynamicCastExpr': 'C++\'s dynamic_cast<> expression.',
         'CXXReinterpretCastExpr': 'C++\'s reinterpret_cast<> expression.',
         'CXXConstCastExpr': 'C++\'s const_cast<> expression.',
-        'CXXFunctionalCastExpr': 'Represents an explicit C++ type conversion that uses \"functional\" notion (C++ [expr.type.conv]).',
+        'CXXFunctionalCastExpr': 'Represents an explicit C++ type'
+        ' conversion that uses \"functional\" notion (C++ [expr.type.conv]).',
         'CXXTypeidExpr': 'A C++ typeid expression (C++ [expr.typeid]).',
         'CXXBoolLiteralExpr': '[C++ 2.13.5] C++ Boolean Literal.',
         'CXXNullPtrLiteralExpr': '[C++0x 2.14.7] C++ Pointer Literal.',
         'CXXThisExpr': 'Represents the "this" expression in C++',
         'CXXThrowExpr': '[C++ 15] C++ Throw Expression.',
-        'CXXNewExpr': 'A new expression for memory allocation and constructor calls, e.g: \"new CXXNewExpr(foo)\".',
-        'CXXDeleteExpr': 'A delete expression for memory deallocation and destructor calls, e.g. \"delete[] pArray\".',
+        'CXXNewExpr': 'A new expression for memory allocation and'
+        ' constructor calls, e.g: \"new CXXNewExpr(foo)\".',
+        'CXXDeleteExpr': 'A delete expression for memory deallocation'
+        ' and destructor calls, e.g. \"delete[] pArray\".',
         'UnaryExpr': 'A unary expression. (noexcept, sizeof, or other traits)',
         'ObjCStringLiteral': 'An Objective-C string literal i.e. "foo".',
         'ObjCEncodeExpr': 'An Objective-C @encode expression.',
         'ObjCSelectorExpr': 'An Objective-C @selector expression.',
         'ObjCProtocolExpr': 'An Objective-C @protocol expression.',
-        'ObjCBridgedCastExpr': 'An Objective-C "bridged" cast expression, which casts between Objective-C pointers and C pointers, transferring ownership in the process.',
-        'PackExpansionExpr': 'Represents a C++0x pack expansion that produces a sequence of expressions.',
-        'SizeOfPackExpr': 'Represents an expression that computes the length of a parameter pack.',
+        'ObjCBridgedCastExpr': 'An Objective-C "bridged" cast expression,'
+        ' which casts between Objective-C pointers and C pointers,'
+        ' transferring ownership in the process.',
+        'PackExpansionExpr': 'Represents a C++0x pack expansion that'
+        ' produces a sequence of expressions.',
+        'SizeOfPackExpr': 'Represents an expression that computes the'
+        ' length of a parameter pack.',
         'ObjCBoolLiteralExpr': 'Objective-c Boolean Literal.',
-        'ObjCSelfExpr': 'Represents the "self" expression in an Objective-C method.',
+        'ObjCSelfExpr': 'Represents the "self" expression in an'
+        ' Objective-C method.',
         'OMPArraySectionExpr': 'OpenMP 4.0 [2.4, Array Section].',
         'ObjCAvailabilityCheckExpr': 'Represents an (...) check.',
         'FixedPointLiteral': 'Fixed point literal.',
-        'UnexposedStmt': 'A statement whose specific kind is not exposed via this interface.',
+        'UnexposedStmt': 'A statement whose specific kind is not exposed'
+        ' via this interface.',
         'LabelStmt': 'A labelled statement in a function.',
         'CompoundStmt': 'A group of statements like { stmt stmt }.',
         'CaseStmt': 'A case statement.',
@@ -529,22 +559,28 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'BreakStmt': 'A break statement.',
         'ReturnStmt': 'A return statement.',
         'GCCAsmStmt': 'A GCC inline assembly statement extension.',
-        'ObjCAtTryStmt': 'Objective-C\'s overall @try-@catch-@finally statement.',
+        'ObjCAtTryStmt': 'Objective-C\'s overall @try-@catch-@finally'
+        ' statement.',
         'ObjCAtCatchStmt': 'Objective-C\'s @catch statement.',
         'ObjCAtFinallyStmt': 'Objective-C\'s @finally statement.',
         'ObjCAtThrowStmt': 'Objective-C\'s @throw statement.',
         'ObjCAtSynchronizedStmt': 'Objective-C\'s @synchronized statement.',
-        'ObjCAutoreleasePoolStmt': 'Objective-C\'s autorelease pool statement.',
+        'ObjCAutoreleasePoolStmt': 'Objective-C\'s autorelease pool'
+        ' statement.',
         'ObjCForCollectionStmt': 'Objective-C\'s collection statement.',
         'CXXCatchStmt': 'C++\'s catch statement.',
         'CXXTryStmt': 'C++\'s try statement.',
         'CXXForRangeStmt': 'C++\'s for (* : *) statement.',
-        'SEHTryStmt': 'Windows Structured Exception Handling\'s try statement.',
-        'SEHExceptStmt': 'Windows Structured Exception Handling\'s except statement.',
-        'SEHFinallyStmt': 'Windows Structured Exception Handling\'s finally statement.',
+        'SEHTryStmt': 'Windows Structured Exception Handling\'s try'
+        ' statement.',
+        'SEHExceptStmt': 'Windows Structured Exception Handling\'s except'
+        ' statement.',
+        'SEHFinallyStmt': 'Windows Structured Exception Handling\'s'
+        ' finally statement.',
         'MSAsmStmt': 'A MS inline assembly statement extension.',
         'NullStmt': 'The null statement ";": C99 6.8.3p3.',
-        'DeclStmt': 'Adaptor class for mixing declarations with statements and expressions.',
+        'DeclStmt': 'Adaptor class for mixing declarations with statements'
+        ' and expressions.',
         'OMPParallelDirective': 'OpenMP parallel directive.',
         'OMPSimdDirective': 'OpenMP SIMD directive.',
         'OMPForDirective': 'OpenMP for directive.',
@@ -560,7 +596,8 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'OMPBarrierDirective': 'OpenMP barrier directive.',
         'OMPTaskwaitDirective': 'OpenMP taskwait directive.',
         'OMPFlushDirective': 'OpenMP flush directive.',
-        'SEHLeaveStmt': 'Windows Structured Exception Handling\'s leave statement.',
+        'SEHLeaveStmt': 'Windows Structured Exception Handling\'s leave'
+        ' statement.',
         'OMPOrderedDirective': 'OpenMP ordered directive.',
         'OMPAtomicDirective': 'OpenMP atomic directive.',
         'OMPForSimdDirective': 'OpenMP for SIMD directive.',
@@ -568,7 +605,8 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'OMPTargetDirective': 'OpenMP target directive.',
         'OMPTeamsDirective': 'OpenMP teams directive.',
         'OMPTaskgroupDirective': 'OpenMP taskgroup directive.',
-        'OMPCancellationPointDirective': 'OpenMP cancellation point directive.',
+        'OMPCancellationPointDirective': 'OpenMP cancellation point'
+        ' directive.',
         'OMPCancelDirective': 'OpenMP cancel directive.',
         'OMPTargetDataDirective': 'OpenMP target data directive.',
         'OMPTaskLoopDirective': 'OpenMP taskloop directive.',
@@ -577,24 +615,37 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         'OMPTargetEnterDataDirective': 'OpenMP target enter data directive.',
         'OMPTargetExitDataDirective': 'OpenMP target exit data directive.',
         'OMPTargetParallelDirective': 'OpenMP target parallel directive.',
-        'OMPTargetParallelForDirective': 'OpenMP target parallel for directive.',
+        'OMPTargetParallelForDirective': 'OpenMP target parallel for'
+        ' directive.',
         'OMPTargetUpdateDirective': 'OpenMP target update directive.',
-        'OMPDistributeParallelForDirective': 'OpenMP distribute parallel for directive.',
-        'OMPDistributeParallelForSimdDirective': 'OpenMP distribute parallel for simd directive.',
+        'OMPDistributeParallelForDirective': 'OpenMP distribute parallel'
+        ' for directive.',
+        'OMPDistributeParallelForSimdDirective': 'OpenMP distribute'
+        ' parallel for simd directive.',
         'OMPDistributeSimdDirective': 'OpenMP distribute simd directive.',
-        'OMPTargetParallelForSimdDirective': 'OpenMP target parallel for simd directive.',
+        'OMPTargetParallelForSimdDirective': 'OpenMP target parallel for'
+        ' simd directive.',
         'OMPTargetSimdDirective': 'OpenMP target simd directive.',
         'OMPTeamsDistributeDirective': 'OpenMP teams distribute directive.',
-        'OMPTeamsDistributeSimdDirective': 'OpenMP teams distribute simd directive.',
-        'OMPTeamsDistributeParallelForSimdDirective': 'OpenMP teams distribute parallel for simd directive.',
-        'OMPTeamsDistributeParallelForDirective': 'OpenMP teams distribute parallel for directive.',
+        'OMPTeamsDistributeSimdDirective': 'OpenMP teams distribute simd'
+        ' directive.',
+        'OMPTeamsDistributeParallelForSimdDirective': 'OpenMP teams'
+        ' distribute parallel for simd directive.',
+        'OMPTeamsDistributeParallelForDirective': 'OpenMP teams distribute'
+        ' parallel for directive.',
         'OMPTargetTeamsDirective': 'OpenMP target teams directive.',
-        'OMPTargetTeamsDistributeDirective': 'OpenMP target teams distribute directive.',
-        'OMPTargetTeamsDistributeParallelForDirective': 'OpenMP target teams distribute parallel for directive.',
-        'OMPTargetTeamsDistributeParallelForSimdDirective': 'OpenMP target teams distribute parallel for simd directive.',
-        'OMPTargetTeamsDistributeSimdDirective': 'OpenMP target teams distribute simd directive.',
-        'TranslationUnit': 'Cursor that represents the translation unit itself.',
-        'UnexposedAttr': 'An attribute whose specific kind is not exposed via this interface.',
+        'OMPTargetTeamsDistributeDirective': 'OpenMP target teams'
+        ' distribute directive.',
+        'OMPTargetTeamsDistributeParallelForDirective': 'OpenMP target'
+        ' teams distribute parallel for directive.',
+        'OMPTargetTeamsDistributeParallelForSimdDirective': 'OpenMP'
+        ' target teams distribute parallel for simd directive.',
+        'OMPTargetTeamsDistributeSimdDirective': 'OpenMP target teams'
+        ' distribute simd directive.',
+        'TranslationUnit': 'Cursor that represents the translation unit'
+        ' itself.',
+        'UnexposedAttr': 'An attribute whose specific kind is not exposed'
+        ' via this interface.',
         'ModuleImportDecl': 'A module import declaration.',
         'StaticAssert': 'A static_assert or _Static_assert node.',
         'FriendDecl': 'A friend declaration.',
@@ -607,12 +658,13 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         # This one should in theory come back from RTags on auto->build-in.
         # See https://github.com/Andersbakken/rtags/commit/3b8b9d51cec478e566b86d74659c78ac2b73ae4f.
-       'NoDeclFound': 'Build-in type probably.',
+        'NoDeclFound': 'Build-in type probably.',
 
         # Alias of "Constructor".
         'CXXConstructor': 'A C++ constructor.',
         # Alias of "Destructor".
         'CXXDestructor': 'A C++ destructor.',
+
         # Super confusing result - none of the clang-c cursor kind type
         # definitions or RTags sources show this string result. Instead we
         # would have expected a key similarly named - see title mappings
@@ -627,7 +679,13 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
             html.escape(item[0], quote=False),
             html.escape(item[1], quote=False))
 
-    def symbol_location_callback(self, future, displayed_items, oldrow, oldcol, oldfile):
+    def symbol_location_callback(
+            self,
+            future,
+            displayed_items,
+            oldrow,
+            oldcol,
+            oldfile):
         log.debug("Symbol location callback hit {}".format(future))
         if not future.done():
             log.warning("Symbol location failed")
