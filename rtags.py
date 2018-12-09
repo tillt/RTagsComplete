@@ -47,6 +47,21 @@ def get_view_text(view):
     return bytes(view.substr(sublime.Region(0, view.size())), "utf-8")
 
 
+def get_word_under_cursor(view):
+    word = None
+
+    for region in view.sel():
+        if region.begin() == region.end():
+            wordRegion = view.word(region)
+        else:
+            wordRegion = region
+
+        if not wordRegion.empty():
+            word = view.substr(wordRegion)
+
+    return word
+
+
 def supported_view(view):
     if not view:
         log.error("There is no view")
@@ -262,6 +277,50 @@ class RtagsFileCommand(RtagsBaseCommand):
         return '{}'.format(self.view.file_name())
 
 
+class RtagsGetIncludeCommand(RtagsBaseCommand):
+
+    def _query(self):
+        return '--current-file={}'.format(self.view.file_name())
+
+    def _action(self, out, **kwargs):
+        # Pretty format the results.
+        items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
+        log.debug("Got items from command: {}".format(items))
+
+        def on_select(index):
+            if index == -1:
+                return
+            sublime.set_clipboard(items[index])
+
+        self.view.window().show_quick_panel(
+            items,
+            on_select,
+            sublime.MONOSPACE_FONT,
+            -1)
+
+    def run(self, edit, *args, **kwargs):
+        # Do nothing if not called from supported code.
+        if not supported_view(self.view):
+            return
+
+        symbol = get_word_under_cursor(self.view)
+        if not symbol:
+            return
+        if not len(symbol):
+            return
+
+        job_args = kwargs
+        job_args.update({'view': self.view})
+
+        jobs.JobController.run_async(
+            jobs.RTagsJob(
+                "RTGetInclude" + jobs.JobController.next_id(),
+                [self._query(), '--include-file', symbol],
+                **job_args),
+            partial(self.command_done, **kwargs),
+            vc_manager.view_controller(self.view).status.progress)
+
+
 class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
 
     def run(self, edit):
@@ -308,17 +367,13 @@ class RtagsSymbolRenameCommand(RtagsLocationCommand):
 
         self.old_name = ""
 
-        for region in self.view.sel():
-            if region.begin() == region.end():
-                word = self.view.word(region)
-            else:
-                word = region
-            if not word.empty():
-                self.old_name = self.view.substr(word)
-
-        if len(self.old_name) == 0:
+        word = get_word_under_cursor(self.view)
+        if not word:
+            return
+        if not len(word):
             return
 
+        self.old_name = word
         self.mutations = {}
 
         for (file, row, col) in items:
