@@ -194,14 +194,8 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
     def on_select(self, res):
         if res == -1:
+            vc_manager.return_in_history(self.view)
             return
-
-        (row, col) = self.view.rowcol(self.view.sel()[0].a)
-
-        vc_manager.push_history(
-            self.view.file_name(),
-            int(row) + 1,
-            int(col) + 1)
 
         (file, line, col, _) = re.findall(
             RtagsBaseCommand.FILE_INFO_REG,
@@ -213,6 +207,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
     def on_highlight(self, res):
         if res == -1:
+            vc_manager.return_in_history(self.view)
             return
 
         (file, line, col, _) = re.findall(
@@ -227,32 +222,66 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         return ''
 
     def _action(self, out, **kwargs):
+        # Get current cursor location.
+        cursorLine, cursorCol = self.view.rowcol(self.view.sel()[0].a)
+
+        vc_manager.push_history(
+            self.view.file_name(),
+            int(cursorLine) + 1,
+            int(cursorCol) + 1)
 
         # Pretty format the results.
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
         log.debug("Got items from command: {}".format(items))
 
-        vc_manager.set_references(items)
-
-        def out_to_items(item):
-            (file, line, _, usage) = re.findall(
+        def out_to_tuple(item):
+            (file, line, col, usage) = re.findall(
                 RtagsBaseCommand.FILE_INFO_REG,
                 item)[0]
-            return [usage.strip(), "{}:{}".format(file.split('/')[-1], line)]
+            return [usage.strip(), file, int(line), int(col)]
 
-        items = list(map(out_to_items, items))
+        tuples = list(map(out_to_tuple, items))
 
         # If there is only one result no need to show it to user
         # just do navigation directly.
-        if len(items) == 1:
+        if len(tuples) == 1:
+            vc_manager.set_references(items)
             self.on_select(0)
             return
+
+        # Sort the tuples by file and then line number.
+        def file_line_col(item):
+            return (item[1], item[2], item[3])
+        tuples.sort(key=file_line_col)
+
+        cursorIndex = -1
+
+        # TODO(tillt): This smells a lot like not proper for Python.
+        for i in range(0, len(tuples)):
+            if tuples[i][2] == int(cursorLine) + 1:
+                cursorIndex = i
+                break
+
+        def tuples_to_references(current):
+            return "{}:{}:{}:".format(current[1], current[2], current[3])
+
+        references = list(map(tuples_to_references, tuples))
+
+        vc_manager.set_references(references)
+
+        def tuples_to_items(current):
+            return [current[0], "{}:{}:{}".format(
+                        current[1].split('/')[-1],
+                        current[2],
+                        current[3])]
+
+        items = list(map(tuples_to_items, tuples))
 
         self.view.window().show_quick_panel(
             items,
             self.on_select,
             sublime.MONOSPACE_FONT,
-            -1,
+            cursorIndex,
             self.on_highlight)
 
 
@@ -266,6 +295,7 @@ class RtagsLocationCommand(RtagsBaseCommand):
             row = kwargs['row']
         else:
             row, col = self.view.rowcol(self.view.sel()[0].a)
+
         return '{}:{}:{}'.format(self.view.file_name(),
                                  row + 1, col + 1)
 
@@ -334,6 +364,7 @@ class RtagsShowHistory(sublime_plugin.TextCommand):
         queue = list(vc_manager.history)
 
         line, col = self.view.rowcol(self.view.sel()[0].a)
+
         queue.append([self.view.file_name(), line, col])
 
         jump_items = list(queue)
@@ -361,6 +392,7 @@ class RtagsShowHistory(sublime_plugin.TextCommand):
         def on_highlight(index):
             if index == -1:
                 return
+
             self.view.window().open_file(
                 '%s:%s:%s' % (
                     jump_items[index][0],
@@ -395,12 +427,7 @@ class RtagsFixitCommand(RtagsBaseCommand):
 class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
 
     def run(self, edit):
-        if not vc_manager.history_size():
-            return
-
-        file, line, col = vc_manager.pop_history()
-        self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+        vc_manager.return_in_history(self.view)
 
 
 class RtagsSymbolRenameCommand(RtagsLocationCommand):
