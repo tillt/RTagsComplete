@@ -17,8 +17,8 @@ class StatusController():
     def __init__(self, view):
         self.view = view
         self.progress = indicator.ProgressIndicator(view)
-        self.status_key = settings.SettingsManager.get('status_key')
-        self.results_key = settings.SettingsManager.get('results_key')
+        self.status_key = settings.get('status_key')
+        self.results_key = settings.get('results_key')
 
     def unload(self):
         self.progress.unload()

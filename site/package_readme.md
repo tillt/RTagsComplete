@@ -18,7 +18,9 @@ Sublime Text 3 C/C++ code completion, navigation and validation plugin based on 
 
 - Code completion
 
-- Code validtion - shows errors and warnings inline
+- Code validation - shows errors and warnings inline
+
+- Get include file for symbol
 
 # Installation
 

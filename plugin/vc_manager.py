@@ -27,7 +27,7 @@ active_controller = None
 
 # History of navigations.
 # Elements are tuples (filename, line, col).
-history = collections.deque()
+history = None
 
 # navigation indicator, possible values are:
 # - NAVIGATION_REQUESTED
@@ -113,25 +113,39 @@ def request_navigation(view, switches_, data_):
     flag = NAVIGATION_REQUESTED
 
 
-def pop_history():
-    global history
-
-    return history.popleft()
-
-
 def navigation_data():
     global data
 
     return data
 
 
+def history_size():
+    global history
+
+    if not history:
+        return 0
+
+    return len(history)
+
+
+def pop_history():
+    global history
+
+    if not history:
+        return None
+
+    return history.pop()
+
+
 def push_history(file, line, col):
     global history
 
-    history.append([file, line, col])
+    if not history:
+        history = collections.deque(
+            [],
+            maxlen=int(settings.get('jump_limit', 10)))
 
-    if len(history) > int(settings.SettingsManager.get('jump_limit', 10)):
-        pop_history()
+    history.append([file, line, col])
 
 
 # Check if we are still in a navigation transaction.

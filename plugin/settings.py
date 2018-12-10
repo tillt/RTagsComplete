@@ -16,56 +16,90 @@ from os import path
 log = logging.getLogger("RTags")
 
 
-class SettingsManager():
-    PACKAGE_PATH = "Packages"
-    THEMES_PATH = "themes"
-    THEME_NAME = "Default"
+PACKAGE_PATH = "Packages"
+THEMES_PATH = "themes"
+THEME_NAME = "Default"
 
-    settings = None
+setup = None
+templates = None
+
+
+def update_settings():
+    global setup
+
+    log.debug("Settings update")
+
+    setup = sublime.load_settings('RTagsComplete.sublime-settings')
+
+
+def update_templates():
+    global templates
+
+    log.debug("Templates update")
+
+    # Init templates.
     templates = {}
+    types = {
+        "phantom": ["error", "warning"],
+        "popup": ["error", "info"]
+    }
 
-    def template_as_html(category, typename, message):
-        if typename not in SettingsManager.templates.keys():
-            return None
-        if category not in SettingsManager.templates[typename].keys():
-            return None
-        template = SettingsManager.templates[typename][category]
-        padded = template.replace('{', '{{').replace('}', '}}')
-        substituted = padded.replace('[', '{').replace(']', '}')
-        return substituted.format(message)
+    for key in types.keys():
+        templates[key] = {}
 
-    def update():
-        log.debug("Settings update")
-        SettingsManager.settings = sublime.load_settings(
-            'RTagsComplete.sublime-settings')
+        for name in types[key]:
+            filepath = path.join(
+                PACKAGE_PATH,
+                tools.PKG_NAME,
+                THEMES_PATH,
+                THEME_NAME,
+                "{}_{}.html".format(name, key))
 
-        # Init templates.
-        SettingsManager.templates = {}
-        types = {
-            "phantom": ["error", "warning"],
-            "popup": ["error", "info"]
-        }
+            log.debug("load_binary_resource of {}".format(filepath))
 
-        for key in types.keys():
-            SettingsManager.templates[key] = {}
-            for name in types[key]:
-                filepath = path.join(
-                    SettingsManager.PACKAGE_PATH,
-                    tools.PKG_NAME,
-                    SettingsManager.THEMES_PATH,
-                    SettingsManager.THEME_NAME,
-                    "{}_{}.html".format(name, key))
+            templates[key][name] = \
+                sublime.load_binary_resource(filepath).decode('utf-8')
 
-                log.debug("load_binary_resource of {}".format(filepath))
-                SettingsManager.templates[key][name] = sublime.load_binary_resource(filepath).decode('utf-8')
 
-    def get(key, default=None):
-        if not SettingsManager.settings:
-            SettingsManager.update()
-        value = SettingsManager.settings.get(key, default)
-        # log.debug("Setting {}={}".format(key, value))
-        return value
+def update():
+    global setup
+    global templates
 
-    def add_on_change(key):
-        log.debug("Settings watching {}".format(key))
-        SettingsManager.settings.add_on_change(key, SettingsManager.update)
+    setup = None
+    templates = None
+
+
+def template_as_html(category, typename, message):
+    global templates
+
+    if not templates:
+        update_templates()
+
+    if typename not in templates.keys():
+        return None
+    if category not in templates[typename].keys():
+        return None
+
+    template = templates[typename][category]
+    padded = template.replace('{', '{{').replace('}', '}}')
+    substituted = padded.replace('[', '{').replace(']', '}')
+
+    return substituted.format(message)
+
+
+def get(key, default=None):
+    global setup
+
+    if not setup:
+        update_settings()
+
+    value = setup.get(key, default)
+    # log.debug("Setting {}={}".format(key, value))
+    return value
+
+
+def add_on_change(key):
+    global setup
+
+    log.debug("Settings watching {}".format(key))
+    setup.add_on_change(key, update)
