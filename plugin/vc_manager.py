@@ -148,6 +148,17 @@ def push_history(file, line, col):
     history.append([file, line, col])
 
 
+def return_in_history(view):
+    global history
+
+    if not history_size():
+        return
+
+    file, line, col = pop_history()
+    view.window().open_file(
+        '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+
+
 # Check if we are still in a navigation transaction.
 def is_navigation_done():
     global flag
