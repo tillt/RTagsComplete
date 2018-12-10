@@ -321,6 +321,61 @@ class RtagsGetIncludeCommand(RtagsBaseCommand):
             vc_manager.view_controller(self.view).status.progress)
 
 
+class RtagsShowHistory(sublime_plugin.TextCommand):
+
+    def run(self, edit):
+        if not supported_view(self.view):
+            return
+
+        if not vc_manager.history_size():
+            log.debug("History is empty")
+            return
+
+        queue = list(vc_manager.history)
+
+        line, col = self.view.rowcol(self.view.sel()[0].a)
+        queue.append([self.view.file_name(), line, col])
+
+        jump_items = list(queue)
+
+        def queue_to_panel_item(item):
+            name = item[0].split('/')[-1]
+            return [name, "{}:{}:{}".format(name, item[1], item[2])]
+
+        panel_items = list(map(queue_to_panel_item, queue))
+
+        def on_select(index):
+            if index == -1:
+                return
+
+            for x in range(0, len(vc_manager.history) - index):
+                vc_manager.history.pop()
+
+            self.view.window().open_file(
+                '%s:%s:%s' % (
+                    jump_items[index][0],
+                    jump_items[index][1],
+                    jump_items[index][2]),
+                sublime.ENCODED_POSITION)
+
+        def on_highlight(index):
+            if index == -1:
+                return
+            self.view.window().open_file(
+                '%s:%s:%s' % (
+                    jump_items[index][0],
+                    jump_items[index][1],
+                    jump_items[index][2]),
+                sublime.ENCODED_POSITION | sublime.TRANSIENT)
+
+        self.view.window().show_quick_panel(
+            panel_items,
+            on_select,
+            sublime.MONOSPACE_FONT,
+            len(panel_items) - 1,
+            on_highlight)
+
+
 class RtagsShowFixitsCommand(sublime_plugin.TextCommand):
 
     def run(self, edit):
@@ -340,12 +395,12 @@ class RtagsFixitCommand(RtagsBaseCommand):
 class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
 
     def run(self, edit):
-        try:
-            file, line, col = vc_manager.pop_history()
-            self.view.window().open_file(
-                '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
-        except IndexError:
-            pass
+        if not vc_manager.history_size():
+            return
+
+        file, line, col = vc_manager.pop_history()
+        self.view.window().open_file(
+            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
 
 
 class RtagsSymbolRenameCommand(RtagsLocationCommand):

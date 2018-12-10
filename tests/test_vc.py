@@ -42,37 +42,51 @@ class TestVC(GuiTestWrapper):
 
     def test_small_history(self):
         """Test checking if a small history remains in order and complete ."""
-        vc_manager.history = collections.deque()
+        self.assertEqual(len(vc_manager.history), 0)
 
         vc_manager.push_history("matilda", 1969, 12)
+
+        self.assertEqual(len(vc_manager.history), 1)
+
         vc_manager.push_history("till", 2012, 10)
 
-        [file, line, col] = vc_manager.pop_history()
-
-        self.assertEqual(file, "matilda")
-        self.assertEqual(line, 1969)
-        self.assertEqual(col, 12)
+        self.assertEqual(len(vc_manager.history), 2)
 
         [file, line, col] = vc_manager.pop_history()
-
         self.assertEqual(file, "till")
         self.assertEqual(line, 2012)
         self.assertEqual(col, 10)
 
+        self.assertEqual(len(vc_manager.history), 1)
+
+        [file, line, col] = vc_manager.pop_history()
+        self.assertEqual(file, "matilda")
+        self.assertEqual(line, 1969)
+        self.assertEqual(col, 12)
+
+        self.assertEqual(len(vc_manager.history), 0)
+
     def test_large_history(self):
         """Test checking if a large history remains in order and shortened."""
-        vc_manager.history = collections.deque()
-
-        size = int(settings.SettingsManager.get('jump_limit', 10))
+        size = int(settings.get('jump_limit', 10))
 
         for i in range(0, size):
-            vc_manager.push_history("item{}".format(i+1), 1, 1)
+            vc_manager.push_history("item{}".format(i + 1), 1, 1)
+
+        self.assertEqual(len(vc_manager.history), size)
 
         # This will push out item1
         vc_manager.push_history("overflow", 1, 1)
 
-        [file, line, col] = vc_manager.pop_history()
+        self.assertEqual(len(vc_manager.history), size)
 
-        self.assertEqual(file, "item2")
-        self.assertEqual(line, 1)
-        self.assertEqual(col, 1)
+        [file, line, col] = vc_manager.pop_history()
+        self.assertEqual(file, "overflow")
+
+        for i in range(size, 1, -1):
+            [file, line, col] = vc_manager.pop_history()
+            self.assertEqual(file, "item{}".format(i))
+
+        print("history: {}".format(list(vc_manager.history)))
+
+        self.assertEqual(len(vc_manager.history), 0)
