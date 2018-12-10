@@ -49,7 +49,7 @@ def position_status(point, view):
     # to the right of given point.
     curr_char = view.substr(point - trigger_length)
     wrong_trigger_found = False
-    for trigger in settings.SettingsManager.get('triggers'):
+    for trigger in settings.get('triggers'):
         # compare to the last char of a trigger
         if curr_char == trigger[-1]:
             trigger_length = len(trigger)

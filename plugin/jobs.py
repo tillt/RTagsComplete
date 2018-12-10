@@ -91,7 +91,7 @@ class RTagsJob():
         self.kwargs = kwargs
 
     def prepare_command(self):
-        return [settings.SettingsManager.get('rc_path')] + self.command_info
+        return [settings.get('rc_path')] + self.command_info
 
     def stop(self):
         try:
@@ -109,7 +109,7 @@ class RTagsJob():
                 self.callback))
 
         if not timeout:
-            timeout = settings.SettingsManager.get('rc_timeout')
+            timeout = settings.get('rc_timeout')
         (out, _) = process.communicate(input=self.data, timeout=timeout)
 
         if not self.nodebug:

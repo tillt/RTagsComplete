@@ -9,24 +9,24 @@ class TestSettings(TestCase):
 
     def test_init(self):
         """Test that settings are correctly initialized."""
-        self.assertIsNone(settings.SettingsManager.get('unknown_config_key'))
+        self.assertIsNone(settings.get('unknown_config_key'))
 
-        self.assertIsNotNone(settings.SettingsManager.get('verbose_log'))
-        self.assertIsNotNone(settings.SettingsManager.get('fixits'))
+        self.assertIsNotNone(settings.get('verbose_log'))
+        self.assertIsNotNone(settings.get('fixits'))
 
-        self.assertEqual(settings.SettingsManager.get(
+        self.assertEqual(settings.get(
             'unknown_config_key_with_default', 'default'), 'default')
 
     def test_templates(self):
         """Test that templates load as expected."""
-        self.assertIsNone(settings.SettingsManager.template_as_html(
+        self.assertIsNone(settings.template_as_html(
             "unknown", "file", "test"))
 
-        self.assertIsNotNone(settings.SettingsManager.template_as_html(
+        self.assertIsNotNone(settings.template_as_html(
             "error", "phantom", "test"))
-        self.assertIsNotNone(settings.SettingsManager.template_as_html(
+        self.assertIsNotNone(settings.template_as_html(
             "warning", "phantom", "test"))
-        self.assertIsNotNone(settings.SettingsManager.template_as_html(
+        self.assertIsNotNone(settings.template_as_html(
             "error", "popup", "test"))
-        self.assertIsNotNone(settings.SettingsManager.template_as_html(
+        self.assertIsNotNone(settings.template_as_html(
             "info", "popup", "test"))

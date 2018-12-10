@@ -108,6 +108,7 @@ Key bindings were originally inspired by Qt Creator.
 + Error, fixit and warning navigation - `Ctrl-Shift-e`
 + Find unused functions - `Alt-Super-Shift-d`
 + Find include file for symbol - `Ctrl+i`
++ Show navigation history - `Ctrl+Shift+h`
 
 # Customization
 
@@ -137,6 +138,9 @@ Customize your own key bindings via *Preferences* > *Package Settings* > *RTagsC
 
   # Backwards in history
   {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
+
+  # Show navigation history
+  {"keys": ["ctrl+shift+h"], "command": "rtags_show_history" },
 
   # Show errors, warnings and fixits
   {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" },
