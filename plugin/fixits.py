@@ -130,7 +130,7 @@ class Controller():
             start = self.view.line(point).a
             return sublime.Phantom(
                 sublime.Region(start, start+1),
-                settings.SettingsManager.template_as_html(
+                settings.template_as_html(
                     category,
                     'phantom',
                     issue['message']),

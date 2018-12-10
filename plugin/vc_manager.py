@@ -128,7 +128,10 @@ def navigation_data():
 def push_history(file, line, col):
     global history
 
-    history.append([file, line, col])
+    if not history:
+        history = collections.deque(
+            [],
+            maxlen=int(settings.get('jump_limit', 10)))
 
     if len(history) > int(settings.SettingsManager.get('jump_limit', 10)):
         pop_history()

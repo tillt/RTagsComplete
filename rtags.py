@@ -97,7 +97,7 @@ def supported_view(view):
         log.error("Scope types for this view is empty")
         return False
 
-    file_types = settings.SettingsManager.get(
+    file_types = settings.get(
         'file_types',
         ["source.c", "source.c++"])
 
@@ -139,7 +139,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
         if error:
             log.error("Command task failed: {}".format(error.message))
 
-            rendered = settings.SettingsManager.template_as_html(
+            rendered = settings.template_as_html(
                 "error",
                 "popup",
                 error.html_message())
@@ -790,7 +790,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         info += '\n'.join(displayed_html_items)
 
-        rendered = settings.SettingsManager.template_as_html(
+        rendered = settings.template_as_html(
             "info",
             "popup",
             info)
@@ -812,7 +812,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
         alphabetic_keys = []
         kind_extension_keys = []
 
-        filtered_kind = settings.SettingsManager.get(
+        filtered_kind = settings.get(
             "filtered_clang_cursor_kind",
             [])
 
@@ -871,7 +871,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
 
         info = '\n'.join(displayed_html_items)
 
-        rendered = settings.SettingsManager.template_as_html(
+        rendered = settings.template_as_html(
             "info",
             "popup",
             info)
@@ -925,7 +925,7 @@ class RtagsHoverInfo(sublime_plugin.EventListener):
             log.debug("Unsupported view")
             return
 
-        if not settings.SettingsManager.get("hover"):
+        if not settings.get("hover"):
             return
 
         # Make sure the underlying view is in focus - enables in turn
@@ -1086,7 +1086,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
     def on_query_completions(self, view, prefix, locations):
         # Check if autocompletion was disabled for this plugin.
-        if not settings.SettingsManager.get('auto_complete', True):
+        if not settings.get('auto_complete', True):
             return []
 
         # Do nothing if not called from supported code.
@@ -1149,9 +1149,9 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
 
 
 def update_settings():
-    settings.SettingsManager.update()
+    settings.update()
 
-    if settings.SettingsManager.get('verbose_log', True):
+    if settings.get('verbose_log', True):
         log.info("Enabled verbose logging")
         ch.setFormatter(formatter_verbose)
         ch.setLevel(logging.DEBUG)
@@ -1161,26 +1161,26 @@ def update_settings():
         ch.setLevel(logging.INFO)
 
     # Initialize settings with their defaults.
-    settings.SettingsManager.get('rc_timeout', 0.5)
-    settings.SettingsManager.get('rc_path', "/usr/local/bin/rc")
-    settings.SettingsManager.get('fixits', False)
-    settings.SettingsManager.get('hover', False)
-    settings.SettingsManager.get('auto_reindex', False)
-    settings.SettingsManager.get('auto_reindex_threshold', 30)
+    settings.get('rc_timeout', 0.5)
+    settings.get('rc_path', "/usr/local/bin/rc")
+    settings.get('fixits', False)
+    settings.get('hover', False)
+    settings.get('auto_reindex', False)
+    settings.get('auto_reindex_threshold', 30)
 
-    settings.SettingsManager.get('results_key', 'rtags_result_indicator')
-    settings.SettingsManager.get('status_key', 'rtags_status_indicator')
-    settings.SettingsManager.get('progress_key', 'rtags_progress_indicator')
+    settings.get('results_key', 'rtags_result_indicator')
+    settings.get('status_key', 'rtags_status_indicator')
+    settings.get('progress_key', 'rtags_progress_indicator')
 
-    settings.SettingsManager.add_on_change('filtered_clang_cursor_kind')
+    settings.add_on_change('filtered_clang_cursor_kind')
 
-    settings.SettingsManager.add_on_change('rc_timeout')
-    settings.SettingsManager.add_on_change('rc_path')
-    settings.SettingsManager.add_on_change('auto_complete')
+    settings.add_on_change('rc_timeout')
+    settings.add_on_change('rc_path')
+    settings.add_on_change('auto_complete')
 
-    settings.SettingsManager.add_on_change('results_key')
-    settings.SettingsManager.add_on_change('status_key')
-    settings.SettingsManager.add_on_change('progress_key')
+    settings.add_on_change('results_key')
+    settings.add_on_change('status_key')
+    settings.add_on_change('progress_key')
 
     # TODO(tillt): Allow "fixits" setting to get live-updated.
     # settings.add_on_change('fixits', update_settings)
@@ -1192,8 +1192,8 @@ def update_settings():
 
 
 def plugin_loaded():
-    tools.Reloader.reload_all()
     update_settings()
+    tools.Reloader.reload_all()
 
 
 def plugin_unloaded():

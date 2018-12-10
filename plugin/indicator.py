@@ -7,7 +7,6 @@
 import sublime
 import logging
 
-from random import sample
 from threading import RLock
 
 from . import settings
@@ -16,9 +15,9 @@ log = logging.getLogger("RTags")
 
 
 class ProgressIndicator():
-    #MSG_CHARS = u'◒◐◓◑'
+    # MSG_CHARS = u'◒◐◓◑'
     MSG_CHARS = u'◤◥◢◣'
-    #MSG_CHARS = u'╀┾╁┽'
+    # MSG_CHARS = u'╀┾╁┽'
     PERIOD = 150
 
     MSG_LEN = 1
@@ -31,7 +30,7 @@ class ProgressIndicator():
         self.len = 1
         self.active_counter = 0
         self.stop_counter = 0
-        self.status_key = settings.SettingsManager.get('progress_key')
+        self.status_key = settings.get('progress_key')
 
     def unload(self):
         self.stop(total=True)
@@ -44,7 +43,8 @@ class ProgressIndicator():
         with ProgressIndicator.lock:
             needs_start = not self.active_counter
             self.active_counter += 1
-            log.debug("Indicator now running for {} processes".format(self.active_counter))
+            log.debug("Indicator now running for {} processes".format(
+                self.active_counter))
 
         if needs_start:
             log.debug("Starting indicator")
@@ -63,7 +63,8 @@ class ProgressIndicator():
             else:
                 self.stop_counter += 1
 
-            log.debug("Indicator still running for {} processes".format(self.active_counter))
+            log.debug("Indicator still running for {} processes".format(
+                self.active_counter))
 
     def run(self):
         with ProgressIndicator.lock:
@@ -85,4 +86,7 @@ class ProgressIndicator():
         self.step = (self.step + 1) % mod
 
         self.view.set_status(self.status_key, '{}'.format(''.join(chars)))
-        sublime.set_timeout_async(lambda self=self: self.run(), ProgressIndicator.PERIOD)
+
+        sublime.set_timeout_async(
+            lambda self=self: self.run(),
+            ProgressIndicator.PERIOD)
