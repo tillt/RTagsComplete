@@ -249,7 +249,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
             self.on_select(0)
             return
 
-        # Sort the tuples by file and then line number.
+        # Sort the tuples by file and then line number and column.
         def file_line_col(item):
             return (item[1], item[2], item[3])
         tuples.sort(key=file_line_col)
@@ -361,12 +361,15 @@ class RtagsShowHistory(sublime_plugin.TextCommand):
             log.debug("History is empty")
             return
 
+        # Get current cursor location.
+        cursorLine, cursorCol = self.view.rowcol(self.view.sel()[0].a)
+
+        vc_manager.push_history(
+            self.view.file_name(),
+            int(cursorLine) + 1,
+            int(cursorCol) + 1)
+
         queue = list(vc_manager.history)
-
-        line, col = self.view.rowcol(self.view.sel()[0].a)
-
-        queue.append([self.view.file_name(), line, col])
-
         jump_items = list(queue)
 
         def queue_to_panel_item(item):
@@ -377,6 +380,7 @@ class RtagsShowHistory(sublime_plugin.TextCommand):
 
         def on_select(index):
             if index == -1:
+                vc_manager.return_in_history(self.view)
                 return
 
             for x in range(0, len(vc_manager.history) - index):
@@ -391,6 +395,7 @@ class RtagsShowHistory(sublime_plugin.TextCommand):
 
         def on_highlight(index):
             if index == -1:
+                vc_manager.return_in_history(self.view)
                 return
 
             self.view.window().open_file(
