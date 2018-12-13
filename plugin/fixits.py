@@ -49,17 +49,19 @@ class Controller():
     def deactivated(self):
         log.debug("Deactivated")
 
-    def on_select(self, res):
+    def select(self, res):
         (file, line, col) = self.navigation_items[res]
         self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION)
+            '%s:%s:%s' % (file, line, col),
+            sublime.ENCODED_POSITION)
 
-    def on_highlight(self, res):
+    def highlight(self, res):
         (file, line, col) = self.navigation_items[res]
         self.view.window().open_file(
-            '%s:%s:%s' % (file, line, col), sublime.ENCODED_POSITION | sublime.TRANSIENT)
+            '%s:%s:%s' % (file, line, col),
+            sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
-    def show_selector(self):
+    def show_selector(self, on_highlight, on_select):
         def issue_to_panel_item(issue):
             return [
                 issue['message'],
@@ -88,15 +90,15 @@ class Controller():
         # If there is only one result no need to show it to user
         # just do navigation directly.
         if len(items) == 1:
-            self.on_select(0)
+            on_select(0)
             return
 
         self.view.window().show_quick_panel(
             items,
-            self.on_select,
+            on_select,
             sublime.MONOSPACE_FONT,
             -1,
-            self.on_highlight)
+            on_highlight)
 
     def category_key(self, category):
         return "rtags-{}-mark".format(category)
