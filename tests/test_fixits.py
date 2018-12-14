@@ -49,6 +49,6 @@ class TestFixitsController(GuiTestWrapper):
         time.sleep(10.0)
 
         self.assertEqual(controller.status.progress.active_counter, 0)
+
         self.assertEqual(self.view.get_status(
-            controller.status.progress.status_key),
-            '')
+            controller.status.progress.status_key), '')

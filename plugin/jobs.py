@@ -342,7 +342,7 @@ class JobController():
         with JobController.lock:
             if job.job_id in JobController.thread_map.keys():
                 log.debug("Job {} still active".format(job.job_id))
-                return
+                return None
 
             log.debug("Starting async job {}".format(job.job_id))
 

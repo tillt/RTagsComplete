@@ -2,8 +2,9 @@
 import logging
 import time
 
+from concurrent import futures
 from functools import partial
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from RTagsComplete.plugin import jobs
 
@@ -92,3 +93,24 @@ class TestJobController(TestCase):
         time.sleep(2)
 
         self.assertEqual(self.expect, 0)
+
+    @mock.patch.object(jobs.RTagsJob, 'run', autospec=True)
+    def test_mock_async(self, mock_run):
+        job_id = "TestAsyncMockCommand" + jobs.JobController.next_id()
+        out = b'test'
+
+        mock_run.return_value = (job_id, out, None)
+
+        jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
+
+        future = jobs.JobController.future(job_id)
+
+        futures.wait([future], return_when=futures.ALL_COMPLETED)
+        self.assertTrue(future.done())
+
+        self.assertEqual(mock_run.call_count, 1)
+
+        (tested_job_id, tested_out, _) = future.result()
+
+        self.assertEqual(tested_job_id, job_id)
+        self.assertEqual(tested_out, out)

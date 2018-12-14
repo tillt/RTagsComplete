@@ -193,10 +193,11 @@ def query(view, prefix, locations):
         view.run_command('hide_auto_complete')
 
         # Trigger a new completion event to show the freshly acquired ones.
-        view.run_command('auto_complete', {
-            'disable_auto_insert': True,
-            'api_completions_only': False,
-            'next_completion_if_showing': False})
+        view.run_command(
+            'auto_complete', {
+                'disable_auto_insert': True,
+                'api_completions_only': False,
+                'next_completion_if_showing': False})
 
     jobs.JobController.run_async(
         jobs.CompletionJob(
