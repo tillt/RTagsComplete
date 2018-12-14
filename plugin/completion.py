@@ -75,15 +75,64 @@ def position_status(point, view):
     return PositionStatus.COMPLETION_NOT_NEEDED
 
 
-class Controller():
+query_suggestions = []
+query_completion_job_id = None
 
-    def __init__(self):
-        self.suggestions = []
-        self.completion_job_id = None
-        self.view = None
-        self.trigger_position = None
 
-    def completion_done(self, future):
+def query(view, prefix, locations):
+    global query_suggestions
+    global query_completion_job_id
+    log.debug("Completion prefix: {}".format(prefix))
+
+    # libclang does auto-complete _only_ at whitespace and
+    # punctuation chars so "rewind" location to that character
+    trigger_position = locations[0] - len(prefix)
+
+    pos_status = position_status(trigger_position, view)
+
+    if pos_status == PositionStatus.WRONG_TRIGGER:
+        # We are at a wrong trigger, remove all completions from the list.
+        log.debug("Wrong trigger - hiding default completions")
+        return (
+            [],
+            sublime.INHIBIT_WORD_COMPLETIONS |
+            sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
+    if pos_status == PositionStatus.COMPLETION_NOT_NEEDED:
+        log.debug("Completion not needed - showing default completions")
+        return None
+
+    # Render some unique identifier for us to match a completion request
+    # to its original query.
+    completion_job_id = "RTCompletionJob{}".format(trigger_position)
+
+    # If we already have a completion for this position, show that.
+    if query_completion_job_id == completion_job_id:
+        log.debug("We already got a completion for this position")
+        log.debug("completion: {}".format(query_suggestions))
+        return (
+            query_suggestions,
+            sublime.INHIBIT_WORD_COMPLETIONS |
+            sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+
+    # Cancel a completion that might be in flight.
+    if query_completion_job_id:
+        jobs.JobController.stop(query_completion_job_id)
+
+    # We do need to trigger a new completion.
+    log.debug("Completion job {} triggered on view {}".format(
+        completion_job_id,
+        view))
+
+    query_view = view
+    query_completion_job_id = completion_job_id
+    query_trigger_position = trigger_position
+    row, col = view.rowcol(trigger_position)
+
+    text = bytes(view.substr(sublime.Region(0, view.size())), "utf-8")
+
+    def completion_done(future):
+        global query_suggestions
         log.debug("Completion done callback hit {}".format(future))
 
         if not future.done():
@@ -108,12 +157,12 @@ class Controller():
             completion_job_id,
             view))
 
-        if view != self.view:
+        if view != query_view:
             log.debug("Completion done for different view")
             return
 
         # Did we have a different completion in mind?
-        if completion_job_id != self.completion_job_id:
+        if completion_job_id != query_completion_job_id:
             log.debug("Completion done for unexpected completion")
             return
 
@@ -130,15 +179,12 @@ class Controller():
         current_position = view.sel()[0].a
         valid_positions = [current_position, view.word(current_position).a]
 
-        if self.trigger_position not in valid_positions:
-            log.debug("Trigger position {} does not match valid positions {}".format(
-                valid_positions,
-                self.trigger_position))
+        if query_trigger_position not in valid_positions:
+            log.debug("Trigger position {} does not match valid positions"
+                      " {}".format(valid_positions, query_trigger_position))
             return
 
-        self.suggestions = suggestions
-
-        # log.debug("suggestiongs: {}".format(suggestions))
+        query_suggestions = suggestions
 
         # Hide the completion we might currently see as those are sublime's
         # own completions which are not that useful to us C++ coders.
@@ -150,61 +196,21 @@ class Controller():
         view.run_command('auto_complete', {
             'disable_auto_insert': True,
             'api_completions_only': False,
-            'next_competion_if_showing': False})
+            'next_completion_if_showing': False})
 
-    def query_completions(self, view, prefix, locations, text):
-        log.debug("Completion prefix: {}".format(prefix))
-
-        # libclang does auto-complete _only_ at whitespace and
-        # punctuation chars so "rewind" location to that character
-        trigger_position = locations[0] - len(prefix)
-
-        pos_status = position_status(trigger_position, view)
-
-        if pos_status == PositionStatus.WRONG_TRIGGER:
-            # We are at a wrong trigger, remove all completions from the list.
-            log.debug("Wrong trigger - hiding default completions")
-            return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
-
-        if pos_status == PositionStatus.COMPLETION_NOT_NEEDED:
-            log.debug("Completion not needed - showing default completions")
-            return None
-
-        # Render some unique identifier for us to match a completion request
-        # to its original query.
-        completion_job_id = "RTCompletionJob{}".format(trigger_position)
-
-        # If we already have a completion for this position, show that.
-        if self.completion_job_id == completion_job_id:
-            log.debug("We already got a completion for this position")
-            return self.suggestions, sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS
-
-        # Cancel a completion that might be in flight.
-        if self.completion_job_id:
-            jobs.JobController.stop(self.completion_job_id)
-
-        # We do need to trigger a new completion.
-        log.debug("Completion job {} triggered on view {}".format(
+    jobs.JobController.run_async(
+        jobs.CompletionJob(
             completion_job_id,
-            view))
+            view.file_name(),
+            text,
+            view.size(),
+            row,
+            col,
+            view),
+        completion_done,
+        vc_manager.view_controller(view).status.progress)
 
-        self.view = view
-        self.completion_job_id = completion_job_id
-        self.trigger_position = trigger_position
-        row, col = view.rowcol(trigger_position)
-
-        text = bytes(view.substr(sublime.Region(0, view.size())), "utf-8")
-
-        jobs.JobController.run_async(
-            jobs.CompletionJob(
-                completion_job_id,
-                view.file_name(),
-                text,
-                view.size(),
-                row,
-                col,
-                view),
-            self.completion_done,
-            vc_manager.view_controller(view).status.progress)
-
-        return ([], sublime.INHIBIT_WORD_COMPLETIONS | sublime.INHIBIT_EXPLICIT_COMPLETIONS)
+    return (
+        [],
+        sublime.INHIBIT_WORD_COMPLETIONS |
+        sublime.INHIBIT_EXPLICIT_COMPLETIONS)
