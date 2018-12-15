@@ -16,7 +16,7 @@ class TestCompletionController(GuiTestWrapper):
         self.set_up()
         file_name = path.join(path.dirname(__file__),
                               'test_files',
-                              'test.cpp')
+                              'test_completion.cpp')
         self.set_up_view(file_name, 16, 5)
 
         self.assertIsNotNone(self.view)
