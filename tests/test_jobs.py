@@ -94,7 +94,7 @@ class TestJobController(TestCase):
 
         self.assertEqual(self.expect, 0)
 
-    @mock.patch.object(jobs.RTagsJob, 'run', autospec=True)
+    @mock.patch.object(jobs.RTagsJob, 'run')
     def test_mock_async(self, mock_run):
         job_id = "TestAsyncMockCommand" + jobs.JobController.next_id()
         out = b'test'
