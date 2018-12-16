@@ -15,7 +15,7 @@ class TestFixitsController(GuiTestWrapper):
         self.set_up()
         file_name = path.join(path.dirname(__file__),
                               'test_files',
-                              'test.cpp')
+                              'test_fixits.cpp')
         self.set_up_view(file_name)
 
         self.assertIsNotNone(self.view)
@@ -49,6 +49,6 @@ class TestFixitsController(GuiTestWrapper):
         time.sleep(10.0)
 
         self.assertEqual(controller.status.progress.active_counter, 0)
+
         self.assertEqual(self.view.get_status(
-            controller.status.progress.status_key),
-            '')
+            controller.status.progress.status_key), '')

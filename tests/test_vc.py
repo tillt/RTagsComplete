@@ -17,7 +17,7 @@ class TestVC(GuiTestWrapper):
         self.set_up()
         file_name = path.join(path.dirname(__file__),
                               'test_files',
-                              'test.cpp')
+                              'test_fixits.cpp')
         self.set_up_view(file_name)
 
         self.assertIsNotNone(self.view)
@@ -86,7 +86,5 @@ class TestVC(GuiTestWrapper):
         for i in range(size, 1, -1):
             [file, line, col] = vc_manager.pop_history()
             self.assertEqual(file, "item{}".format(i))
-
-        print("history: {}".format(list(vc_manager.history)))
 
         self.assertEqual(len(vc_manager.history), 0)

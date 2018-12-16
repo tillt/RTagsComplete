@@ -32,15 +32,16 @@ class GuiTestWrapper(TestCase):
             self.view.window().run_command("close_file")
             self.view = None
 
-    def set_up_view(self, file_path):
+    def set_up_view(self, file_path, row=1, col=1):
         """Utility method to set up a view for a given file.
 
         Args:
             file_path (str): The path to a file to open in a new view.
         """
         # Open the view.
-        self.view = sublime.active_window().open_file(file_path)
-        self.view.settings().set("disable_easy_clang_complete", True)
+        self.view = sublime.active_window().open_file(
+            "{}:{}:{}".format(file_path, row, col),
+            sublime.ENCODED_POSITION)
 
         # Ensure it's loaded.
         while self.view.is_loading():

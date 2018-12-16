@@ -2,8 +2,9 @@
 import logging
 import time
 
+from concurrent import futures
 from functools import partial
-from unittest import TestCase
+from unittest import TestCase, mock
 
 from RTagsComplete.plugin import jobs
 
@@ -92,3 +93,65 @@ class TestJobController(TestCase):
         time.sleep(2)
 
         self.assertEqual(self.expect, 0)
+
+    @mock.patch.object(jobs.RTagsJob, 'run', autospec=True)
+    def test_mock_async(self, mock_run):
+        job_id = "TestAsyncMockCommand" + jobs.JobController.next_id()
+        out = b'test'
+
+        mock_run.return_value = (job_id, out, None)
+
+        jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
+
+        future = jobs.JobController.future(job_id)
+
+        futures.wait([future], return_when=futures.ALL_COMPLETED)
+        self.assertTrue(future.done())
+
+        self.assertEqual(mock_run.call_count, 1)
+
+        (tested_job_id, tested_out, _) = future.result()
+
+        self.assertEqual(tested_job_id, job_id)
+        self.assertEqual(tested_out, out)
+
+    @mock.patch("subprocess.Popen", autospec=True)
+    def test_mock_process(self, mock_popen):
+        job_id = "RTMockProcessJob"
+
+        out = b'mocked stdout'
+        err = b''
+
+        # Mock subprocess.
+        process_mock = mock.Mock()
+
+        # `communicate` returns a set of bytestreams.
+        process_mock.communicate = mock.Mock(return_value=(out, err))
+
+        # `__enter__` returns the mock subprocess.
+        process_mock.__enter__ = mock.Mock(return_value=process_mock)
+
+        # `__exit__` does nothing.
+        process_mock.__exit__ = mock.Mock(return_value=None)
+
+        # `returncode` returns 0.
+        type(process_mock).returncode = mock.PropertyMock(return_value=0)
+
+        # `Popen` returns the mock subprocess.
+        mock_popen.return_value = process_mock
+
+        jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
+
+        # Await that job.
+        future = jobs.JobController.future(job_id)
+        futures.wait([future], return_when=futures.ALL_COMPLETED)
+
+        self.assertTrue(future.done())
+
+        self.assertTrue(mock_popen.call_count, 1)
+
+        (tested_job_id, tested_out, tested_err) = future.result()
+
+        self.assertEqual(tested_job_id, job_id)
+        self.assertEqual(tested_out, out)
+        self.assertEqual(tested_err, None)

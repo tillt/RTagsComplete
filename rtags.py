@@ -606,12 +606,6 @@ class RtagsNavigationListener(sublime_plugin.EventListener):
         vc_manager.view_controller(view).fixits.clear()
         vc_manager.view_controller(view).idle.trigger()
 
-#    def on_selection_modified(self, view):
-#        (row, col) = self.cursor_pos(view)
-#        region = fixits_controller.cursor_region(view, row, col)
-#        if region:
-#            fixits_controller.show_fixit(view, region)
-
     def on_post_save(self, view):
         log.debug("Post save triggered")
         # Do nothing if not called from supported code.
@@ -642,7 +636,7 @@ class RtagsCompleteListener(sublime_plugin.EventListener):
         if not supported_view(view):
             return []
 
-        completion.Controller.query_completions(self, view, prefix, locations)
+        return completion.query(view, prefix, locations)
 
 
 def update_settings():
@@ -678,12 +672,6 @@ def update_settings():
     settings.add_on_change('results_key')
     settings.add_on_change('status_key')
     settings.add_on_change('progress_key')
-
-    # TODO(tillt): Allow "fixits" setting to get live-updated.
-    # settings.add_on_change('fixits', update_settings)
-
-    # TODO(tillt): Allow "verbose_log" settings to get live-updated.
-    # settings.add_on_change('verbose_log', update_settings)
 
     log.info("Settings updated")
 
