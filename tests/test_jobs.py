@@ -88,9 +88,10 @@ class TestJobController(TestCase):
                 expect_out='',
                 expect_job_id=job_id))
 
-        self.assertEqual(self.expect, 1)
+        future = jobs.JobController.future(job_id)
 
-        time.sleep(2)
+        futures.wait([future], return_when=futures.ALL_COMPLETED)
+        self.assertTrue(future.done())
 
         self.assertEqual(self.expect, 0)
 
@@ -123,22 +124,22 @@ class TestJobController(TestCase):
         err = b''
 
         # Mock subprocess.
-        process_mock = mock.Mock()
+        mock_process = mock.Mock()
 
         # `communicate` returns a set of bytestreams.
-        process_mock.communicate = mock.Mock(return_value=(out, err))
+        mock_process.communicate = mock.Mock(return_value=(out, err))
 
         # `__enter__` returns the mock subprocess.
-        process_mock.__enter__ = mock.Mock(return_value=process_mock)
+        mock_process.__enter__ = mock.Mock(return_value=mock_process)
 
         # `__exit__` does nothing.
-        process_mock.__exit__ = mock.Mock(return_value=None)
+        mock_process.__exit__ = mock.Mock(return_value=None)
 
-        # `returncode` returns 0.
-        type(process_mock).returncode = mock.PropertyMock(return_value=0)
+        # property `returncode` is 0.
+        type(mock_process).returncode = mock.PropertyMock(return_value=0)
 
         # `Popen` returns the mock subprocess.
-        mock_popen.return_value = process_mock
+        mock_popen.return_value = mock_process
 
         jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
 
