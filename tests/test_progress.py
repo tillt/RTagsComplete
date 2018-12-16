@@ -15,7 +15,7 @@ class TestProgressIndicator(GuiTestWrapper):
         self.set_up()
         file_name = path.join(path.dirname(__file__),
                               'test_files',
-                              'test.cpp')
+                              'test_fixits.cpp')
         self.set_up_view(file_name)
 
         self.assertIsNotNone(self.view)

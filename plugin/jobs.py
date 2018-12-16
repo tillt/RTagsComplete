@@ -204,21 +204,30 @@ class CompletionJob(RTagsJob):
 
         if not error:
             for line in out.splitlines():
-                # log.debug(line)
-                # line is like this
-                # "process void process(CompletionThread::Request *request)
-                # CXXMethod" "reparseTime int reparseTime VarDecl"
-                # "dump String dump() CXXMethod"
-                # "request CompletionThread::Request * request ParmDecl"
-                # we want it to show as process()\tCXXMethod
+                # Line is like this
+                #  "process void process(CompletionThread::Request *request) CXXMethod"
+                #  "reparseTime int reparseTime VarDecl"
+                #  "dump String dump() CXXMethod"
+                #  "request CompletionThread::Request * request ParmDecl"
                 #
-                # output is list of tuples: first tuple element is what
-                # we see in popup menu second is what inserted into file.
+                # We want it to show as
+                #  "process($0)\tCXXMethod"
+                #  "reparseTime$0\tVarDecl"
+                #  "dump()$0\tCXXMethod"
+                #  "request$0\tParmDecl"
+                #
+                # Output is list of tuples:
+                # - first tuple element is what we see in popup menu
+                # - second is what is inserted into the file
+                #
                 # '$0' is where to place cursor.
+                #
                 # TODO play with $1, ${2:int}, ${3:string} and so on.
                 elements = line.decode('utf-8').split()
-                suggestions.append(('{}\t{}'.format(' '.join(elements[1:-1]), elements[-1]),
-                                    '{}$0'.format(elements[0])))
+                display = "{}\t{}".format(' '.join(elements[1:-1]), elements[-1])
+                render = "{}$0".format(elements[0])
+                suggestions.append((display, render))
+
             log.debug("Completion done")
 
         return (job_id, suggestions, error, self.view)
