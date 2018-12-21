@@ -1,6 +1,7 @@
 """Tests for Job Controller."""
 import logging
 import time
+import uuid
 
 from concurrent import futures
 from functools import partial
@@ -80,7 +81,7 @@ class TestJobController(TestCase):
 
         self.expect = self.expect + 1
 
-        jobs.JobController.run_async(
+        future = jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 1']),
             partial(
                 self.command_done,
@@ -88,23 +89,42 @@ class TestJobController(TestCase):
                 expect_out='',
                 expect_job_id=job_id))
 
-        future = jobs.JobController.future(job_id)
-
         futures.wait([future], return_when=futures.ALL_COMPLETED)
         self.assertTrue(future.done())
 
         self.assertEqual(self.expect, 0)
 
+    def test_async_abort(self):
+        """Test running an asynchronous job."""
+        job_id = "TestAsyncCommand" + jobs.JobController.next_id()
+
+        self.assertEqual(self.expect, 0)
+
+        self.expect = self.expect + 1
+
+        future = jobs.JobController.run_async(
+            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
+            partial(
+                self.command_done,
+                expect_error=None,
+                expect_out='',
+                expect_job_id=job_id))
+
+        self.assertFalse(future.done())
+
+        jobs.JobController.ab
+
+
     @mock.patch.object(jobs.RTagsJob, 'run')
     def test_mock_async(self, mock_run):
-        job_id = "TestAsyncMockCommand" + jobs.JobController.next_id()
+        """Test that an asyncronous callup of a mocked Job delivers its
+           state as expected through JobManager processing."""
+        job_id = "TestAsyncMock-" + str(uuid.uuid4())
         out = b'test'
 
         mock_run.return_value = (job_id, out, None)
 
-        jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
-
-        future = jobs.JobController.future(job_id)
+        future = jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
 
         futures.wait([future], return_when=futures.ALL_COMPLETED)
         self.assertTrue(future.done())
@@ -117,42 +137,53 @@ class TestJobController(TestCase):
         self.assertEqual(tested_out, out)
 
     @mock.patch("subprocess.Popen", autospec=True)
-    def test_mock_process(self, mock_popen):
-        job_id = "RTMockProcessJob"
+    def test_mock_async_process(self, mock_popen):
+        """Test that an asyncronous callup of a mocked subprocess delivers
+           its state as expected through JobManager processing."""
+        param = [
+            (0, b'Mocked stdout', None),
+            (1, b"Mocked failure", jobs.JobError.UNKNOWN),
+            (0, b"Not indexed", jobs.JobError.NOT_INDEXED),
+            (0, b"Project loading", jobs.JobError.PROJECT_LOADING),
+            (0, b"Can't seem to connect to server", jobs.JobError.RDM_DOWN)]
 
-        out = b'mocked stdout'
-        err = b''
+        for (result, stdout, code) in param:
+            job_id = "TestMockProcess-" + str(uuid.uuid4())
 
-        # Mock subprocess.
-        mock_process = mock.Mock()
+            log.debug("Job {} gets parameters {}, {}, {}".format(
+                      job_id, result, stdout, code))
 
-        # `communicate` returns a set of bytestreams.
-        mock_process.communicate = mock.Mock(return_value=(out, err))
+            # Mock subprocess.
+            mock_process = mock.Mock()
+            # `communicate` returns a set of bytestreams.
+            mock_process.communicate = mock.Mock(return_value=(stdout, b''))
 
-        # `__enter__` returns the mock subprocess.
-        mock_process.__enter__ = mock.Mock(return_value=mock_process)
+            # `__enter__` returns the mock subprocess.
+            mock_process.__enter__ = mock.Mock(return_value=mock_process)
 
-        # `__exit__` does nothing.
-        mock_process.__exit__ = mock.Mock(return_value=None)
+            # `__exit__` does nothing.
+            mock_process.__exit__ = mock.Mock(return_value=None)
 
-        # property `returncode` is 0.
-        type(mock_process).returncode = mock.PropertyMock(return_value=0)
+            # property `returncode` is parameterized.
+            type(mock_process).returncode = mock.PropertyMock(
+                return_value=result)
 
-        # `Popen` returns the mock subprocess.
-        mock_popen.return_value = mock_process
+            # `Popen` returns the mock subprocess.
+            mock_popen.return_value = mock_process
 
-        jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
+            future = jobs.JobController.run_async(jobs.RTagsJob(job_id, ['']))
 
-        # Await that job.
-        future = jobs.JobController.future(job_id)
-        futures.wait([future], return_when=futures.ALL_COMPLETED)
+            futures.wait([future], return_when=futures.ALL_COMPLETED)
+            self.assertTrue(future.done())
 
-        self.assertTrue(future.done())
+            self.assertTrue(mock_popen.call_count, 1)
 
-        self.assertTrue(mock_popen.call_count, 1)
+            (tested_job_id, tested_out, tested_err) = future.result()
 
-        (tested_job_id, tested_out, tested_err) = future.result()
+            self.assertEqual(tested_job_id, job_id)
 
-        self.assertEqual(tested_job_id, job_id)
-        self.assertEqual(tested_out, out)
-        self.assertEqual(tested_err, None)
+            if tested_err:
+                self.assertEqual(tested_err.code, code)
+            else:
+                self.assertEqual(tested_err, None)
+                self.assertEqual(tested_out, stdout)
