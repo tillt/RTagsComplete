@@ -369,7 +369,7 @@ class JobController():
     @staticmethod
     def run_sync(job, timeout=None):
         # Debug logging every single run_sync request is too verbose
-        # if polling is used for gathering rc's indexing status
+        # if polling is used for gathering rc's indexing status.
         return job.run_process(timeout)
 
     @staticmethod

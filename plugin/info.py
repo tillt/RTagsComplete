@@ -354,9 +354,10 @@ class Controller:
 
     @staticmethod
     def display_items(item):
-        return "<div class=\"info\"><span class=\"header\">{}</span><br /><span class=\"info\">{}</span></div>".format(
-            html.escape(item[0], quote=False),
-            html.escape(item[1], quote=False))
+        return "<div class=\"info\"><span class=\"header\">{}</span>" \
+               "<br /><span class=\"info\">{}</span></div>".format(
+                    html.escape(item[0], quote=False),
+                    html.escape(item[1], quote=False))
 
     @staticmethod
     def symbol_location_callback(
@@ -404,10 +405,11 @@ class Controller:
 
         log.debug("Symbol location resulted in {}".format(link))
 
-        info = "<div class=\"info\"><span class=\"header\">{}</span><br /><a href=\"{}\">{}</a></div>\n".format(
-            html.escape(displayed_items[0][0], quote=False),
-            html.escape(link, quote=False),
-            html.escape(displayed_items[0][1], quote=False))
+        info = "<div class=\"info\"><span class=\"header\">{}</span>" \
+               "<br /><a href=\"{}\">{}</a></div>\n".format(
+                    html.escape(displayed_items[0][0], quote=False),
+                    html.escape(link, quote=False),
+                    html.escape(displayed_items[0][1], quote=False))
 
         displayed_html_items = list(map(
             Controller.display_items,
