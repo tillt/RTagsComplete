@@ -348,6 +348,7 @@ class JobController():
 
     @staticmethod
     def run_async(job, callback=None, indicator=None):
+        future = None
         with JobController.lock:
             if job.job_id in JobController.thread_map.keys():
                 log.debug("Job {} still active".format(job.job_id))
@@ -365,6 +366,8 @@ class JobController():
                 partial(JobController.done, job=job, indicator=indicator))
 
             JobController.thread_map[job.job_id] = (future, job)
+
+        return future
 
     @staticmethod
     def run_sync(job, timeout=None):
