@@ -408,7 +408,8 @@ class JobController():
         log.debug("Waiting for job {}".format(job_id))
 
         # Wait upon the job to terminate.
-        future.result(15)
+        if not future.done():
+            future.result(15)
 
         log.debug("Waited for job {}".format(job_id))
 
