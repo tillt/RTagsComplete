@@ -79,6 +79,7 @@ class TestJobController(TestCase):
 
         self.assertEqual(self.expect, 0)
 
+        # Prepare the artefact for the job callback to remove.
         self.expect = self.expect + 1
 
         future = jobs.JobController.run_async(
@@ -92,11 +93,17 @@ class TestJobController(TestCase):
         futures.wait([future], return_when=futures.ALL_COMPLETED)
         self.assertTrue(future.done())
 
+        # Check for the artefact - the job callback should have cleared it.
         self.assertEqual(self.expect, 0)
 
+        (received_job_id, _, received_err) = future.result()
+
+        self.assertEqual(received_job_id, job_id)
+        self.assertEqual(received_err, None)
+
     def test_async_abort(self):
-        """Test running an asynchronous job."""
-        job_id = "TestAsyncCommand" + jobs.JobController.next_id()
+        """Test running an asynchronous job and then aborting it."""
+        job_id = "TestAsyncAbortCommand" + jobs.JobController.next_id()
 
         self.assertEqual(self.expect, 0)
 
@@ -110,14 +117,28 @@ class TestJobController(TestCase):
                 expect_out='',
                 expect_job_id=job_id))
 
+        time.sleep(0.1)
+
         self.assertFalse(future.done())
 
-        jobs.JobController.ab
+        jobs.JobController.stop(job_id)
 
+        if not future.done():
+            futures.wait(
+                [future],
+                timeout=5,
+                return_when=futures.ALL_COMPLETED)
+
+        self.assertTrue(future.done())
+
+        (received_job_id, _, received_error) = future.result()
+
+        self.assertEqual(received_job_id, job_id)
+        self.assertEqual(received_error.code, jobs.JobError.ABORTED)
 
     @mock.patch.object(jobs.RTagsJob, 'run')
     def test_mock_async(self, mock_run):
-        """Test that an asyncronous callup of a mocked Job delivers its
+        """Test that an asyncronous call of a mocked Job delivers its
            state as expected through JobManager processing."""
         job_id = "TestAsyncMock-" + str(uuid.uuid4())
         out = b'test'
@@ -131,14 +152,15 @@ class TestJobController(TestCase):
 
         self.assertEqual(mock_run.call_count, 1)
 
-        (tested_job_id, tested_out, _) = future.result()
+        (received_job_id, received_out, received_err) = future.result()
 
-        self.assertEqual(tested_job_id, job_id)
-        self.assertEqual(tested_out, out)
+        self.assertEqual(received_job_id, job_id)
+        self.assertEqual(received_out, out)
+        self.assertEqual(received_err, None)
 
     @mock.patch("subprocess.Popen", autospec=True)
     def test_mock_async_process(self, mock_popen):
-        """Test that an asyncronous callup of a mocked subprocess delivers
+        """Test that an asyncronous call of a mocked subprocess delivers
            its state as expected through JobManager processing."""
         param = [
             (0, b'Mocked stdout', None),
@@ -164,7 +186,7 @@ class TestJobController(TestCase):
             # `__exit__` does nothing.
             mock_process.__exit__ = mock.Mock(return_value=None)
 
-            # property `returncode` is parameterized.
+            # Property `returncode` is parameterized.
             type(mock_process).returncode = mock.PropertyMock(
                 return_value=result)
 
@@ -178,12 +200,12 @@ class TestJobController(TestCase):
 
             self.assertTrue(mock_popen.call_count, 1)
 
-            (tested_job_id, tested_out, tested_err) = future.result()
+            (received_job_id, received_out, received_error) = future.result()
 
-            self.assertEqual(tested_job_id, job_id)
+            self.assertEqual(received_job_id, job_id)
 
-            if tested_err:
-                self.assertEqual(tested_err.code, code)
+            if received_error:
+                self.assertEqual(received_error.code, code)
             else:
-                self.assertEqual(tested_err, None)
-                self.assertEqual(tested_out, stdout)
+                self.assertEqual(received_error, None)
+                self.assertEqual(received_out, stdout)
