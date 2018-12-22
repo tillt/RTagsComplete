@@ -31,6 +31,7 @@ class JobError:
     NOT_INDEXED = 2
     RDM_DOWN = 3
     EXCEPTION = 4
+    ABORTED = 5
 
     def __init__(self, code=UNKNOWN, message=""):
         self.code = code
@@ -52,10 +53,13 @@ class JobError:
         elif out.startswith("Can't seem to connect to server"):
             return JobError(
                 JobError.RDM_DOWN,
-                "Can't seem to connect to RTags server.")
+                "Failed to connect to RTags server.")
 
         if code != 0:
-            message = "RTags failed with status {}".format(code)
+            if code < 0:
+                return JobError(JobError.ABORTED, "Command aborted.")
+
+            message = "RTags command failed with status {}".format(code)
 
             if out:
                 # In rare cases or due to invalid invocations we might
