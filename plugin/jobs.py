@@ -84,7 +84,7 @@ class RTagsJob():
         self.data = b''
         if 'data' in kwargs:
             self.data = kwargs['data']
-        self.p = None
+        self.p = futures.Future()
         if 'view' in kwargs:
             self.view = kwargs['view']
         if 'communicate' in kwargs:
@@ -93,18 +93,29 @@ class RTagsJob():
             self.callback = self.communicate
         self.nodebug = 'nodebug' in kwargs
         self.kwargs = kwargs
+        self.command_active = futures.Future()
 
     def prepare_command(self):
         return [settings.get('rc_path')] + self.command_info
 
+    def active(self):
+        return self.p.done()
+
     def stop(self):
+        start_time = time()
+
+        # Blocks until process has started.
+        process = self.p.result()
+
+        log.debug("Awaited process startup for {:2.6f} seconds".format(
+            time() - start_time))
+
+        log.debug("Killing job command subprocess {}".format(process))
+
         try:
-            log.debug("Killing job {}".format(self.p))
-            if self.p:
-                self.p.kill()
+            process.kill()
         except subprocess.ProcessLookupError:
             pass
-        self.p = None
 
     def communicate(self, process, timeout=None):
         if not self.nodebug:
@@ -141,7 +152,7 @@ class RTagsJob():
                 stdout=subprocess.PIPE,
                     stdin=subprocess.PIPE) as process:
 
-                self.p = process
+                self.p.set_result(process)
 
                 if not self.nodebug:
                     log.debug("Process running with timeout {},"
@@ -153,12 +164,13 @@ class RTagsJob():
                 (out, error) = self.callback(process, timeout)
 
         except Exception as e:
-            error = JobError(JobError.EXCEPTION, "Aborting with exception: {}"
-                                                 .format(e))
+            error = JobError(
+                JobError.EXCEPTION,
+                "Aborting with exception: {}".format(e))
 
         if not self.nodebug:
             log.debug("Output-length: {}".format(len(out)))
-            log.debug("Process job ran for {:2.2f} seconds".format(
+            log.debug("Process job ran for {:2.5f} seconds".format(
                 time() - start_time))
 
         if error:
@@ -388,30 +400,19 @@ class JobController():
             if job_id in JobController.thread_map.keys():
                 (future, job) = JobController.thread_map[job_id]
 
-        if not job:
-            log.debug("Job not started")
-            return
+        start_time = time()
 
-        log.debug("Stopping job {}={}".format(job_id, job.job_id))
-        log.debug("Job {} should now disappear with {}".format(job_id, future))
+        log.debug("Stopping Job {} with {}".format(job_id, future))
 
-        # FIXME(tillt): This entire part appears to either not have the
-        # intended results or the debug output time skewing the displayed
-        # results; complete job termination is NOT waited upon.
-
-        # Signal that we are not interested in results.
-        future.cancel()
-
-        # Terminate any underlying subprocesses.
+        # Terminate any underlying subprocess.
         job.stop()
 
-        log.debug("Waiting for job {}".format(job_id))
-
         # Wait upon the job to terminate.
-        if not future.done():
-            future.result(15)
+        futures.wait([future], timeout=15, return_when=futures.ALL_COMPLETED)
 
-        log.debug("Waited for job {}".format(job_id))
+        log.debug("Waited {:2.2f} for job {} ".format(
+            time() - start_time,
+            job_id))
 
         if future.done():
             log.debug("Done with that job {}".format(job_id))
@@ -458,5 +459,6 @@ class JobController():
         with JobController.lock:
             log.debug("Stopping running threads {}".format(list(
                 JobController.thread_map)))
+
             for job_id in list(JobController.thread_map):
                 JobController.stop(job_id)
