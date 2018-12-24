@@ -1,6 +1,4 @@
 """Tests for Completion Controller."""
-import subprocess
-
 from concurrent import futures
 from os import path
 from unittest import mock
@@ -33,10 +31,10 @@ class TestCompletionController(GuiTestWrapper):
         job_id = "RTCompletionJob{}".format(trigger_position)
 
         # Mock subprocess.
-        process_mock = mock.Mock()
+        mock_process = mock.Mock()
 
         # `communicate` returns a set of bytestreams.
-        process_mock.communicate = mock.Mock(return_value=(
+        mock_process.communicate = mock.Mock(return_value=(
             b' bar void bar() CXXMethod  A \n'
             b' foo void foo(double a) CXXMethod  A \n'
             b' A A:: ClassDecl  A \n'
@@ -46,16 +44,16 @@ class TestCompletionController(GuiTestWrapper):
             b''))
 
         # `__enter__` returns the mock subprocess.
-        process_mock.__enter__ = mock.Mock(return_value=process_mock)
+        mock_process.__enter__ = mock.Mock(return_value=mock_process)
 
         # `__exit__` does nothing.
-        process_mock.__exit__ = mock.Mock(return_value=None)
+        mock_process.__exit__ = mock.Mock(return_value=None)
 
         # `returncode` returns 0.
-        type(process_mock).returncode = mock.PropertyMock(return_value=0)
+        type(mock_process).returncode = mock.PropertyMock(return_value=0)
 
         # `Popen` returns the mock subprocess.
-        mock_popen.return_value = process_mock
+        mock_popen.return_value = mock_process
 
         # Request a completion.
         completion.query(self.view, prefix, locations)
