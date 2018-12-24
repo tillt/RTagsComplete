@@ -32,7 +32,3 @@ class TestIdleController(GuiTestWrapper):
 
     def test_idle(self):
         self.idle_callback_hit = True
-
-        # idle_controller = idle.Controller(self.view, True, 10.0, threshold, self.idle_callback)
-        # idle_controller.sleep()
-        # time.sleep()

@@ -1,6 +1,4 @@
 """Tests for Completion Controller."""
-import subprocess
-
 from concurrent import futures
 from os import path
 from unittest import mock
