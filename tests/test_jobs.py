@@ -33,14 +33,10 @@ class TestJob(jobs.RTagsJob):
 class TestJobController(TestCase):
     """Test Job Controller."""
 
-    expect = 0
-
     def command_done(
         self, future, expect_error_code, expect_out, expect_job_id,
             **kwargs):
         log.debug("Command done callback hit {}".format(future))
-
-        self.expect = self.expect - 1
 
         if not future.done():
             log.warning("Command future failed")
@@ -73,11 +69,6 @@ class TestJobController(TestCase):
         """Test running an asynchronous job."""
         job_id = "TestAsyncCommand" + jobs.JobController.next_id()
 
-        self.assertEqual(self.expect, 0)
-
-        # Prepare the artefact for the job callback to remove.
-        self.expect = self.expect + 1
-
         future = jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 1 && echo foo']),
             partial(
@@ -89,9 +80,6 @@ class TestJobController(TestCase):
         futures.wait([future], return_when=futures.ALL_COMPLETED)
         self.assertTrue(future.done())
 
-        # Check for the artefact - the job callback should have cleared it.
-        self.assertEqual(self.expect, 0)
-
         (received_job_id, _, received_error) = future.result()
 
         self.assertEqual(received_job_id, job_id)
@@ -100,10 +88,6 @@ class TestJobController(TestCase):
     def test_async_abort(self):
         """Test running an asynchronous job and then aborting it."""
         job_id = "TestAsyncAbortCommand" + jobs.JobController.next_id()
-
-        self.assertEqual(self.expect, 0)
-
-        self.expect = self.expect + 1
 
         future = jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
@@ -125,10 +109,6 @@ class TestJobController(TestCase):
     def test_async_delayed_abort(self):
         """Test running an asynchronous job and then aborting it."""
         job_id = "TestAsyncAbortCommand" + jobs.JobController.next_id()
-
-        self.assertEqual(self.expect, 0)
-
-        self.expect = self.expect + 1
 
         future = jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
