@@ -66,7 +66,7 @@ class TestJobController(TestCase):
         job_id = "TestAsyncCommand" + jobs.JobController.next_id()
 
         with tempfile.NamedTemporaryFile(delete=False) as fp:
-            fp.write(b'echo foo && sleep 1\n')
+            fp.write(b'echo foo && sleep 0.1\n')
             fp.close()
             os.chmod(fp.name, 0o777)
 
