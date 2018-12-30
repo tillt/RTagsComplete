@@ -33,9 +33,7 @@ class TestJob(jobs.RTagsJob):
 class TestJobController(TestCase):
     """Test Job Controller."""
 
-    def command_done(
-        self, future, expect_error_code, expect_out, expect_job_id,
-            **kwargs):
+    def command_done(self, future, **kwargs):
         log.debug("Command done callback hit {}".format(future))
 
         if not future.done():
@@ -45,14 +43,6 @@ class TestJobController(TestCase):
         if future.cancelled():
             log.warning(("Command future aborted"))
             return
-
-        (job_id, out, error) = future.result()
-
-        self.assertEqual(job_id, expect_job_id)
-        if expect_out:
-            self.assertEqual(out, expect_out)
-        if expect_error_code:
-            self.assertEqual(error.code, expect_error_code)
 
     def test_sync(self):
         """Test running a synchronous job."""
@@ -71,19 +61,16 @@ class TestJobController(TestCase):
 
         future = jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 1 && echo foo']),
-            partial(
-                self.command_done,
-                expect_error_code=None,
-                expect_out=b'foo\n',
-                expect_job_id=job_id))
+            partial(self.command_done))
 
         futures.wait([future], return_when=futures.ALL_COMPLETED)
         self.assertTrue(future.done())
 
-        (received_job_id, _, received_error) = future.result()
+        (received_job_id, received_out, received_error) = future.result()
 
         self.assertEqual(received_job_id, job_id)
         self.assertEqual(received_error, None)
+        self.assertEqual(received_out, b'foo\n')
 
     def test_async_abort(self):
         """Test running an asynchronous job and then aborting it."""
@@ -91,11 +78,7 @@ class TestJobController(TestCase):
 
         future = jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
-            partial(
-                self.command_done,
-                expect_error_code=jobs.JobError.ABORTED,
-                expect_out='',
-                expect_job_id=job_id))
+            partial(self.command_done))
 
         self.assertFalse(future.done())
 
@@ -112,11 +95,7 @@ class TestJobController(TestCase):
 
         future = jobs.JobController.run_async(
             TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
-            partial(
-                self.command_done,
-                expect_error_code=jobs.JobError.ABORTED,
-                expect_out='',
-                expect_job_id=job_id))
+            partial(self.command_done))
 
         # Make sure the job actually runs.
         time.sleep(1)
