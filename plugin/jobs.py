@@ -222,6 +222,56 @@ class CompletionJob(RTagsJob):
             command_info,
             **{'data': text, 'view': view})
 
+    def render(self, line):
+        # Line is like this
+        #  "process void process(CompletionThread::Request *request) CXXMethod"
+        #  "reparseTime int reparseTime VarDecl"
+        #  "dump String dump() CXXMethod"
+        #  "request CompletionThread::Request * request ParmDecl"
+        #
+        # We want it to show as
+        #  "process($0${1:CompletionThread::Request *request})\tCXXMethod"
+        #  "reparseTime$0\tVarDecl"
+        #  "dump()$0\tCXXMethod"
+        #  "request$0\tParmDecl"
+        #
+        # Output is list of tuples:
+        # - first tuple element is what we see in popup menu
+        # - second is what is inserted into the file
+        #
+        # '$0' is where to place cursor.
+        # '${[n]:type [name]}' is an argument.
+        elements = line.decode('utf-8').split()
+        display = "{}\t{}".format(' '.join(elements[1:-1]), elements[-1])
+
+        middle = ' '.join(elements[1:-1])
+
+        # Locate brackets for argument inspection.
+        left = middle.find('(')
+        right = middle.rfind(')')
+
+        # The default completion is just the symbol name.
+        completion = "{}$0".format(elements[0])
+
+        # Completions with brackets.
+        if left != -1 and right != -1 and right > left:
+            # Empty parameter list.
+            if right - left == 1:
+                completion = "{}()$0".format(elements[0])
+            else:
+                parameters = middle[left+1:right].split(', ')
+                index = 1
+                arguments = []
+                for parameter in parameters:
+                    arguments.append(
+                        "${" + "{}:{}".format(index, parameter) + "}")
+                    index += 1
+
+                completion = "{}($0{})".format(elements[0],
+                                               ", ".join(arguments))
+
+        return display, completion
+
     def run(self):
         (job_id, out, error) = self.run_process(60)
 
@@ -229,31 +279,8 @@ class CompletionJob(RTagsJob):
 
         if not error:
             for line in out.splitlines():
-                # Line is like this
-                #  "process void process(CompletionThread::Request *request) CXXMethod"
-                #  "reparseTime int reparseTime VarDecl"
-                #  "dump String dump() CXXMethod"
-                #  "request CompletionThread::Request * request ParmDecl"
-                #
-                # We want it to show as
-                #  "process($0)\tCXXMethod"
-                #  "reparseTime$0\tVarDecl"
-                #  "dump()$0\tCXXMethod"
-                #  "request$0\tParmDecl"
-                #
-                # Output is list of tuples:
-                # - first tuple element is what we see in popup menu
-                # - second is what is inserted into the file
-                #
-                # '$0' is where to place cursor.
-                #
-                # TODO play with $1, ${2:int}, ${3:string} and so on.
-                elements = line.decode('utf-8').split()
-                display = "{}\t{}".format(' '.join(elements[1:-1]), elements[-1])
-                render = "{}$0".format(elements[0])
+                display, render = self.render(line)
                 suggestions.append((display, render))
-
-            log.debug("Completion done")
 
         return (job_id, suggestions, error, self.view)
 
