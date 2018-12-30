@@ -2,7 +2,9 @@
 import logging
 import time
 import uuid
+import os
 import sys
+import tempfile
 
 from concurrent import futures
 from functools import partial
@@ -63,12 +65,18 @@ class TestJobController(TestCase):
         """Test running an asynchronous job."""
         job_id = "TestAsyncCommand" + jobs.JobController.next_id()
 
+        fp = tempfile.NamedTemporaryFile(delete=False)
+        fp.write(b'echo foo && sleep 1\n')
+        fp.close()
+
         future = jobs.JobController.run_async(
-            TestJob(job_id, ['/bin/sh', '-c', 'echo foo']),
+            TestJob(job_id, ['/bin/sh', fp.name]),
             partial(self.command_done))
 
         futures.wait([future], return_when=futures.ALL_COMPLETED)
         self.assertTrue(future.done())
+
+        #os.unlink(fp.name)
 
         (received_job_id, received_out, received_error) = future.result()
 
