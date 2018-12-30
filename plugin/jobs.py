@@ -438,13 +438,11 @@ class JobController():
             indicator.stop()
 
         with JobController.lock:
-            if job.job_id not in JobController.thread_map:
-                log.error("Unknown job future {}".format(job.job_id))
-                return
-
-            del JobController.thread_map[job.job_id]
-
-            log.debug("Removed bookkeeping for job {}".format(job.job_id))
+            if job.job_id in JobController.thread_map:
+                del JobController.thread_map[job.job_id]
+                log.debug("Removed bookkeeping for job {}".format(job.job_id))
+            else:
+                log.debug("Job {} was already gone".format(job.job_id))
 
     @staticmethod
     def job(job_id):
