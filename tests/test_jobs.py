@@ -2,6 +2,7 @@
 import logging
 import time
 import uuid
+import sys
 
 from concurrent import futures
 from functools import partial
@@ -12,6 +13,9 @@ from RTagsComplete.plugin import jobs
 log = logging.getLogger("RTags")
 log.setLevel(logging.DEBUG)
 log.propagate = False
+stream_handler = logging.StreamHandler(sys.stdout)
+stream_handler.setLevel(logging.DEBUG)
+log.addHandler(stream_handler)
 
 formatter_default = logging.Formatter(
     '%(name)s:%(levelname)s: %(message)s')
