@@ -64,7 +64,7 @@ class TestJobController(TestCase):
         job_id = "TestAsyncCommand" + jobs.JobController.next_id()
 
         future = jobs.JobController.run_async(
-            TestJob(job_id, ['/bin/sh', '-c', 'sleep 1 && echo foo']),
+            TestJob(job_id, ['/bin/sh', '-c', 'echo foo']),
             partial(self.command_done))
 
         futures.wait([future], return_when=futures.ALL_COMPLETED)
