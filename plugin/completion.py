@@ -113,6 +113,8 @@ def query(view, prefix, locations):
     # to its original query.
     completion_job_id = "RTCompletionJob{}".format(trigger_position)
 
+    log.debug("Completion trigger with: {}".format(completion_job_id))
+
     # If we already have a completion for this position, show that.
     if query_completion_job_id == completion_job_id:
         log.debug("We already got a completion for this position")

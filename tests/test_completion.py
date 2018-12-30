@@ -23,10 +23,12 @@ class TestCompletionController(GuiTestWrapper):
         self.assertIsNotNone(self.view)
 
     def tearDown(self):
+        jobs.JobController.stop_all()
         self.tear_down()
 
     @mock.patch("subprocess.Popen")
     def test_completion_at(self, mock_popen):
+        """ Test completion logic using a mocked RTags request. """
         prefix = ""
         locations = [182]
 

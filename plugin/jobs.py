@@ -400,6 +400,10 @@ class JobController():
             if job_id in JobController.thread_map.keys():
                 (future, job) = JobController.thread_map[job_id]
 
+        if not future:
+            log.debug("Job {} never started".format(job_id))
+            return
+
         start_time = time()
 
         log.debug("Stopping Job {} with {}".format(job_id, future))
