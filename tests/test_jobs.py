@@ -68,9 +68,10 @@ class TestJobController(TestCase):
         with tempfile.NamedTemporaryFile(delete=False) as fp:
             fp.write(b'echo foo && sleep 1\n')
             fp.close()
+            os.chmod(fp.name, 0o777)
 
             future = jobs.JobController.run_async(
-                TestJob(job_id, ['/bin/sh', fp.name]),
+                TestJob(job_id, ['/bin/sh', '-c', fp.name]),
                 partial(self.command_done))
 
             futures.wait([future], return_when=futures.ALL_COMPLETED)
