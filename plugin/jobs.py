@@ -385,12 +385,16 @@ class JobController():
                 indicator.start()
 
             future = JobController.pool.submit(job.run)
+
             if callback:
                 future.add_done_callback(callback)
+
             future.add_done_callback(
                 partial(JobController.done, job=job, indicator=indicator))
 
             JobController.thread_map[job.job_id] = (future, job)
+
+            log.debug("Stored async job {} in thread_map".format(job.job_id))
 
         return future
 
