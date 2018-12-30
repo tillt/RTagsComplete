@@ -79,6 +79,13 @@ query_suggestions = []
 query_completion_job_id = None
 
 
+def reset():
+    global query_suggestions
+    global query_completion_job_id
+    query_suggestions = []
+    query_completion_job_id = None
+
+
 def query(view, prefix, locations):
     global query_suggestions
     global query_completion_job_id

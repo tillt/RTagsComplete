@@ -12,6 +12,9 @@ class TestCompletionController(GuiTestWrapper):
     def setUp(self):
         """Test that setup view correctly sets up the view."""
         self.set_up()
+
+        completion.reset()
+
         file_name = path.join(path.dirname(__file__),
                               'test_files',
                               'test_completion.cpp')
