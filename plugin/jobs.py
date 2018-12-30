@@ -118,7 +118,7 @@ class RTagsJob():
         log.debug("Killing job command subprocess {}".format(process))
 
         try:
-            process.kill()
+            process.close()
         except subprocess.ProcessLookupError:
             pass
 
