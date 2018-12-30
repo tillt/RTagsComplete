@@ -28,9 +28,12 @@ formatter_verbose = logging.Formatter(
 
 class TestJob(jobs.RTagsJob):
 
-    def __init__(self, test_job_id, command_info):
+    def __init__(self, test_job_id, command_info, timeout=None):
         jobs.RTagsJob.__init__(
-            self, test_job_id, command_info, **{'data': b'', 'view': None})
+            self,
+            test_job_id,
+            command_info,
+            **{'data': b'', 'view': None, 'timeout': timeout})
 
     def prepare_command(self):
         return self.command_info
@@ -66,12 +69,12 @@ class TestJobController(TestCase):
         job_id = "TestAsyncCommand" + jobs.JobController.next_id()
 
         with tempfile.NamedTemporaryFile(delete=False) as fp:
-            fp.write(b'echo foo && sleep 0.1\n')
+            fp.write(b'echo foo && sleep 1\n')
             fp.close()
             os.chmod(fp.name, 0o777)
 
             future = jobs.JobController.run_async(
-                TestJob(job_id, ['/bin/sh', '-c', fp.name]),
+                TestJob(job_id, ['/bin/sh', '-c', fp.name], timeout=10),
                 partial(self.command_done))
 
             futures.wait([future], return_when=futures.ALL_COMPLETED)
@@ -90,7 +93,7 @@ class TestJobController(TestCase):
         job_id = "TestAsyncAbortCommand" + jobs.JobController.next_id()
 
         future = jobs.JobController.run_async(
-            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
+            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000'], timeout=10),
             partial(self.command_done))
 
         self.assertFalse(future.done())
@@ -107,7 +110,7 @@ class TestJobController(TestCase):
         job_id = "TestAsyncAbortCommand" + jobs.JobController.next_id()
 
         future = jobs.JobController.run_async(
-            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
+            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000'], timeout=10),
             partial(self.command_done))
 
         # Make sure the job actually runs.

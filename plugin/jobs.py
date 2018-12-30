@@ -81,6 +81,11 @@ class RTagsJob():
     def __init__(self, job_id, command_info, **kwargs):
         self.job_id = job_id
         self.command_info = command_info
+        self.timeout = None
+        if 'timeout' in kwargs:
+            self.timeout = kwargs['timeout']
+        else:
+            self.timeout = settings.get('rc_timeout')
         self.data = b''
         if 'data' in kwargs:
             self.data = kwargs['data']
@@ -124,7 +129,8 @@ class RTagsJob():
                 self.callback))
 
         if not timeout:
-            timeout = settings.get('rc_timeout')
+            timeout = self.timeout
+
         (out, _) = process.communicate(input=self.data, timeout=timeout)
 
         if not self.nodebug:
@@ -442,7 +448,7 @@ class JobController():
                 del JobController.thread_map[job.job_id]
                 log.debug("Removed bookkeeping for job {}".format(job.job_id))
             else:
-                log.debug("Job {} was already gone".format(job.job_id))
+                log.error("Job {} was already gone".format(job.job_id))
 
     @staticmethod
     def job(job_id):
