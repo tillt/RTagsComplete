@@ -117,9 +117,12 @@ class RTagsJob():
 
         log.debug("Killing job command subprocess {}".format(process))
 
+        # We abort the process by sending a SIGKILL and by closing all
+        # connected pipes.
         try:
-            process.close()
-        except subprocess.ProcessLookupError:
+            process.kill()
+        except OSError:
+            # silently fail if the subprocess has exited already
             pass
 
     def communicate(self, process, timeout=None):
