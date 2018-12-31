@@ -79,6 +79,13 @@ query_suggestions = []
 query_completion_job_id = None
 
 
+def reset():
+    global query_suggestions
+    global query_completion_job_id
+    query_suggestions = []
+    query_completion_job_id = None
+
+
 def query(view, prefix, locations):
     global query_suggestions
     global query_completion_job_id
@@ -105,6 +112,8 @@ def query(view, prefix, locations):
     # Render some unique identifier for us to match a completion request
     # to its original query.
     completion_job_id = "RTCompletionJob{}".format(trigger_position)
+
+    log.debug("Completion trigger with: {}".format(completion_job_id))
 
     # If we already have a completion for this position, show that.
     if query_completion_job_id == completion_job_id:

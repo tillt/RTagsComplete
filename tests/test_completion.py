@@ -11,7 +11,10 @@ from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
 class TestCompletionController(GuiTestWrapper):
     def setUp(self):
         """Test that setup view correctly sets up the view."""
-        self.set_up()
+        super().setUp()
+
+        completion.reset()
+
         file_name = path.join(path.dirname(__file__),
                               'test_files',
                               'test_completion.cpp')
@@ -20,10 +23,12 @@ class TestCompletionController(GuiTestWrapper):
         self.assertIsNotNone(self.view)
 
     def tearDown(self):
-        self.tear_down()
+        jobs.JobController.stop_all()
+        super().tearDown()
 
     @mock.patch("subprocess.Popen")
     def test_completion_at(self, mock_popen):
+        """ Test completion logic using a mocked RTags request. """
         prefix = ""
         locations = [182]
 

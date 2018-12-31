@@ -81,6 +81,11 @@ class RTagsJob():
     def __init__(self, job_id, command_info, **kwargs):
         self.job_id = job_id
         self.command_info = command_info
+        self.timeout = None
+        if 'timeout' in kwargs:
+            self.timeout = kwargs['timeout']
+        else:
+            self.timeout = settings.get('rc_timeout')
         self.data = b''
         if 'data' in kwargs:
             self.data = kwargs['data']
@@ -112,9 +117,12 @@ class RTagsJob():
 
         log.debug("Killing job command subprocess {}".format(process))
 
+        # We abort the process by sending a SIGKILL and by closing all
+        # connected pipes.
         try:
             process.kill()
-        except subprocess.ProcessLookupError:
+        except OSError:
+            # silently fail if the subprocess has exited already
             pass
 
     def communicate(self, process, timeout=None):
@@ -124,7 +132,8 @@ class RTagsJob():
                 self.callback))
 
         if not timeout:
-            timeout = settings.get('rc_timeout')
+            timeout = self.timeout
+
         (out, _) = process.communicate(input=self.data, timeout=timeout)
 
         if not self.nodebug:
@@ -376,12 +385,20 @@ class JobController():
                 indicator.start()
 
             future = JobController.pool.submit(job.run)
+
+            # Push the future and job onto our thread-map.
+            #
+            # Note that this has to happen before we install any
+            # callbacks. This way we make sure any callback invocation
+            # is able to access its own the thread-map entry, assuming
+            # the job is already done when we reach this point.
+            JobController.thread_map[job.job_id] = (future, job)
+
             if callback:
                 future.add_done_callback(callback)
+
             future.add_done_callback(
                 partial(JobController.done, job=job, indicator=indicator))
-
-            JobController.thread_map[job.job_id] = (future, job)
 
         return future
 
@@ -399,6 +416,10 @@ class JobController():
         with JobController.lock:
             if job_id in JobController.thread_map.keys():
                 (future, job) = JobController.thread_map[job_id]
+
+        if not future:
+            log.debug("Job {} never started".format(job_id))
+            return
 
         start_time = time()
 
@@ -434,11 +455,11 @@ class JobController():
             indicator.stop()
 
         with JobController.lock:
-            if job.job_id not in JobController.thread_map:
-                log.error("Unknown job future {}".format(job.job_id))
-                return
-            del JobController.thread_map[job.job_id]
-            log.debug("Removed bookkeeping for job {}".format(job.job_id))
+            if job.job_id in JobController.thread_map:
+                del JobController.thread_map[job.job_id]
+                log.debug("Removed bookkeeping for job {}".format(job.job_id))
+            else:
+                log.error("Bookeeping does not know about job {}".format(job.job_id))
 
     @staticmethod
     def job(job_id):

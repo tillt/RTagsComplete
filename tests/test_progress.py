@@ -12,16 +12,13 @@ class TestProgressIndicator(GuiTestWrapper):
 
     def setUp(self):
         """Test that setup view correctly sets up the view."""
-        self.set_up()
+        super().setUp()
         file_name = path.join(path.dirname(__file__),
                               'test_files',
                               'test_fixits.cpp')
         self.set_up_view(file_name)
 
         self.assertIsNotNone(self.view)
-
-    def tearDown(self):
-        self.tear_down()
 
     def test_init(self):
         """Test that the progress indicator is loaded but inactive, as
