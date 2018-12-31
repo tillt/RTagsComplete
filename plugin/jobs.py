@@ -447,16 +447,16 @@ class JobController():
     def done(future, job, indicator):
         log.debug("Job {} done".format(job.job_id))
 
-        if not future.done():
-            log.debug("Job wasn't really done")
-
-        if future.cancelled():
-            log.debug("Job was cancelled")
-
-        if indicator:
-            indicator.stop()
-
         with JobController.lock:
+            if not future.done():
+                log.debug("Job wasn't really done")
+
+            if future.cancelled():
+                log.debug("Job was cancelled")
+
+            if indicator:
+                indicator.stop()
+
             if job.job_id in JobController.thread_map:
                 del JobController.thread_map[job.job_id]
                 log.debug("Removed bookkeeping for job {}".format(job.job_id))
