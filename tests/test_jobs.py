@@ -8,7 +8,7 @@ import tempfile
 
 from concurrent import futures
 from functools import partial
-from unittest import TestCase, mock
+from unittest import TestCase, mock, skip
 
 from RTagsComplete.plugin import jobs
 
@@ -126,6 +126,7 @@ class TestJobController(TestCase):
 
         self.assertTrue(future.done())
 
+    @skip("Incomplete mock leaves artifacts")
     @mock.patch.object(jobs.RTagsJob, 'run')
     def test_mock_async(self, mock_run):
         """Test that an asyncronous call of a mocked Job delivers its
