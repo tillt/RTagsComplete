@@ -42,6 +42,7 @@ class TestCompletionController(GuiTestWrapper):
         mock_process.communicate = mock.Mock(return_value=(
             b' bar void bar() CXXMethod  A \n'
             b' foo void foo(double a) CXXMethod  A \n'
+            b' multi void multi(double a, int b, A *c) CXXMethod  A \n'
             b' A A:: ClassDecl  A \n'
             b' operator= A & operator=(const A &) CXXMethod  A \n'
             b' operator= A & operator=(A &&) CXXMethod  A \n'
@@ -74,13 +75,15 @@ class TestCompletionController(GuiTestWrapper):
         (tested_job_id, tested_out, _, _) = future.result()
 
         expect_out = [
-            ('void bar() CXXMethod\tA', 'bar$0'),
-            ('void foo(double a) CXXMethod\tA', 'foo$0'),
+            ('void bar() CXXMethod\tA', 'bar()$0'),
+            ('void foo(double a) CXXMethod\tA', 'foo($0${1:double a})'),
+            ('void multi(double a, int b, A *c) CXXMethod\tA',
+                'multi($0${1:double a}, ${2:int b}, ${3:A *c})'),
             ('A:: ClassDecl\tA', 'A$0'),
-            ('A & operator=(const A &) CXXMethod\tA', 'operator=$0'),
-            ('A & operator=(A &&) CXXMethod\tA', 'operator=$0'),
-            ('void ~A() CXXDestructor\tA', '~A$0')
-        ]
+            ('A & operator=(const A &) CXXMethod\tA',
+                'operator=($0${1:const A &})'),
+            ('A & operator=(A &&) CXXMethod\tA', 'operator=($0${1:A &&})'),
+            ('void ~A() CXXDestructor\tA', '~A()$0')]
 
         self.assertEqual(tested_job_id, job_id)
         self.assertEqual(tested_out, expect_out)
