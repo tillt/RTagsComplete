@@ -2,6 +2,8 @@
 import time
 
 from os import path
+from os import environ
+from unittest import skipIf
 
 from RTagsComplete.plugin import vc_manager
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
@@ -30,6 +32,7 @@ class TestFixitsController(GuiTestWrapper):
         self.assertIsNotNone(controller)
         self.assertIsNotNone(controller.fixits)
 
+    @skipIf("TRAVIS" in environ and environ["TRAVIS"] == "true", "Skipping this test on Travis CI.")
     def test_reindex(self):
         """Test that triggering fixits in quick succession has no
            quirky effects."""
