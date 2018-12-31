@@ -35,7 +35,9 @@ class TestFixitsController(GuiTestWrapper):
     @skipIf("TRAVIS" in environ and environ["TRAVIS"] == "true", "Skipping this test on Travis CI.")
     def test_reindex(self):
         """Test that triggering fixits in quick succession has no
-           quirky effects."""
+           quirky effects.
+           Note that we would need a lot more mocking to make this
+           work on TRAVIS. """
         controller = vc_manager.view_controller(self.view)
 
         self.assertIsNotNone(controller)
