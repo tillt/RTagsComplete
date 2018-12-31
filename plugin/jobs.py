@@ -392,15 +392,13 @@ class JobController():
 
             future = JobController.pool.submit(job.run)
 
+            JobController.thread_map[job.job_id] = (future, job)
+
             if callback:
                 future.add_done_callback(callback)
 
             future.add_done_callback(
                 partial(JobController.done, job=job, indicator=indicator))
-
-            JobController.thread_map[job.job_id] = (future, job)
-
-            log.debug("Stored async job {} in thread_map".format(job.job_id))
 
         return future
 
@@ -447,21 +445,21 @@ class JobController():
     def done(future, job, indicator):
         log.debug("Job {} done".format(job.job_id))
 
+        if not future.done():
+            log.debug("Job wasn't really done")
+
+        if future.cancelled():
+            log.debug("Job was cancelled")
+
+        if indicator:
+            indicator.stop()
+
         with JobController.lock:
-            if not future.done():
-                log.debug("Job wasn't really done")
-
-            if future.cancelled():
-                log.debug("Job was cancelled")
-
-            if indicator:
-                indicator.stop()
-
             if job.job_id in JobController.thread_map:
                 del JobController.thread_map[job.job_id]
                 log.debug("Removed bookkeeping for job {}".format(job.job_id))
             else:
-                log.error("Job {} was already gone".format(job.job_id))
+                log.error("Bookeeping does not know about job {}".format(job.job_id))
 
     @staticmethod
     def job(job_id):
