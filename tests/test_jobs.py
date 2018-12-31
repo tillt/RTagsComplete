@@ -42,6 +42,13 @@ class TestJob(jobs.RTagsJob):
 class TestJobController(TestCase):
     """Test Job Controller."""
 
+    def setUp(self):
+        self.set_up()
+
+    def tearDown(self):
+        jobs.JobController.stop_all()
+        self.tear_down()
+
     def command_done(self, future, **kwargs):
         log.debug("Command done callback hit {}".format(future))
 
