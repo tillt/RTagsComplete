@@ -3,7 +3,6 @@ import logging
 import time
 import uuid
 import os
-import sys
 import tempfile
 
 from concurrent import futures
@@ -11,19 +10,6 @@ from functools import partial
 from unittest import TestCase, mock, skip
 
 from RTagsComplete.plugin import jobs
-
-log = logging.getLogger("RTags")
-log.setLevel(logging.DEBUG)
-log.propagate = False
-stream_handler = logging.StreamHandler(sys.stdout)
-stream_handler.setLevel(logging.DEBUG)
-log.addHandler(stream_handler)
-
-formatter_default = logging.Formatter(
-    '%(name)s:%(levelname)s: %(message)s')
-formatter_verbose = logging.Formatter(
-    '%(name)s:%(levelname)s: %(asctime)-15s %(filename)s::%(funcName)s'
-    ' [%(threadName)s]: %(message)s')
 
 
 class TestJob(jobs.RTagsJob):
@@ -47,14 +33,14 @@ class TestJobController(TestCase):
         super().tearDown()
 
     def command_done(self, future, **kwargs):
-        log.debug("Command done callback hit {}".format(future))
+        print("Command done callback hit {}".format(future))
 
         if not future.done():
-            log.warning("Command future failed")
+            print("Command future failed")
             return
 
         if future.cancelled():
-            log.warning(("Command future aborted"))
+            print(("Command future aborted"))
             return
 
     def test_sync(self):
@@ -163,7 +149,7 @@ class TestJobController(TestCase):
         for (result, stdout, code) in param:
             job_id = "TestMockProcess-" + str(uuid.uuid4())
 
-            log.debug("Job {} gets parameters {}, {}, {}".format(
+            print("Job {} gets parameters {}, {}, {}".format(
                       job_id, result, stdout, code))
 
             # Mock subprocess.
