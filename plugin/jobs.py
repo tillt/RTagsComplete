@@ -394,11 +394,11 @@ class JobController():
             # the job is already done when we reach this point.
             JobController.thread_map[job.job_id] = (future, job)
 
-            if callback:
-                future.add_done_callback(callback)
+        if callback:
+            future.add_done_callback(callback)
 
-            future.add_done_callback(
-                partial(JobController.done, job=job, indicator=indicator))
+        future.add_done_callback(
+            partial(JobController.done, job=job, indicator=indicator))
 
         return future
 
