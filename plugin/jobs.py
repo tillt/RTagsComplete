@@ -154,6 +154,12 @@ class RTagsJob():
 
         start_time = time()
 
+        with JobController.lock:
+            lock_time = time()
+            log.debug("Process startup delayed by {:2.5f} seconds".format(
+                lock_time - start_time))
+            start_time = lock_time
+
         try:
             with subprocess.Popen(
                 command,
