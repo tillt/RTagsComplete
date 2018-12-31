@@ -11,7 +11,7 @@ from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
 class TestCompletionController(GuiTestWrapper):
     def setUp(self):
         """Test that setup view correctly sets up the view."""
-        self.set_up()
+        super().setUp()
 
         completion.reset()
 
@@ -24,7 +24,7 @@ class TestCompletionController(GuiTestWrapper):
 
     def tearDown(self):
         jobs.JobController.stop_all()
-        self.tear_down()
+        super().tearDown()
 
     @mock.patch("subprocess.Popen")
     def test_completion_at(self, mock_popen):
