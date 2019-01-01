@@ -73,17 +73,17 @@ Finds the include file for the symbol under the cursor. If any are found, shows 
 
 Shows a popup containing information about the symbol under the cursor.
 
-![Symbol Info Example](site/images/symbol_info.png)
+![Symbol Info Example](site/images/symbol_info.gif)
 
 ## Code completion
 
-![Completion Example](site/images/completion.png)
+![Completion Example](site/images/completion.gif)
 
 ## Code validation
 
 Validates your current code and shows errors and warnings inline.
 
-![Fixits Example](site/images/fixits.png)
+![Fixits Example](site/images/fixits.gif)
 
 # Usage
 
