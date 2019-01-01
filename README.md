@@ -57,6 +57,9 @@ Jump to the definition or declaration of a symbol.
 
 Shows all references of the symbol under the cursor.
 
+![Symbol References Example](site/images/references.gif)
+
+
 ## Find unused functions
 
 Finds and displays dead functions.
@@ -64,6 +67,8 @@ Finds and displays dead functions.
 ## Rename symbol
 
 Allows to refactor symbols. Select a symbol with your cursor, activate the function and enter the new name.
+
+![Rename Symbol Example](site/images/rename.gif)
 
 ## Find include
 
