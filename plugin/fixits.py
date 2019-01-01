@@ -10,6 +10,8 @@ import sublime
 
 import logging
 
+from functools import partial
+
 from . import jobs
 from . import settings
 from . import watchdog
@@ -62,30 +64,48 @@ class Controller():
             sublime.ENCODED_POSITION | sublime.TRANSIENT)
 
     def show_selector(self, on_highlight, on_select):
-        def issue_to_panel_item(issue):
-            return [
-                issue['message'],
-                "{}:{}:{}".format(
-                    self.filename.split('/')[-1],
-                    issue['line'],
-                    issue['column'])]
-
         if not self.issues:
             log.debug("No warnings, errors or fixits to show")
             return
 
-        items = list(map(issue_to_panel_item, self.issues['error']))
-        items += list(map(issue_to_panel_item, self.issues['warning']))
+        def issue_to_tuple(issue, kind):
+            return [
+                kind,
+                issue['message'],
+                self.filename,
+                issue['line'],
+                issue['column']]
 
-        def issue_to_navigation_item(issue):
-            return [self.filename, issue['line'], issue['column']]
-
-        self.navigation_items = list(map(
-            issue_to_navigation_item,
+        tuples = list(map(
+            partial(issue_to_tuple, kind='ERROR'),
             self.issues['error']))
-        self.navigation_items += list(map(
-            issue_to_navigation_item,
+
+        tuples += list(map(
+            partial(issue_to_tuple,  kind='WARNING'),
             self.issues['warning']))
+
+        # Sort the tuples by file and then line number and column.
+        def file_line_col(item):
+            return (item[2], item[3], item[4])
+
+        tuples.sort(key=file_line_col)
+
+        def tuple_to_navigation_item(item):
+            return [item[2], item[3], item[4]]
+
+        self.navigation_items = list(map(tuple_to_navigation_item, tuples))
+
+        def tuple_to_panel_item(item):
+            return [
+                "{}: {}".format(item[0], item[1]),
+                "{}:{}:{}".format(
+                    item[2].split('/')[-1],
+                    item[3],
+                    item[4])]
+
+        items = list(map(tuple_to_panel_item, tuples))
+
+        log.debug("Items for panel: {}".format(items))
 
         # If there is only one result no need to show it to user
         # just do navigation directly.
