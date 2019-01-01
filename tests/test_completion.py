@@ -11,7 +11,10 @@ from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
 class TestCompletionController(GuiTestWrapper):
     def setUp(self):
         """Test that setup view correctly sets up the view."""
-        self.set_up()
+        super().setUp()
+
+        completion.reset()
+
         file_name = path.join(path.dirname(__file__),
                               'test_files',
                               'test_completion.cpp')
@@ -20,10 +23,12 @@ class TestCompletionController(GuiTestWrapper):
         self.assertIsNotNone(self.view)
 
     def tearDown(self):
-        self.tear_down()
+        jobs.JobController.stop_all()
+        super().tearDown()
 
     @mock.patch("subprocess.Popen")
     def test_completion_at(self, mock_popen):
+        """ Test completion logic using a mocked RTags request. """
         prefix = ""
         locations = [182]
 
@@ -37,6 +42,7 @@ class TestCompletionController(GuiTestWrapper):
         mock_process.communicate = mock.Mock(return_value=(
             b' bar void bar() CXXMethod  A \n'
             b' foo void foo(double a) CXXMethod  A \n'
+            b' multi void multi(double a, int b, A *c) CXXMethod  A \n'
             b' A A:: ClassDecl  A \n'
             b' operator= A & operator=(const A &) CXXMethod  A \n'
             b' operator= A & operator=(A &&) CXXMethod  A \n'
@@ -69,13 +75,15 @@ class TestCompletionController(GuiTestWrapper):
         (tested_job_id, tested_out, _, _) = future.result()
 
         expect_out = [
-            ('void bar() CXXMethod\tA', 'bar$0'),
-            ('void foo(double a) CXXMethod\tA', 'foo$0'),
+            ('void bar() CXXMethod\tA', 'bar()$0'),
+            ('void foo(double a) CXXMethod\tA', 'foo($0${1:double a})'),
+            ('void multi(double a, int b, A *c) CXXMethod\tA',
+                'multi($0${1:double a}, ${2:int b}, ${3:A *c})'),
             ('A:: ClassDecl\tA', 'A$0'),
-            ('A & operator=(const A &) CXXMethod\tA', 'operator=$0'),
-            ('A & operator=(A &&) CXXMethod\tA', 'operator=$0'),
-            ('void ~A() CXXDestructor\tA', '~A$0')
-        ]
+            ('A & operator=(const A &) CXXMethod\tA',
+                'operator=($0${1:const A &})'),
+            ('A & operator=(A &&) CXXMethod\tA', 'operator=($0${1:A &&})'),
+            ('void ~A() CXXDestructor\tA', '~A()$0')]
 
         self.assertEqual(tested_job_id, job_id)
         self.assertEqual(tested_out, expect_out)

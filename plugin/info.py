@@ -392,7 +392,7 @@ class Controller:
             return
 
         (file, row, col, _) = re.findall(
-            r'(\S+):(\d+):(\d+):(.*)',
+            r'(.*):(\d+):(\d+):(.*)',
             items[0])[0]
 
         link = "{}:{}:{}:{}:{}:{}".format(
@@ -505,7 +505,7 @@ class Controller:
 
         def on_navigate(href):
             (oldfile, oldline, oldcol, file, line, col) = re.findall(
-                r'(\S+):(\d+):(\d+):(\S+):(\d+):(\d+)',
+                r'(.*):(\d+):(\d+):(.*):(\d+):(\d+)',
                 href)[0]
 
             vc_manager.navigate(

@@ -4,6 +4,7 @@ private:
   void foo(int a);
 public:
   void foo(double a);
+  void multi(double a, int b, A* c);
   void bar();
 };
 

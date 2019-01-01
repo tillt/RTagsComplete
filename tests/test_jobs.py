@@ -2,29 +2,24 @@
 import logging
 import time
 import uuid
+import os
+import tempfile
 
 from concurrent import futures
 from functools import partial
-from unittest import TestCase, mock
+from unittest import TestCase, mock, skip
 
 from RTagsComplete.plugin import jobs
-
-log = logging.getLogger("RTags")
-log.setLevel(logging.DEBUG)
-log.propagate = False
-
-formatter_default = logging.Formatter(
-    '%(name)s:%(levelname)s: %(message)s')
-formatter_verbose = logging.Formatter(
-    '%(name)s:%(levelname)s: %(asctime)-15s %(filename)s::%(funcName)s'
-    ' [%(threadName)s]: %(message)s')
 
 
 class TestJob(jobs.RTagsJob):
 
-    def __init__(self, test_job_id, command_info):
+    def __init__(self, test_job_id, command_info, timeout=None):
         jobs.RTagsJob.__init__(
-            self, test_job_id, command_info, **{'data': b'', 'view': None})
+            self,
+            test_job_id,
+            command_info,
+            **{'data': b'', 'view': None, 'timeout': timeout})
 
     def prepare_command(self):
         return self.command_info
@@ -33,30 +28,20 @@ class TestJob(jobs.RTagsJob):
 class TestJobController(TestCase):
     """Test Job Controller."""
 
-    expect = 0
+    def tearDown(self):
+        jobs.JobController.stop_all()
+        super().tearDown()
 
-    def command_done(
-        self, future, expect_error_code, expect_out, expect_job_id,
-            **kwargs):
-        log.debug("Command done callback hit {}".format(future))
-
-        self.expect = self.expect - 1
+    def command_done(self, future, **kwargs):
+        print("Command done callback hit {}".format(future))
 
         if not future.done():
-            log.warning("Command future failed")
+            print("Command future failed")
             return
 
         if future.cancelled():
-            log.warning(("Command future aborted"))
+            print(("Command future aborted"))
             return
-
-        (job_id, out, error) = future.result()
-
-        self.assertEqual(job_id, expect_job_id)
-        if expect_out:
-            self.assertEqual(out, expect_out)
-        if expect_error_code:
-            self.assertEqual(error.code, expect_error_code)
 
     def test_sync(self):
         """Test running a synchronous job."""
@@ -73,45 +58,33 @@ class TestJobController(TestCase):
         """Test running an asynchronous job."""
         job_id = "TestAsyncCommand" + jobs.JobController.next_id()
 
-        self.assertEqual(self.expect, 0)
+        with tempfile.NamedTemporaryFile(delete=False) as fp:
+            fp.write(b'echo foo && sleep 1\n')
+            fp.close()
+            os.chmod(fp.name, 0o777)
 
-        # Prepare the artefact for the job callback to remove.
-        self.expect = self.expect + 1
+            future = jobs.JobController.run_async(
+                TestJob(job_id, ['/bin/sh', '-c', fp.name], timeout=10),
+                partial(self.command_done))
 
-        future = jobs.JobController.run_async(
-            TestJob(job_id, ['/bin/sh', '-c', 'sleep 1 && echo foo']),
-            partial(
-                self.command_done,
-                expect_error_code=None,
-                expect_out=b'foo\n',
-                expect_job_id=job_id))
+            futures.wait([future], return_when=futures.ALL_COMPLETED)
+            self.assertTrue(future.done())
 
-        futures.wait([future], return_when=futures.ALL_COMPLETED)
-        self.assertTrue(future.done())
+            os.unlink(fp.name)
 
-        # Check for the artefact - the job callback should have cleared it.
-        self.assertEqual(self.expect, 0)
-
-        (received_job_id, _, received_error) = future.result()
+        (received_job_id, received_out, received_error) = future.result()
 
         self.assertEqual(received_job_id, job_id)
         self.assertEqual(received_error, None)
+        self.assertEqual(received_out, b'foo\n')
 
     def test_async_abort(self):
         """Test running an asynchronous job and then aborting it."""
         job_id = "TestAsyncAbortCommand" + jobs.JobController.next_id()
 
-        self.assertEqual(self.expect, 0)
-
-        self.expect = self.expect + 1
-
         future = jobs.JobController.run_async(
-            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
-            partial(
-                self.command_done,
-                expect_error_code=jobs.JobError.ABORTED,
-                expect_out='',
-                expect_job_id=job_id))
+            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000'], timeout=10),
+            partial(self.command_done))
 
         self.assertFalse(future.done())
 
@@ -126,17 +99,9 @@ class TestJobController(TestCase):
         """Test running an asynchronous job and then aborting it."""
         job_id = "TestAsyncAbortCommand" + jobs.JobController.next_id()
 
-        self.assertEqual(self.expect, 0)
-
-        self.expect = self.expect + 1
-
         future = jobs.JobController.run_async(
-            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000']),
-            partial(
-                self.command_done,
-                expect_error_code=jobs.JobError.ABORTED,
-                expect_out='',
-                expect_job_id=job_id))
+            TestJob(job_id, ['/bin/sh', '-c', 'sleep 10000'], timeout=10),
+            partial(self.command_done))
 
         # Make sure the job actually runs.
         time.sleep(1)
@@ -147,6 +112,7 @@ class TestJobController(TestCase):
 
         self.assertTrue(future.done())
 
+    @skip("Incomplete mock leaves artifacts")
     @mock.patch.object(jobs.RTagsJob, 'run')
     def test_mock_async(self, mock_run):
         """Test that an asyncronous call of a mocked Job delivers its
@@ -183,7 +149,7 @@ class TestJobController(TestCase):
         for (result, stdout, code) in param:
             job_id = "TestMockProcess-" + str(uuid.uuid4())
 
-            log.debug("Job {} gets parameters {}, {}, {}".format(
+            print("Job {} gets parameters {}, {}, {}".format(
                       job_id, result, stdout, code))
 
             # Mock subprocess.

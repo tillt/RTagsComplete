@@ -2,9 +2,11 @@
 
 Sublime Text 3 C/C++ code completion, navigation and validation plugin based on [RTags](https://github.com/Andersbakken/rtags).
 
-![Symbol Info Example](images/symbol_info.png)
+![Symbol Info Example](images/symbol_info.gif)
 
-![Fixits Example](images/fixits.png)
+![Fixits Example](images/fixits.gif)
+
+![Completion Example](images/completion.gif)
 
 # Features
 

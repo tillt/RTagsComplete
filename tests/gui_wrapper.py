@@ -14,7 +14,7 @@ class GuiTestWrapper(TestCase):
         view (sublime.View): Current view.
     """
 
-    def set_up(self):
+    def setUp(self):
         """Setup method run before every test."""
         # Ensure we have a window to work with.
         s = sublime.load_settings("Preferences.sublime-settings")
@@ -23,7 +23,7 @@ class GuiTestWrapper(TestCase):
         s.set("verbose", True)
         self.view = None
 
-    def tear_down(self):
+    def tearDown(self):
         """Cleanup method run after every test."""
         # If we have a view, close it.
         if self.view:

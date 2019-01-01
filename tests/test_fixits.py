@@ -2,6 +2,8 @@
 import time
 
 from os import path
+from os import environ
+from unittest import skipIf
 
 from RTagsComplete.plugin import vc_manager
 from RTagsComplete.tests.gui_wrapper import GuiTestWrapper
@@ -12,16 +14,13 @@ class TestFixitsController(GuiTestWrapper):
 
     def setUp(self):
         """Test that setup view correctly sets up the view."""
-        self.set_up()
+        super().setUp()
         file_name = path.join(path.dirname(__file__),
                               'test_files',
                               'test_fixits.cpp')
         self.set_up_view(file_name)
 
         self.assertIsNotNone(self.view)
-
-    def tearDown(self):
-        self.tear_down()
 
     def test_init(self):
         """Test that a viewcontroller has set fixits controller member."""
@@ -30,9 +29,12 @@ class TestFixitsController(GuiTestWrapper):
         self.assertIsNotNone(controller)
         self.assertIsNotNone(controller.fixits)
 
+    @skipIf("TRAVIS" in environ and environ["TRAVIS"] == "true", "Skipping this test on Travis CI.")
     def test_reindex(self):
         """Test that triggering fixits in quick succession has no
-           quirky effects."""
+           quirky effects.
+           Note that we would need a lot more mocking to make this
+           work on TRAVIS. """
         controller = vc_manager.view_controller(self.view)
 
         self.assertIsNotNone(controller)

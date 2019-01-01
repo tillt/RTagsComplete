@@ -81,6 +81,11 @@ class RTagsJob():
     def __init__(self, job_id, command_info, **kwargs):
         self.job_id = job_id
         self.command_info = command_info
+        self.timeout = None
+        if 'timeout' in kwargs:
+            self.timeout = kwargs['timeout']
+        else:
+            self.timeout = settings.get('rc_timeout')
         self.data = b''
         if 'data' in kwargs:
             self.data = kwargs['data']
@@ -112,9 +117,12 @@ class RTagsJob():
 
         log.debug("Killing job command subprocess {}".format(process))
 
+        # We abort the process by sending a SIGKILL and by closing all
+        # connected pipes.
         try:
             process.kill()
-        except subprocess.ProcessLookupError:
+        except OSError:
+            # silently fail if the subprocess has exited already
             pass
 
     def communicate(self, process, timeout=None):
@@ -124,7 +132,8 @@ class RTagsJob():
                 self.callback))
 
         if not timeout:
-            timeout = settings.get('rc_timeout')
+            timeout = self.timeout
+
         (out, _) = process.communicate(input=self.data, timeout=timeout)
 
         if not self.nodebug:
@@ -213,6 +222,56 @@ class CompletionJob(RTagsJob):
             command_info,
             **{'data': text, 'view': view})
 
+    def render(self, line):
+        # Line is like this
+        #  "process void process(CompletionThread::Request *request) CXXMethod"
+        #  "reparseTime int reparseTime VarDecl"
+        #  "dump String dump() CXXMethod"
+        #  "request CompletionThread::Request * request ParmDecl"
+        #
+        # We want it to show as
+        #  "process($0${1:CompletionThread::Request *request})\tCXXMethod"
+        #  "reparseTime$0\tVarDecl"
+        #  "dump()$0\tCXXMethod"
+        #  "request$0\tParmDecl"
+        #
+        # Output is list of tuples:
+        # - first tuple element is what we see in popup menu
+        # - second is what is inserted into the file
+        #
+        # '$0' is where to place cursor.
+        # '${[n]:type [name]}' is an argument.
+        elements = line.decode('utf-8').split()
+        display = "{}\t{}".format(' '.join(elements[1:-1]), elements[-1])
+
+        middle = ' '.join(elements[1:-1])
+
+        # Locate brackets for argument inspection.
+        left = middle.find('(')
+        right = middle.rfind(')')
+
+        # The default completion is just the symbol name.
+        completion = "{}$0".format(elements[0])
+
+        # Completions with brackets.
+        if left != -1 and right != -1 and right > left:
+            # Empty parameter list.
+            if right - left == 1:
+                completion = "{}()$0".format(elements[0])
+            else:
+                parameters = middle[left+1:right].split(', ')
+                index = 1
+                arguments = []
+                for parameter in parameters:
+                    arguments.append(
+                        "${" + "{}:{}".format(index, parameter) + "}")
+                    index += 1
+
+                completion = "{}($0{})".format(elements[0],
+                                               ", ".join(arguments))
+
+        return display, completion
+
     def run(self):
         (job_id, out, error) = self.run_process(60)
 
@@ -220,31 +279,8 @@ class CompletionJob(RTagsJob):
 
         if not error:
             for line in out.splitlines():
-                # Line is like this
-                #  "process void process(CompletionThread::Request *request) CXXMethod"
-                #  "reparseTime int reparseTime VarDecl"
-                #  "dump String dump() CXXMethod"
-                #  "request CompletionThread::Request * request ParmDecl"
-                #
-                # We want it to show as
-                #  "process($0)\tCXXMethod"
-                #  "reparseTime$0\tVarDecl"
-                #  "dump()$0\tCXXMethod"
-                #  "request$0\tParmDecl"
-                #
-                # Output is list of tuples:
-                # - first tuple element is what we see in popup menu
-                # - second is what is inserted into the file
-                #
-                # '$0' is where to place cursor.
-                #
-                # TODO play with $1, ${2:int}, ${3:string} and so on.
-                elements = line.decode('utf-8').split()
-                display = "{}\t{}".format(' '.join(elements[1:-1]), elements[-1])
-                render = "{}$0".format(elements[0])
+                display, render = self.render(line)
                 suggestions.append((display, render))
-
-            log.debug("Completion done")
 
         return (job_id, suggestions, error, self.view)
 
@@ -376,12 +412,20 @@ class JobController():
                 indicator.start()
 
             future = JobController.pool.submit(job.run)
-            if callback:
-                future.add_done_callback(callback)
-            future.add_done_callback(
-                partial(JobController.done, job=job, indicator=indicator))
 
+            # Push the future and job onto our thread-map.
+            #
+            # Note that this has to happen before we install any
+            # callbacks. This way we make sure any callback invocation
+            # is able to access its own the thread-map entry, assuming
+            # the job is already done when we reach this point.
             JobController.thread_map[job.job_id] = (future, job)
+
+        if callback:
+            future.add_done_callback(callback)
+
+        future.add_done_callback(
+            partial(JobController.done, job=job, indicator=indicator))
 
         return future
 
@@ -399,6 +443,10 @@ class JobController():
         with JobController.lock:
             if job_id in JobController.thread_map.keys():
                 (future, job) = JobController.thread_map[job_id]
+
+        if not future:
+            log.debug("Job {} never started".format(job_id))
+            return
 
         start_time = time()
 
@@ -434,11 +482,11 @@ class JobController():
             indicator.stop()
 
         with JobController.lock:
-            if job.job_id not in JobController.thread_map:
-                log.error("Unknown job future {}".format(job.job_id))
-                return
-            del JobController.thread_map[job.job_id]
-            log.debug("Removed bookkeeping for job {}".format(job.job_id))
+            if job.job_id in JobController.thread_map:
+                del JobController.thread_map[job.job_id]
+                log.debug("Removed bookkeeping for job {}".format(job.job_id))
+            else:
+                log.error("Bookeeping does not know about job {}".format(job.job_id))
 
     @staticmethod
     def job(job_id):

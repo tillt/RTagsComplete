@@ -57,6 +57,9 @@ Jump to the definition or declaration of a symbol.
 
 Shows all references of the symbol under the cursor.
 
+![Symbol References Example](site/images/references.gif)
+
+
 ## Find unused functions
 
 Finds and displays dead functions.
@@ -64,6 +67,8 @@ Finds and displays dead functions.
 ## Rename symbol
 
 Allows to refactor symbols. Select a symbol with your cursor, activate the function and enter the new name.
+
+![Rename Symbol Example](site/images/rename.gif)
 
 ## Find include
 
@@ -73,17 +78,17 @@ Finds the include file for the symbol under the cursor. If any are found, shows 
 
 Shows a popup containing information about the symbol under the cursor.
 
-![Symbol Info Example](site/images/symbol_info.png)
+![Symbol Info Example](site/images/symbol_info.gif)
 
 ## Code completion
 
-![Completion Example](site/images/completion.png)
+![Completion Example](site/images/completion.gif)
 
 ## Code validation
 
 Validates your current code and shows errors and warnings inline.
 
-![Fixits Example](site/images/fixits.png)
+![Fixits Example](site/images/fixits.gif)
 
 # Usage
 

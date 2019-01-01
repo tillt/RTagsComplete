@@ -104,15 +104,15 @@ def supported_view(view):
         log.error("No supported file types set - go update your settings")
         return False
 
-    if not scope_types[0] in file_types:
-        log.debug("File type is not supported")
+    if scope_types[0] not in file_types:
+        log.debug("File type {} is not supported".format(scope_types[0]))
         return False
 
     return True
 
 
 class RtagsBaseCommand(sublime_plugin.TextCommand):
-    FILE_INFO_REG = r'(\S+):(\d+):(\d+):(.*)'
+    FILE_INFO_REG = r'(.*):(\d+):(\d+):(.*)'
     MAX_POPUP_WIDTH = 1800
     MAX_POPUP_HEIGHT = 900
 
