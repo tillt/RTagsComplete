@@ -1,6 +1,6 @@
-<p align="center">
+<p align="center" style="color: #999;font-family: Arial, sans-serif;font-size: 1.8em;font-weight: 900;text-align: center">
   <img src="site/images/RTagsComplete_256.png" />
-  <span style="color: #999;font-family: Arial, sans-serif;font-size: 1.8em;font-weight: 900">RTagsComplete</span>
+  RTagsComplete
 </p>
 Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=master)](https://travis-ci.org/tillt/RTagsComplete) Staging [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=staging)](https://travis-ci.org/tillt/RTagsComplete)
 
