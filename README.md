@@ -1,34 +1,12 @@
+# RTagsComplete
 
-```
-      ___       ___          ___          ___          ___
-     /\  \     /\  \        /\  \        /\  \        /\  \
-    /::\  \    \:\  \      /::\  \      /::\  \      /::\  \
-   /:/\:\  \    \:\  \    /:/\:\  \    /:/\:\  \    /:/\ \  \
-  /::\~\:\  \   /::\  \  /::\~\:\  \  /:/  \:\  \  _\:\~\ \  \
- /:/\:\ \:\__\ /:/\:\__\/:/\:\ \:\__\/:/__/_\:\__\/\ \:\ \ \__\
- \/_|::\/:/  //:/  \/__/\/__\:\/:/  /\:\  /\ \/__/\:\ \:\ \/__/
-    |:|::/  //:/  /          \::/  /  \:\ \:\__\   \:\ \:\__\
-    |:|\/__/ \/__/           /:/  /    \:\/:/  /    \:\/:/  /
-    |:|  |                  /:/  /      \::/  /      \::/  /
-     \|__|                  \/__/        \/__/        \/__/
-      ___          ___          ___          ___                    ___                 ___
-     /\__\        /\  \        /\  \        /\  \                  /\__\               /\__\
-    /:/  /       /::\  \      |::\  \      /::\  \                /:/ _/_       ___   /:/ _/_
-   /:/  /       /:/\:\  \     |:|:\  \    /:/\:\__\              /:/ /\__\     /\__\ /:/ /\__\
-  /:/  /  ___  /:/  \:\  \  __|:|\:\  \  /:/ /:/  /___     ___  /:/ /:/ _/_   /:/  //:/ /:/ _/_
- /:/__/  /\__\/:/__/ \:\__\/::::|_\:\__\/:/_/:/  //\  \   /\__\/:/_/:/ /\__\ /:/__//:/_/:/ /\__\
- \:\  \ /:/  /\:\  \ /:/  /\:\~~\  \/__/\:\/:/  / \:\  \ /:/  /\:\/:/ /:/  //::\  \\:\/:/ /:/  /
-  \:\  /:/  /  \:\  /:/  /  \:\  \       \::/__/   \:\  /:/  /  \::/_/:/  //:/\:\  \\::/_/:/  /
-   \:\/:/  /    \:\/:/  /    \:\  \       \:\  \    \:\/:/  /    \:\/:/  / \/__\:\  \\:\/:/  /
-    \::/  /      \::/  /      \:\__\       \:\__\    \::/  /      \::/  /       \:\__\\::/  /
-     \/__/        \/__/        \/__/        \/__/     \/__/        \/__/         \/__/ \/__/
-```
+![](site/images/RTagsComplete_256.png)
 
 Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=master)](https://travis-ci.org/tillt/RTagsComplete) Staging [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=staging)](https://travis-ci.org/tillt/RTagsComplete)
 
 # About
 
-Sublime Text 3 C/C++ code completion, navigation plugin based on [RTags](https://github.com/Andersbakken/rtags).
+Sublime Text 3 C, C++ and Objective C code completion, navigation plugin based on [RTags](https://github.com/Andersbakken/rtags).
 
 This is a fork of the original [sublime-rtags](https://github.com/rampage644/sublime-rtags) by Sergei Turukin. New features have been added and merging those back into the original sublime-rtags has become a bottleneck this fork avoids.
 
@@ -117,123 +95,17 @@ Key bindings were originally inspired by Qt Creator.
 
 # Customization
 
-### Keybindings
+## Key Bindings
 
-Customize your own key bindings via *Preferences* > *Package Settings* > *RTagsComplete* > *Key Bindings* > *User*
+Customize your own **Key Bindings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Key Bindings* > *User*
 
-```python
-[
-  # Find usages
-  {"keys": ["ctrl+shift+u"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-r"]} },
+### User Settings
 
-  # Rename symbol
-  {"keys": ["ctrl+shift+alt+u"], "command": "rtags_symbol_rename", "args": {"switches": ["--absolute-path", "--rename", "-e", "-r"]} },
+Customize **User Settings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
 
-  # Find virtual function re-implementations
-  {"keys": ["ctrl+shift+x"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-k", "-r"]} },
+#### Auto Completion Settings
 
-  # Symbol information - needs RTags version 2.5 or higher.
-  {"keys": ["ctrl+shift+i"], "command": "rtags_symbol_info", "args": {"switches": ["--absolute-path", "--json", "--symbol-info"]} },
-
-  # Get include file.
-  { "keys": ["ctrl+i"], "command": "rtags_get_include" },
-
-  # Jump to definition
-  {"keys": ["f2"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-f"]} },
-
-  # Backwards in history
-  {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
-
-  # Show navigation history
-  {"keys": ["ctrl+shift+h"], "command": "rtags_show_history" },
-
-  # Show errors, warnings and fixits
-  {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" },
-
-  # Find unused / dead functions - needs RTags version 2.19 or higher.
-  {"keys": ["alt+super+shift+d"], "command": "rtags_file", "args": {"switches": ["--absolute-path", "--find-dead-functions"]} }
-]
-```
-
-### Settings
-
-Customize settings via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
-
-```python
-{
-  # Path to rc utility if not found in $PATH.
-  "rc_path": "/usr/local/bin/rc",
-
-  # Seconds for rc utility communication timeout default.
-  "rc_timeout": 0.5,
-
-  # max number of jump steps.
-  "jump_limit": 10,
-
-  # Supported source file types.
-  "file_types": ["source.c", "source.c++", "source.c++.11"],
-
-  # Statusbar status key - sorting is done alphabetically.
-  "status_key": "000000_rtags_status",
-
-  # Statusbar results key - sorting is done alphabetically.
-  "results_key": "000001_rtags_status",
-
-  # Statusbar progress indicator key - sorting is done alphabetically.
-  "progress_key": "000002_rtags_status",
-
-  # Enable auto-completion.
-  "auto_complete": true,
-
-  # Auto-completion triggers internal to RTagsComplete.
-  "triggers" : [ ".", "->", "::", " ", "  ", "(", "[" ],
-
-  # Enable displaying fixits, warnings and errors.
-  "fixits": true,
-
-  # Enable hover symbol info - needs at least RTags V2.5.
-  "hover": true,
-
-  # Enable enhanced, rather verbose logging for troubleshooting.
-  "verbose_log": true,
-
-  # Enable auto-reindex unsaved file.
-  "auto_reindex": true,
-
-  # Seconds of idle-time before auto-reindex is triggered.
-  "auto_reindex_threshold": 30,
-
-  # clang cursor kind as returned by RTags not adding value to the
-  # symbol information popup.
-  "filtered_clang_cursor_kind": [
-    "arguments",
-    "baseClasses",
-    "cf",
-    "cfl",
-    "cflcontext",
-    "context",
-    "endLine",
-    "endColumn",
-    "functionArgumentCursor",
-    "functionArgumentLength",
-    "functionArgumentLocation",
-    "functionArgumentLocationContext",
-    "invocation",
-    "invocationContext",
-    "invokedFunction",
-    "location",
-    "parent",
-    "range",
-    "startLine",
-    "startColumn",
-    "symbolLength",
-    "usr",
-    "xmlComment"
-  ]
-}
-```
-
-If you need auto-completion add following to *Preferences* > *Settings* > *User*
+If you need **Auto Completion** add following to *Preferences* > *Settings* > *User*
 
 ```json
 "auto_complete_triggers":
