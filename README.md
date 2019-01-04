@@ -1,6 +1,6 @@
 <p align="center">
   <img src="site/images/RTagsComplete_256.png" />
-  <h1 align="center">RTagsComplete</h1>
+  <h1 align="center" style="color: #999">RTagsComplete</h1>
 </p>
 
 Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=master)](https://travis-ci.org/tillt/RTagsComplete) Staging [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=staging)](https://travis-ci.org/tillt/RTagsComplete)
