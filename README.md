@@ -1,4 +1,4 @@
-<p align="center"><img src="site/images/RTagsComplete_256.png" /><h1 style="color: #999">RTagsComplete</h1></p>
+<p align="center"><img src="site/images/RTagsComplete_256.png" /><a style="color: #999" href=""><h1>RTagsComplete</h1></a></p>
 
 Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=master)](https://travis-ci.org/tillt/RTagsComplete) Staging [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=staging)](https://travis-ci.org/tillt/RTagsComplete)
 
