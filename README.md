@@ -1,7 +1,7 @@
-# RTagsComplete
-
-![](site/images/RTagsComplete_256.png)
-
+<p align="center">
+  <img src="site/images/RTagsComplete_256.png" />
+  <span style="color: #999;font-family: Arial, sans-serif;font-size: 1.8em;font-weight: 900">RTagsComplete</span>
+</p>
 Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=master)](https://travis-ci.org/tillt/RTagsComplete) Staging [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=staging)](https://travis-ci.org/tillt/RTagsComplete)
 
 # About
@@ -95,15 +95,9 @@ Key bindings were originally inspired by Qt Creator.
 
 # Customization
 
-## Key Bindings
+Customize your **Key Bindings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Key Bindings* > *User*
 
-Customize your own **Key Bindings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Key Bindings* > *User*
-
-### User Settings
-
-Customize **User Settings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
-
-#### Auto Completion Settings
+Setup the plugin using your **User Settings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
 
 If you need **Auto Completion** add following to *Preferences* > *Settings* > *User*
 
