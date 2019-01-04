@@ -1,4 +1,4 @@
-<p align="center" style="color: #999;font-family: Arial, sans-serif;font-size: 1.8em;font-weight: 900;text-align: center">
+<p align="center">
   <img src="site/images/RTagsComplete_256.png" />
   RTagsComplete
 </p>
