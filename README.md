@@ -1,4 +1,4 @@
-<p align="center"><img src="site/images/RTagsComplete_256.png" /><a style="color: #999" href=""><h1>RTagsComplete</h1></a></p>
+<p align="center"><img src="site/images/RTagsComplete_256.png" /><h1 align="center">RTagsComplete</h1></p>
 
 Master [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=master)](https://travis-ci.org/tillt/RTagsComplete) Staging [![Build Status](https://travis-ci.org/tillt/RTagsComplete.svg?branch=staging)](https://travis-ci.org/tillt/RTagsComplete)
 
@@ -20,8 +20,10 @@ Make sure you installed RTags - for all of the latest features, version 2.19 is 
 
 ### Manually
 
-    cd <sublime-text-Packages-dir>
-    git clone https://github.com/tillt/RTagsComplete
+```bash
+cd <sublime-text-Packages-dir>
+git clone https://github.com/tillt/RTagsComplete
+```
 
 # Features
 
@@ -97,7 +99,7 @@ Customize your **Key Bindings** via *Preferences* > *Package Settings* > *RTagsC
 
 Setup the plugin using your **User Settings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
 
-If you need **Auto Completion** add following to *Preferences* > *Settings* > *User*
+If you need **Auto Completion** add the following to *Preferences* > *Settings* > *User*
 
 ```json
 "auto_complete_triggers":
