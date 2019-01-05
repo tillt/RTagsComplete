@@ -37,7 +37,6 @@ Shows all references of the symbol under the cursor.
 
 ![Symbol References Example](site/images/references.gif)
 
-
 ## Find unused functions
 
 Finds and displays dead functions.
@@ -79,25 +78,25 @@ Validates your current code and shows errors and warnings inline.
 
 # Default key bindings
 
-Key bindings were originally inspired by Qt Creator.
+The default key bindings were originally inspired by Qt Creator.
 
-+ Symbol navigation - `F2`
-+ Find usages - `Ctrl+Shift+u`
-+ Rename symbol - `Ctrl+Shift+Alt+u`
-+ Find virtual function re-implementations - `Ctrl+Shift+x`
-+ Symbol information - `Ctrl+Shift+i`
-+ Use `Alt+/` explicitly for auto-completion
++ Symbol navigation - <kbd>F2</kbd>
++ Find usages / references - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>u</kbd>
++ Rename symbol - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>u</kbd>
++ Find virtual function re-implementations - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>x</kbd>
++ Symbol information - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>i</kbd>
++ Use <kbd>Alt</kbd>+<kbd>/</kbd> explicitly for auto-completion
 + Mouse _button8_ to go backwards (mouse wheel left)
-+ Error, fixit and warning navigation - `Ctrl-Shift-e`
-+ Find unused functions - `Alt-Super-Shift-d`
-+ Find include file for symbol - `Ctrl+i`
-+ Show navigation history - `Ctrl+Shift+h`
++ Error, fixit and warning navigation - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>e</kbd>
++ Find unused functions - <kbd>Alt</kbd>+<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>d</kbd>
++ Find include file for symbol - <kbd>CTRL</kbd>+<kbd>i</kbd>
++ Show navigation history - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>h</kbd>
 
 # Customization
 
 Customize your **Key Bindings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Key Bindings* > *User*
 
-Setup the plugin using your **User Settings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
+Setup the plugin within the **User Settings** via *Preferences* > *Package Settings* > *RTagsComplete* > *Settings* > *User*
 
 If you need **Auto Completion** add the following to *Preferences* > *Settings* > *User*
 
