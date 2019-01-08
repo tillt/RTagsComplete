@@ -73,6 +73,7 @@ class Controller:
         'container',
         'definition',
         'reference',
+        "constmethod",
         'staticmethod',
         'templatereference'
     ]
@@ -449,7 +450,7 @@ class Controller:
                         kind_extension_keys.append(title)
                 else:
                     if key in Controller.POSITION_TITLES.keys():
-                        priority_lane[Controller.POSITION_TITLES[key]]=key
+                        priority_lane[Controller.POSITION_TITLES[key]] = key
                     else:
                         alphabetic_keys.append(key)
 

@@ -216,6 +216,8 @@ class CompletionJob(RTagsJob):
         command_info.append('{}:{}'.format(filename, size))
         # Make this query block until getting answered.
         command_info.append('--synchronous-completions')
+        command_info.append('--code-complete-include-macros')
+
 
         super().__init__(
             completion_job_id,
@@ -317,32 +319,21 @@ class MonitorJob(RTagsJob):
 
         for line in iter(process.stdout.readline, b''):
             line = line.decode('utf-8')
-            process.poll()
 
             if not start_tag:
                 start_tag = re.findall(rgxp, line)
                 start_tag = start_tag[0] if len(start_tag) else ''
 
+            # Keep on accumulating XML data until we have a closing tag,
+            # matching our start_tag.
             buffer += line
 
             error = JobError.from_results(line)
             if error:
                 return (b'', error)
 
-            # Keep on accumulating XML data until we have a closing tag,
-            # matching our start_tag.
-
             if '</{}>'.format(start_tag) in line:
                 tree = etree.fromstring(buffer)
-                # OK, we received some chunk
-                # check if it is progress update
-                # if (tree.tag == 'progress' and
-                #    tree.attrib['index'] == tree.attrib['total'] and
-                #        vc_manager.flag == vc_manager.NAVIGATION_REQUESTED):
-                #    # notify about event
-                #    sublime.active_window().active_view().run_command(
-                #        'rtags_location',
-                #        {'switches': vc_manager.switches})
 
                 if tree.tag == 'checkstyle':
                     mapping = {
@@ -382,6 +373,10 @@ class MonitorJob(RTagsJob):
 
                 buffer = ''
                 start_tag = ''
+
+            if process.poll():
+                log.debug("Process has terminated")
+                return (b'', None)
 
         log.debug("Data callback terminating")
         return (b'', None)

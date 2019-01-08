@@ -10,11 +10,13 @@ This is a fork of the original [sublime-rtags](https://github.com/rampage644/sub
 
 # Installation
 
-Make sure you installed RTags - for all of the latest features, version 2.19 is the oldest we support. You will however get most functionality with RTags version 2.0 already.
+### Prerequisites
+
+[Install RTags](https://github.com/tillt/RTagsComplete/wiki/Install-RTags) - for all of the latest features, version 2.19 is the oldest we support. You will however get most functionality with RTags version 2.0 already.
 
 ### Via Package Control
 
-- Install [Package Control](https://sublime.wbond.net/installation)
+- [Install Package Control](https://sublime.wbond.net/installation)
 - Run “Package Control: Install Package”
 - Install "RTagsComplete"
 
@@ -40,6 +42,8 @@ Shows all references of the symbol under the cursor.
 ## Find unused functions
 
 Finds and displays dead functions.
+
+![Find unused Functions Example](site/images/dead.gif)
 
 ## Rename symbol
 

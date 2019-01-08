@@ -234,7 +234,7 @@ class Controller():
 
         self.status.update_status(error)
 
-        if not complete:
+        if not complete or error:
             log.debug("Indexing not completed")
             return
 

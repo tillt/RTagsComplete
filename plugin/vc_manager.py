@@ -214,14 +214,5 @@ def on_post_updated(view):
             indicator=view_controller(view).status.progress)
         return
 
-    # For some bizarre reason, we need to delay our re-indexing task
-    # by substantial amounts of time until we may relatively risk-
-    # free will truly be attached to the lifetime of a
-    # fully functioning `rc -V ... --wait`. `rc ... --wait` appears to
-    # prevent concurrent instances by aborting the old "wait" when new
-    # "wait"-request comes in.
-    # sublime.set_timeout(lambda self=self,view=view: self._save(view), 400)
-    # log.debug("Bizarrely delayed save scheduled")
-
     view_controller(view).idle.sleep()
     view_controller(view).fixits.reindex(saved=True)
