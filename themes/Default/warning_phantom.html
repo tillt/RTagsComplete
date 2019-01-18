@@ -1,36 +1,24 @@
 <body id="rtags_phantom_warning">
     <style>
         div.error {
-            padding: 0.0rem 0 0.0rem 0.0rem;
-            margin: 0.1rem 0;
-            border-radius: 2px;
             background-color: #887700;
+            border-radius: 0.5rem;
+            padding-bottom: 0.1rem;
+            padding-right: 0.1rem;
         }
 
         div.error span.message {
-            padding-right: 0.0rem;
+            font-size: 0.77rem;
+            position: relative;
+            left: 0.5rem;
         }
 
-        div.error a {
-            text-decoration: inherit;
-            padding: 0.0rem 0.0rem 0.0rem 0.0rem;
+        div.error span.symbol {
             position: relative;
             top: 0.1rem;
             bottom: 0.1rem;
-            border-radius: 0 2px 2px 0;
             font-weight: bold;
         }
-        html.dark div.error a {
-            color: #FFFFFF;
-        }
-        html.light div.error a {
-            color: #222222;
-        }
     </style>
-    <div class="error">
-      <a href=hide>✋</a>
-      <span class="message">
-      []
-      </span>
-    </div>
+    <div class="error"><span class="symbol">✋</span><span class="message">[]</span></div>
 </body>

@@ -6,13 +6,12 @@ Jobs are scheduled process runs.
 
 """
 
-import re
 import sublime
 import subprocess
 
 import logging
 
-import xml.etree.ElementTree as etree
+import json
 
 from concurrent import futures
 from functools import partial
@@ -20,7 +19,6 @@ from time import time
 from threading import RLock
 
 from . import settings
-# from . import vc_manager
 
 log = logging.getLogger("RTags")
 
@@ -218,6 +216,8 @@ class CompletionJob(RTagsJob):
         command_info.append('--synchronous-completions')
         command_info.append('--code-complete-include-macros')
 
+        # command_info.append('--max')
+        # command_info.append(MAX_FROM_DEFAULTS)
 
         super().__init__(
             completion_job_id,
@@ -304,7 +304,7 @@ class ReindexJob(RTagsJob):
 class MonitorJob(RTagsJob):
 
     def __init__(self, job_id):
-        super().__init__(job_id, ['-m'], **{'communicate': self.communicate})
+        super().__init__(job_id, ['--json', '-m'], **{'communicate': self.communicate})
 
     def run(self):
         log.debug("Running MonitorJob process NOW...")
@@ -313,66 +313,93 @@ class MonitorJob(RTagsJob):
     def communicate(self, process, timeout=None):
         log.debug("In data callback {}".format(process.stdout))
 
-        rgxp = re.compile(r'<(\w+)')
-        buffer = ''  # xml to be parsed
-        start_tag = ''
+        buffer = ''  # JSON to be parsed
+
+        brackets_open = 0
 
         for line in iter(process.stdout.readline, b''):
             line = line.decode('utf-8')
 
-            if not start_tag:
-                start_tag = re.findall(rgxp, line)
-                start_tag = start_tag[0] if len(start_tag) else ''
+            brackets_open += line.count('{')
+            brackets_open -= line.count('}')
 
-            # Keep on accumulating XML data until we have a closing tag,
-            # matching our start_tag.
+            # Keep on accumulating JSON object data until its end.
             buffer += line
 
             error = JobError.from_results(line)
             if error:
                 return (b'', error)
 
-            if '</{}>'.format(start_tag) in line:
-                tree = etree.fromstring(buffer)
+            if brackets_open <= 0:
+                dictionary = json.loads(buffer)
 
-                if tree.tag == 'checkstyle':
+                log.debug("JSON dump dictionary: {}".format(dictionary))
+
+                if 'checkStyle' in dictionary:
+                    checkstyle = dictionary['checkStyle']
+
+                    log.debug("Checkstyle: {}".format(checkstyle))
+
                     mapping = {
                         'warning': 'warning',
                         'error': 'error',
                         'fixit': 'error'
                     }
 
-                    issues = {
-                        'warning': [],
-                        'error': []
-                    }
+                    issues = []
 
-                    for file in tree.findall('file'):
-                        for error in file.findall('error'):
-                            if error.attrib["severity"] in mapping.keys():
-                                issue = {}
-                                issue['line'] = int(error.attrib["line"])
-                                issue['column'] = int(error.attrib["column"])
-                                if 'length' in error.attrib:
-                                    issue['length'] = int(
-                                        error.attrib["length"])
-                                else:
-                                    issue['length'] = -1
-                                issue['message'] = error.attrib["message"]
+                    for file in checkstyle.keys():
+                        for error in checkstyle[file]:
+                            if not error['type'] in mapping.keys():
+                                continue
 
-                                issues[mapping[error.attrib["severity"]]].append(issue)
+                            issue = {}
+                            issue['type'] = mapping[error['type']]
+                            issue['line'] = int(error['line'])
+                            issue['column'] = int(error['column'])
+                            if 'length' in error.keys():
+                                issue['length'] = int(error['length'])
+                            else:
+                                issue['length'] = -1
+
+                            issue['message'] = error['message']
+
+                            #                            issue['message'] = "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog."
+
+                            issue['subissues'] = []
+
+                            if 'children' in error:
+                                for child in error['children']:
+                                    if not child['type'] == 'note':
+                                        continue
+
+                                    subissue = {}
+                                    subissue['type'] = 'note'
+                                    subissue['file'] = child['file']
+                                    subissue['line'] = int(child['line'])
+                                    subissue['column'] = int(child['column'])
+                                    if 'length' in child.keys():
+                                        subissue['length'] = int(child['length'])
+                                    else:
+                                        subissue['length'] = -1
+                                    subissue['message'] = child['message']
+
+                                    issue['subissues'].append(subissue)
+
+                            log.debug("Issue {}".format(issue))
+
+                            issues.append(issue)
 
                         log.debug("Got fixits to send")
 
                         sublime.active_window().active_view().run_command(
                             'rtags_fixit',
                             {
-                                'filename': file.attrib["name"],
+                                'filename': file,
                                 'issues': issues
                             })
 
                 buffer = ''
-                start_tag = ''
 
             if process.poll():
                 log.debug("Process has terminated")
