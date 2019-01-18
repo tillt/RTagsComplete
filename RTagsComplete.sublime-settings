@@ -3,7 +3,7 @@
   "rc_path": "/usr/local/bin/rc",
 
   // Seconds for rc utility communication timeout default.
-  "rc_timeout": 0.5,
+  "rc_timeout": 30,
 
   // max number of jump steps.
   "jump_limit": 10,
