@@ -40,7 +40,7 @@ def update_templates():
     # Init templates.
     templates = {}
     types = {
-        "phantom": ["error", "warning"],
+        "phantom": ["error", "warning", "fixit", "note"],
         "popup": ["error", "info"]
     }
 
