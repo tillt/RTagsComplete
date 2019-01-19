@@ -17,6 +17,7 @@ from functools import partial
 
 from . import jobs
 from . import settings
+from . import tools
 from . import vc_manager
 
 log = logging.getLogger("RTags")
@@ -357,8 +358,8 @@ class Controller:
     def display_items(item):
         return "<div class=\"info\"><span class=\"header\">{}</span>" \
                "<br /><span class=\"info\">{}</span></div>".format(
-                    html.escape(item[0], quote=False),
-                    html.escape(item[1], quote=False))
+                    tools.Utilities.html_escape(item[0]),
+                    tools.Utilities.html_escape(item[1]))
 
     @staticmethod
     def symbol_location_callback(

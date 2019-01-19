@@ -34,7 +34,7 @@ class Controller():
     CATEGORY_FLAGS = {
         Category.WARNING: sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE,
         Category.ERROR: sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE,
-        Category.FIXIT: sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_OUTLINE
+        Category.FIXIT: sublime.DRAW_SOLID_UNDERLINE | sublime.DRAW_NO_FILL
     }
 
     PHANTOMS_TAG = "rtags_phantoms"

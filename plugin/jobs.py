@@ -364,12 +364,7 @@ class MonitorJob(RTagsJob):
                             if 'length' in error.keys():
                                 issue['length'] = int(error['length'])
                             issue['message'] = error['message']
-
-                            #                            issue['message'] = "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog."
-
                             issue['subissues'] = []
-
-                            log.debug("issue: {}".format(issue))
 
                             if 'children' in error.keys():
                                 for child in error['children']:
@@ -398,8 +393,6 @@ class MonitorJob(RTagsJob):
                                     subissue['column'] = column
                                     subissue['message'] = message
                                     subissue['length'] = length
-
-                                    log.debug("subissue: {}".format(subissue))
 
                                     issue['subissues'].append(subissue)
 
