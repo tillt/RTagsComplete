@@ -1,17 +1,18 @@
 <body id="rtags_phantom_note">
     <style>
         div.error {
-            background-color: #883388;
+            background-color: color(#7740AA alpha(0.70));
             border-radius: 0.5rem;
             padding-bottom: 0.1rem;
             padding-right: 0.1rem;
+            font-family: HelveticaNeue,Helvetica,Arial,sans-serif;
         }
 
         div.error span.message {
             position: relative;
             font-size: 0.77rem;
-            left: 0.5rem;
-            top: 0.1rem;
+            left: 1.5rem;
+            color: color(var(--foreground) alpha(0.7));
         }
 
         div.error span.symbol {
@@ -21,5 +22,5 @@
             left: 0.5rem;
         }
     </style>
-    <div class="error"><span class="symbol">!</span><span class="message">&nbsp;&nbsp;[]</span></div>
+    <div class="error"><span class="symbol">!</span><span class="message">[]</span></div>
 </body>

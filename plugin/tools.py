@@ -10,8 +10,9 @@ from os import path
 
 import logging
 
-import sys
+import html
 import imp
+import sys
 
 PKG_NAME = path.basename(path.dirname(path.dirname(__file__)))
 
@@ -43,6 +44,35 @@ class Reloader:
 
 class Utilities:
     """Random utilities."""
+
+    @staticmethod
+    def html_escape(text):
+        escaped = html.escape(text, False)
+        return escaped.replace('\n', "<br />")
+
+    @staticmethod
+    def file_content(file, line, column=1, length=0):
+        """
+        """
+        text = ""
+
+        with open(file) as in_file:
+            file_lines = in_file.read().splitlines()
+
+            if line > len(file_lines):
+                log.error("Line index {} exceeds line count {}".format(line, len(file_lines)))
+                return ""
+
+            if column > len(file_lines[line - 1]):
+                log.error("Column index {} exceeds line size {}".format(column, len(file_lines[line - 1])))
+                return ""
+
+            if length == 0 and column == 1:
+                length = len(file_lines[line - 1])
+
+            text = file_lines[line - 1][column - 1:column - 1 + length]
+
+        return text
 
     @staticmethod
     def replace_in_file(old, new, file, target_map):

@@ -84,7 +84,7 @@ class IndexWatchdog():
             log.debug("We never even recognized an indexing in progress")
             self.active = False
             if self.callback:
-                self.callback(False, error)
+                self.callback(True, error)
             return
 
         # Repeat as long as we are still indexing OR we are still trying

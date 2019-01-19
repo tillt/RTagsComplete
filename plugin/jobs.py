@@ -19,6 +19,7 @@ from time import time
 from threading import RLock
 
 from . import settings
+from . import tools
 
 log = logging.getLogger("RTags")
 
@@ -346,7 +347,10 @@ class MonitorJob(RTagsJob):
                         'fixit': 'error'
                     }
 
-                    issues = []
+                    issues = {
+                        'warning': [],
+                        'error': []
+                    }
 
                     for file in checkstyle.keys():
                         for error in checkstyle[file]:
@@ -359,36 +363,47 @@ class MonitorJob(RTagsJob):
                             issue['column'] = int(error['column'])
                             if 'length' in error.keys():
                                 issue['length'] = int(error['length'])
-                            else:
-                                issue['length'] = -1
-
                             issue['message'] = error['message']
 
                             #                            issue['message'] = "The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog. The quick brown fox jumps over the lazy dog."
 
                             issue['subissues'] = []
 
-                            if 'children' in error:
+                            log.debug("issue: {}".format(issue))
+
+                            if 'children' in error.keys():
                                 for child in error['children']:
                                     if not child['type'] == 'note':
                                         continue
 
+                                    context_file = child['file']
+                                    line = int(child['line'])
+                                    column = int(child['column'])
+
+                                    length = 0
+
+                                    if 'length' in child.keys():
+                                        length = int(child['length'])
+
+                                    message = child['message']
+
+                                    if len(context_file) and line > 0:
+                                        context = tools.Utilities.file_content(context_file, line)
+                                        message += ": {}: '{}'".format(context_file, context)
+
                                     subissue = {}
                                     subissue['type'] = 'note'
-                                    subissue['file'] = child['file']
-                                    subissue['line'] = int(child['line'])
-                                    subissue['column'] = int(child['column'])
-                                    if 'length' in child.keys():
-                                        subissue['length'] = int(child['length'])
-                                    else:
-                                        subissue['length'] = -1
-                                    subissue['message'] = child['message']
+                                    subissue['file'] = context_file
+                                    subissue['line'] = line
+                                    subissue['column'] = column
+                                    subissue['message'] = message
+                                    subissue['length'] = length
+
+                                    log.debug("subissue: {}".format(subissue))
 
                                     issue['subissues'].append(subissue)
 
-                            log.debug("Issue {}".format(issue))
-
-                            issues.append(issue)
+                            issues[mapping[error['type']]].append(issue)
 
                         log.debug("Got fixits to send")
 

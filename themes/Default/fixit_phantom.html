@@ -1,17 +1,17 @@
 <body id="rtags_phantom_fixit">
     <style>
         div.error {
-            background-color: #555588;
+            background-color: color(#5555AA alpha(0.70));
             border-radius: 0.5rem;
             padding-bottom: 0.1rem;
             padding-right: 0.1rem;
+            font-family: HelveticaNeue,Helvetica,Arial,sans-serif;
         }
 
         div.error span.message {
             position: relative;
             font-size: 0.77rem;
-            left: 0.5rem;
-            top: 0.1rem;
+            left: 1.2rem;
         }
 
         div.error span.symbol {
@@ -22,9 +22,9 @@
         }
 
         a {
-            color: #C0C0FF;
+            color: color(var(--bluish));
             text-decoration: none;
         }
     </style>
-    <div class="error"><span class="symbol">✓</span><span class="message">&nbsp;&nbsp;<a href="[]">[]</a></span></div>
+    <div class="error"><a href="[]"><span class="symbol">✓</span><span class="message">[]</span></a></div>
 </body>
