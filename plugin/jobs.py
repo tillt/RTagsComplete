@@ -383,8 +383,11 @@ class MonitorJob(RTagsJob):
                                     message = child['message']
 
                                     if len(context_file) and line > 0:
-                                        context = tools.Utilities.file_content(context_file, line)
-                                        message += ": {}: '{}'".format(context_file, context)
+                                        message += " \v{}\f\n\a{}\b".format(
+                                            context_file,
+                                            tools.Utilities.file_content(
+                                                context_file,
+                                                line))
 
                                     subissue = {}
                                     subissue['type'] = 'note'

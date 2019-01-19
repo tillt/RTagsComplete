@@ -48,7 +48,12 @@ class Utilities:
     @staticmethod
     def html_escape(text):
         escaped = html.escape(text, False)
-        return escaped.replace('\n', "<br />")
+        escaped = escaped.replace('\n', "<br />")
+        escaped = escaped.replace('\a', "<pre>")
+        escaped = escaped.replace('\b', "</pre>")
+        escaped = escaped.replace('\v', "<i>")
+        escaped = escaped.replace('\f', "</i>")
+        return escaped
 
     @staticmethod
     def file_content(file, line, column=1, length=0):
