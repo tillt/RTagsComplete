@@ -190,6 +190,8 @@ class Controller():
                 file,
                 mutations)
 
+            self.view.window().open_file(file)
+
             self.reindex(True)
 
         def issue_to_phantom(start, issue):
@@ -309,8 +311,6 @@ class Controller():
 
     def fixits_callback(self, future):
         log.debug("Fixits callback hit")
-
-        self.status.progress.stop()
 
         if not future.done():
             log.warning("Fixits failed")
