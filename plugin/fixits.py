@@ -90,29 +90,17 @@ class Controller():
             log.debug("No warnings, errors or fixits to show")
             return
 
-        def issue_to_tuple(issue, kind):
+        def issue_to_tuple(issue):
             return [
-                kind,
+                issue['type'],
                 issue['message'],
                 self.filename,
                 issue['line'],
                 issue['column']]
 
-        tuples = list(map(
-            partial(issue_to_tuple, kind='ERROR'),
-            self.issues['error']))
-
-        tuples += list(map(
-            partial(issue_to_tuple,  kind='WARNING'),
-            self.issues['warning']))
-
-        tuples += list(map(
-            partial(issue_to_tuple, kind='FIXIT'),
-            self.issues['fixit']))
-
-        tuples += list(map(
-            partial(issue_to_tuple, kind='NOTE'),
-            self.issues['note']))
+        tuples = list(map(issue_to_tuple, self.issues['error']))
+        tuples += list(map(issue_to_tuple, self.issues['warning']))
+        tuples += list(map(issue_to_tuple, self.issues['fixit']))
 
         # Sort the tuples by file and then line number and column.
         def file_line_col(item):
@@ -207,8 +195,6 @@ class Controller():
         def issue_to_phantom(start, issue):
             html = ""
 
-            log.debug("issue {}".format(issue))
-
             if 'link' in issue:
                 html = settings.template_as_html(
                     issue['type'],
@@ -241,8 +227,6 @@ class Controller():
                     if 'subissues' in issue:
                         for subissue in issue['subissues']:
                             phantoms.append(issue_to_phantom(start, subissue))
-
-        log.debug("phantoms: {}".format(phantoms))
 
         self.phantom_set.update(phantoms)
 
