@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """Index Watchdog.
-
+Polls `rdm` to detect an indexing in progress.
 """
 
 import sublime

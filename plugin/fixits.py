@@ -251,11 +251,17 @@ class Controller():
         self.regions = {}
 
         if 'warning' in issues:
-            self.regions['warning'] = list(map(issue_to_region, issues['warning']))
+            self.regions['warning'] = list(map(
+                issue_to_region,
+                issues['warning']))
         if 'error' in issues:
-            self.regions['error'] = list(map(issue_to_region, issues['error']))
+            self.regions['error'] = list(map(
+                issue_to_region,
+                issues['error']))
         if 'fixit' in issues:
-            self.regions['fixit'] = list(map(issue_to_region, issues['fixit']))
+            self.regions['fixit'] = list(map(
+                issue_to_region,
+                issues['fixit']))
 
     def clear(self):
         # Clear anything we might have mutated.

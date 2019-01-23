@@ -8,10 +8,18 @@
             font-family: HelveticaNeue,Helvetica,Arial,sans-serif;
         }
 
+        div.error span.symbol {
+            position: relative;
+            top: 0.1rem;
+            bottom: 0.1rem;
+            left: 0.5rem;
+            fond-weight: bold;
+        }
+
         div.error span.message {
             position: relative;
             font-size: 0.77rem;
-            left: 1.5rem;
+            left: 1.6rem;
             color: color(var(--foreground) alpha(0.7));
         }
 
@@ -19,15 +27,7 @@
             position: relative;
             font-family: Courier;
             font-size: 0.87rem;
-            left: 0.5rem;
-        }
-
-        div.error span.symbol {
-            position: relative;
-            top: 0.1rem;
-            bottom: 0.1rem;
-            left: 0.5rem;
-            fond-weight: bold;
+            left: 0.3rem;
         }
     </style>
     <div class="error"><span class="symbol">!</span><span class="message">[]</span></div>

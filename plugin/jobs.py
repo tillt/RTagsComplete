@@ -305,7 +305,10 @@ class ReindexJob(RTagsJob):
 class MonitorJob(RTagsJob):
 
     def __init__(self, job_id):
-        super().__init__(job_id, ['--json', '-m'], **{'communicate': self.communicate})
+        super().__init__(
+            job_id,
+            ['--json', '-m'],
+            **{'communicate': self.communicate})
 
     def run(self):
         log.debug("Running MonitorJob process NOW...")
@@ -339,8 +342,6 @@ class MonitorJob(RTagsJob):
                 if 'checkStyle' in dictionary:
                     checkstyle = dictionary['checkStyle']
 
-                    log.debug("Checkstyle: {}".format(checkstyle))
-
                     mapping = {
                         'warning': 'warning',
                         'error': 'error',
@@ -349,7 +350,8 @@ class MonitorJob(RTagsJob):
 
                     issues = {
                         'warning': [],
-                        'error': []
+                        'error': [],
+                        'note': []
                     }
 
                     for file in checkstyle.keys():
@@ -369,33 +371,44 @@ class MonitorJob(RTagsJob):
                             if 'children' in error.keys():
                                 for child in error['children']:
                                     if not child['type'] == 'note':
+                                        log.warning(
+                                            "Ignoring subissue type {}".format(
+                                                child['type']))
                                         continue
 
-                                    context_file = child['file']
-                                    line = int(child['line'])
-                                    column = int(child['column'])
-
-                                    length = 0
-
+                                    context_file = file
+                                    if 'file' in child:
+                                        context_file = child['file']
+                                    context_line = int(child['line'])
+                                    context_column = int(child['column'])
+                                    context_length = 0
                                     if 'length' in child.keys():
-                                        length = int(child['length'])
+                                        context_length = int(child['length'])
 
                                     message = child['message']
+                                    context = ""
 
-                                    if len(context_file) and line > 0:
-                                        message += " \v{}\f\n\a{}\b".format(
-                                            context_file,
-                                            tools.Utilities.file_content(
+                                    if context_line > 0:
+                                        if context_file == file:
+                                            context = tools.Utilities.file_content(
                                                 context_file,
-                                                line))
+                                                context_line)
+                                            message += "\n\a{}\b".format(context.strip())
+                                        else:
+                                            context = tools.Utilities.file_content(
+                                                context_file,
+                                                context_line)
+                                            message += " \v{}\f\n\a{}\b".format(
+                                                context_file,
+                                                context.strip())
 
                                     subissue = {}
                                     subissue['type'] = 'note'
                                     subissue['file'] = context_file
-                                    subissue['line'] = line
-                                    subissue['column'] = column
+                                    subissue['line'] = context_line
+                                    subissue['column'] = context_column
                                     subissue['message'] = message
-                                    subissue['length'] = length
+                                    subissue['length'] = context_length
 
                                     issue['subissues'].append(subissue)
 
@@ -414,9 +427,11 @@ class MonitorJob(RTagsJob):
 
             if process.poll():
                 log.debug("Process has terminated")
+
                 return (b'', None)
 
         log.debug("Data callback terminating")
+
         return (b'', None)
 
 
