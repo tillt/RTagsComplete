@@ -217,18 +217,29 @@ class Controller():
 
         phantoms = []
 
-        order = ['warning', 'error', 'fixit']
+        order = ['warning', 'error', 'fixit', 'note']
+
+        ordered_issues = []
 
         for key in order:
             if key in issues:
                 for issue in issues[key]:
-                    point = self.view.text_point(issue['line']-1, 0)
-                    start = self.view.line(point).a
-                    phantom = issue_to_phantom(start, issue)
-                    phantoms.append(phantom)
-                    if 'subissues' in issue:
-                        for subissue in issue['subissues']:
-                            phantoms.append(issue_to_phantom(start, subissue))
+                    ordered_issues.append(issue)
+
+        # Sort the tuples by file and then line number and column.
+        def line_col(issue):
+            return (issue['line'], issue['column'])
+
+        ordered_issues.sort(key=line_col)
+
+        for issue in ordered_issues:
+            point = self.view.text_point(issue['line']-1, 0)
+            start = self.view.line(point).a
+            phantom = issue_to_phantom(start, issue)
+            phantoms.append(phantom)
+            if 'subissues' in issue:
+                for subissue in issue['subissues']:
+                    phantoms.append(issue_to_phantom(start, subissue))
 
         self.phantom_set.update(phantoms)
 

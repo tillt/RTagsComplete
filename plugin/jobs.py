@@ -414,7 +414,7 @@ class MonitorJob(RTagsJob):
 
                             issues[mapping[error['type']]].append(issue)
 
-                        log.debug("Got fixits to send")
+                        log.debug("Triggering fixits update")
 
                         sublime.active_window().active_view().run_command(
                             'rtags_fixit',
