@@ -371,7 +371,10 @@ class RtagsShowHistory(sublime_plugin.TextCommand):
 
         def queue_to_panel_item(item):
             name = item[0].split('/')[-1]
-            return [name, "{}:{}:{}".format(name, item[1], item[2])]
+            contents = tools.Utilities.file_content(item[0], int(item[1]))
+            return [
+                contents.strip(),
+                "{}:{}:{}".format(name, item[1], item[2])]
 
         panel_items = list(map(queue_to_panel_item, jump_items))
 

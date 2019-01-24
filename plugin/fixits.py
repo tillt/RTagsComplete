@@ -357,10 +357,12 @@ class Controller():
 
             if line > 0 and column > 0:
                 if length > 0 and len(message):
-                    context = Controller.substring(self.view, line, column, length)
+                    context = Controller.substring(
+                        self.view, line, column, length)
                     content = "Replace '{}' with '{}'!".format(context, message)
                 elif length > 0:
-                    context = Controller.substring(self.view, line, column, length)
+                    context = Controller.substring(
+                        self.view, line, column, length)
                     content = "Remove '{}'!".format(context)
                 elif len(message) > 0:
                     content = "Add '{}'!".format(message)
