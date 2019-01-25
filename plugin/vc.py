@@ -23,7 +23,7 @@ class ViewController():
         self.status = status.StatusController(view)
         self.fixits = fixits.Controller(
             view,
-            settings.get('fixits'),
+            settings.get('validation'),
             self.status)
         self.idle = idle.Controller(
             view,

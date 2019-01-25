@@ -17,6 +17,7 @@ from functools import partial
 
 from . import jobs
 from . import settings
+from . import tools
 from . import vc_manager
 
 log = logging.getLogger("RTags")
@@ -73,6 +74,7 @@ class Controller:
         'container',
         'definition',
         'reference',
+        "constmethod",
         'staticmethod',
         'templatereference'
     ]
@@ -356,8 +358,8 @@ class Controller:
     def display_items(item):
         return "<div class=\"info\"><span class=\"header\">{}</span>" \
                "<br /><span class=\"info\">{}</span></div>".format(
-                    html.escape(item[0], quote=False),
-                    html.escape(item[1], quote=False))
+                    tools.Utilities.html_escape(item[0]),
+                    tools.Utilities.html_escape(item[1]))
 
     @staticmethod
     def symbol_location_callback(
@@ -449,7 +451,7 @@ class Controller:
                         kind_extension_keys.append(title)
                 else:
                     if key in Controller.POSITION_TITLES.keys():
-                        priority_lane[Controller.POSITION_TITLES[key]]=key
+                        priority_lane[Controller.POSITION_TITLES[key]] = key
                     else:
                         alphabetic_keys.append(key)
 

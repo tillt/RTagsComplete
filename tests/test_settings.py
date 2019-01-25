@@ -12,7 +12,7 @@ class TestSettings(TestCase):
         self.assertIsNone(settings.get('unknown_config_key'))
 
         self.assertIsNotNone(settings.get('verbose_log'))
-        self.assertIsNotNone(settings.get('fixits'))
+        self.assertIsNotNone(settings.get('validation'))
 
         self.assertEqual(settings.get(
             'unknown_config_key_with_default', 'default'), 'default')

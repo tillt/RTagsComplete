@@ -1,7 +1,7 @@
-<body id="rtags_phantom_error">
+<body id="rtags_phantom_note">
     <style>
         div.error {
-            background-color: color(#884030 alpha(0.70));
+            background-color: color(#7760AA alpha(0.70));
             border-radius: 0.5rem;
             padding-bottom: 0.1rem;
             padding-right: 0.1rem;
@@ -12,14 +12,23 @@
             position: relative;
             top: 0.1rem;
             bottom: 0.1rem;
+            left: 0.5rem;
+            fond-weight: bold;
         }
 
         div.error span.message {
             position: relative;
             font-size: 0.77rem;
-            left: 0.5rem;
+            left: 1.6rem;
             color: color(var(--foreground) alpha(0.7));
         }
+
+        div.error span.message pre{
+            position: relative;
+            font-family: Courier;
+            font-size: 0.87rem;
+            left: 0.3rem;
+        }
     </style>
-    <div class="error"><span class="symbol">⛔</span><span class="message">[]</span></div>
+    <div class="error"><span class="symbol">!</span><span class="message">[]</span></div>
 </body>
