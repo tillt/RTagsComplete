@@ -6,13 +6,12 @@ Jobs are scheduled process runs.
 
 """
 
-import re
 import sublime
 import subprocess
 
 import logging
 
-import xml.etree.ElementTree as etree
+import json
 
 from concurrent import futures
 from functools import partial
@@ -20,7 +19,7 @@ from time import time
 from threading import RLock
 
 from . import settings
-# from . import vc_manager
+from . import tools
 
 log = logging.getLogger("RTags")
 
@@ -216,6 +215,10 @@ class CompletionJob(RTagsJob):
         command_info.append('{}:{}'.format(filename, size))
         # Make this query block until getting answered.
         command_info.append('--synchronous-completions')
+        command_info.append('--code-complete-include-macros')
+
+        # command_info.append('--max')
+        # command_info.append(MAX_FROM_DEFAULTS)
 
         super().__init__(
             completion_job_id,
@@ -302,7 +305,10 @@ class ReindexJob(RTagsJob):
 class MonitorJob(RTagsJob):
 
     def __init__(self, job_id):
-        super().__init__(job_id, ['-m'], **{'communicate': self.communicate})
+        super().__init__(
+            job_id,
+            ['--json', '-m'],
+            **{'communicate': self.communicate})
 
     def run(self):
         log.debug("Running MonitorJob process NOW...")
@@ -311,79 +317,128 @@ class MonitorJob(RTagsJob):
     def communicate(self, process, timeout=None):
         log.debug("In data callback {}".format(process.stdout))
 
-        rgxp = re.compile(r'<(\w+)')
-        buffer = ''  # xml to be parsed
-        start_tag = ''
+        buffer = ''  # JSON to be parsed
+
+        brackets_open = 0
+
+        mapping = {
+            'warning': 'warning',
+            'error': 'error',
+            'fixit': 'error'
+        }
+
+        display_types = settings.get('validation_display_types')
 
         for line in iter(process.stdout.readline, b''):
             line = line.decode('utf-8')
-            process.poll()
 
-            if not start_tag:
-                start_tag = re.findall(rgxp, line)
-                start_tag = start_tag[0] if len(start_tag) else ''
+            brackets_open += line.count('{')
+            brackets_open -= line.count('}')
 
+            # Keep on accumulating JSON object data until its end.
             buffer += line
 
             error = JobError.from_results(line)
             if error:
                 return (b'', error)
 
-            # Keep on accumulating XML data until we have a closing tag,
-            # matching our start_tag.
+            if brackets_open <= 0:
+                dictionary = json.loads(buffer)
 
-            if '</{}>'.format(start_tag) in line:
-                tree = etree.fromstring(buffer)
-                # OK, we received some chunk
-                # check if it is progress update
-                # if (tree.tag == 'progress' and
-                #    tree.attrib['index'] == tree.attrib['total'] and
-                #        vc_manager.flag == vc_manager.NAVIGATION_REQUESTED):
-                #    # notify about event
-                #    sublime.active_window().active_view().run_command(
-                #        'rtags_location',
-                #        {'switches': vc_manager.switches})
+                log.debug("JSON dump dictionary: {}".format(dictionary))
 
-                if tree.tag == 'checkstyle':
-                    mapping = {
-                        'warning': 'warning',
-                        'error': 'error',
-                        'fixit': 'error'
-                    }
+                if 'checkStyle' in dictionary:
+                    checkstyle = dictionary['checkStyle']
 
                     issues = {
                         'warning': [],
-                        'error': []
+                        'error': [],
+                        'note': []
                     }
 
-                    for file in tree.findall('file'):
-                        for error in file.findall('error'):
-                            if error.attrib["severity"] in mapping.keys():
-                                issue = {}
-                                issue['line'] = int(error.attrib["line"])
-                                issue['column'] = int(error.attrib["column"])
-                                if 'length' in error.attrib:
-                                    issue['length'] = int(
-                                        error.attrib["length"])
-                                else:
-                                    issue['length'] = -1
-                                issue['message'] = error.attrib["message"]
+                    for file in checkstyle.keys():
+                        for error in checkstyle[file]:
+                            if not error['type'] in mapping.keys():
+                                log.debug("Unexpected diagnostics type {}"
+                                          .format(error['type']))
+                                continue
+                            if not mapping[error['type']] in display_types:
+                                log.debug("Skipping validation type {}"
+                                          .format(mapping[error['type']]))
+                                continue
+                            issue = {}
+                            issue['type'] = mapping[error['type']]
+                            issue['line'] = int(error['line'])
+                            issue['column'] = int(error['column'])
+                            if 'length' in error.keys():
+                                issue['length'] = int(error['length'])
+                            issue['message'] = error['message']
+                            issue['subissues'] = []
 
-                                issues[mapping[error.attrib["severity"]]].append(issue)
+                            if 'note' in display_types and 'children' in error.keys():
+                                for child in error['children']:
+                                    if not child['type'] == 'note':
+                                        log.warning(
+                                            "Ignoring subissue type {}".format(
+                                                child['type']))
+                                        continue
 
-                        log.debug("Got fixits to send")
+                                    context_file = file
+                                    if 'file' in child:
+                                        context_file = child['file']
+                                    context_line = int(child['line'])
+                                    context_column = int(child['column'])
+                                    context_length = 0
+                                    if 'length' in child.keys():
+                                        context_length = int(child['length'])
+
+                                    message = child['message']
+                                    context = ""
+
+                                    if context_line > 0:
+                                        if context_file == file:
+                                            context = tools.Utilities.file_content(
+                                                context_file,
+                                                context_line)
+                                            message += "\n\a{}\b".format(context.strip())
+                                        else:
+                                            context = tools.Utilities.file_content(
+                                                context_file,
+                                                context_line)
+                                            message += " \v{}\f\n\a{}\b".format(
+                                                context_file,
+                                                context.strip())
+
+                                    subissue = {}
+                                    subissue['type'] = 'note'
+                                    subissue['file'] = context_file
+                                    subissue['line'] = context_line
+                                    subissue['column'] = context_column
+                                    subissue['message'] = message
+                                    subissue['length'] = context_length
+
+                                    issue['subissues'].append(subissue)
+
+                            issues[mapping[error['type']]].append(issue)
+
+                        log.debug("Triggering fixits update")
 
                         sublime.active_window().active_view().run_command(
                             'rtags_fixit',
                             {
-                                'filename': file.attrib["name"],
+                                'filename': file,
                                 'issues': issues
                             })
 
                 buffer = ''
-                start_tag = ''
+
+            if process.poll():
+                log.debug("Process has terminated")
+
+                return (b'', None)
 
         log.debug("Data callback terminating")
+
         return (b'', None)
 
 

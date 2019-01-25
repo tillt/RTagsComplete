@@ -9,11 +9,13 @@ Indexing result evaluation, the frontend for the monitor process.
 import sublime
 
 import logging
+import re
 
 from functools import partial
 
 from . import jobs
 from . import settings
+from . import tools
 from . import watchdog
 
 log = logging.getLogger("RTags")
@@ -22,14 +24,17 @@ log = logging.getLogger("RTags")
 class Category:
     WARNING = "warning"
     ERROR = "error"
+    FIXIT = "fixit"
+    NOTE = "note"
 
 
 class Controller():
-    CATEGORIES = [Category.WARNING, Category.ERROR]
+    CATEGORIES = [Category.WARNING, Category.ERROR, Category.FIXIT]
 
     CATEGORY_FLAGS = {
-        Category.WARNING: sublime.DRAW_NO_FILL,
-        Category.ERROR: sublime.DRAW_NO_FILL
+        Category.WARNING: sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE,
+        Category.ERROR: sublime.DRAW_SQUIGGLY_UNDERLINE | sublime.DRAW_NO_FILL | sublime.DRAW_NO_OUTLINE,
+        Category.FIXIT: sublime.DRAW_SOLID_UNDERLINE | sublime.DRAW_NO_FILL
     }
 
     PHANTOMS_TAG = "rtags_phantoms"
@@ -44,6 +49,23 @@ class Controller():
         self.status = status
         self.watchdog = watchdog.IndexWatchdog()
         self.reindex_job_id = None
+
+    def region(view, line, column, length):
+        start = view.text_point(
+            line - 1,
+            column - 1)
+
+        if length:
+            end = view.text_point(
+                line - 1,
+                column - 1 + length)
+        else:
+            end = view.line(start).b
+
+        return sublime.Region(start, end)
+
+    def substring(view, line, column, length):
+        return view.substr(Controller.region(view, line, column, length))
 
     def activated(self):
         log.debug("Activated")
@@ -68,21 +90,17 @@ class Controller():
             log.debug("No warnings, errors or fixits to show")
             return
 
-        def issue_to_tuple(issue, kind):
+        def issue_to_tuple(issue):
             return [
-                kind,
+                issue['type'],
                 issue['message'],
                 self.filename,
                 issue['line'],
                 issue['column']]
 
-        tuples = list(map(
-            partial(issue_to_tuple, kind='ERROR'),
-            self.issues['error']))
-
-        tuples += list(map(
-            partial(issue_to_tuple,  kind='WARNING'),
-            self.issues['warning']))
+        tuples = list(map(issue_to_tuple, self.issues['error']))
+        tuples += list(map(issue_to_tuple, self.issues['warning']))
+        tuples += list(map(issue_to_tuple, self.issues['fixit']))
 
         # Sort the tuples by file and then line number and column.
         def file_line_col(item):
@@ -129,7 +147,12 @@ class Controller():
             self.view.erase_regions(self.category_key(key))
 
     def show_regions(self):
-        scope_names = {'error': 'region.redish', 'warning': 'region.yellowish'}
+        scope_names = {
+            'error': 'region.redish',
+            'warning': 'region.yellowish',
+            'fixit': 'region.bluish',
+            'note': None,
+        }
         for category, regions in self.regions.items():
             self.view.add_regions(
                 self.category_key(category),
@@ -147,23 +170,76 @@ class Controller():
             self.view,
             Controller.PHANTOMS_TAG)
 
-        def issue_to_phantom(category, issue):
-            point = self.view.text_point(issue['line']-1, 0)
-            start = self.view.line(point).a
+        def phantom_navigate(link):
+            (file, line_, column_, length_, message) = re.findall(
+                r'(.*):(\d+):(\d+):(\d+):(.*)',
+                link)[0]
+
+            line = int(line_)
+            column = int(column_)
+            length = int(length_)
+
+            old = Controller.substring(self.view, line, column, length)
+
+            mutations = {}
+            mutations[line] = [column]
+
+            tools.Utilities.replace_in_file(
+                old,
+                message,
+                file,
+                mutations)
+
+            self.view.window().open_file(file)
+
+            self.reindex(True)
+
+        def issue_to_phantom(start, issue):
+            html = ""
+
+            if 'link' in issue:
+                html = settings.template_as_html(
+                    issue['type'],
+                    'phantom',
+                    issue['link'],
+                    tools.Utilities.html_escape(issue['message']))
+            else:
+                html = settings.template_as_html(
+                    issue['type'],
+                    'phantom',
+                    tools.Utilities.html_escape(issue['message']))
+
             return sublime.Phantom(
                 sublime.Region(start, start+1),
-                settings.template_as_html(
-                    category,
-                    'phantom',
-                    issue['message']),
-                sublime.LAYOUT_BLOCK)
+                html,
+                sublime.LAYOUT_BLOCK,
+                phantom_navigate)
 
-        phantoms = list(map(
-            lambda p: issue_to_phantom('error', p),
-            issues['error']))
-        phantoms += list(map(
-            lambda p: issue_to_phantom('warning', p),
-            issues['warning']))
+        phantoms = []
+
+        order = ['warning', 'error', 'fixit', 'note']
+
+        ordered_issues = []
+
+        for key in order:
+            if key in issues:
+                for issue in issues[key]:
+                    ordered_issues.append(issue)
+
+        # Sort the tuples by file and then line number and column.
+        def line_col(issue):
+            return (issue['line'], issue['column'])
+
+        ordered_issues.sort(key=line_col)
+
+        for issue in ordered_issues:
+            point = self.view.text_point(issue['line']-1, 0)
+            start = self.view.line(point).a
+            phantom = issue_to_phantom(start, issue)
+            phantoms.append(phantom)
+            if 'subissues' in issue:
+                for subissue in issue['subissues']:
+                    phantoms.append(issue_to_phantom(start, subissue))
 
         self.phantom_set.update(phantoms)
 
@@ -172,7 +248,7 @@ class Controller():
         def issue_to_region(issue):
             start = self.view.text_point(issue['line']-1, issue['column']-1)
 
-            if issue['length'] > 0:
+            if 'length' in issue and issue['length'] > 0:
                 end = self.view.text_point(
                     issue['line']-1,
                     issue['column']-1 + issue['length'])
@@ -183,10 +259,20 @@ class Controller():
                 "region": sublime.Region(start, end),
                 "message": issue['message']}
 
-        self.regions = {
-            'warning': list(map(issue_to_region, issues['warning'])),
-            'error': list(map(issue_to_region, issues['error']))
-        }
+        self.regions = {}
+
+        if 'warning' in issues:
+            self.regions['warning'] = list(map(
+                issue_to_region,
+                issues['warning']))
+        if 'error' in issues:
+            self.regions['error'] = list(map(
+                issue_to_region,
+                issues['error']))
+        if 'fixit' in issues:
+            self.regions['fixit'] = list(map(
+                issue_to_region,
+                issues['fixit']))
 
     def clear(self):
         # Clear anything we might have mutated.
@@ -195,7 +281,7 @@ class Controller():
         self.clear_regions()
         self.clear_phantoms()
         self.regions = {}
-        self.issues = None
+        self.issues = {}
 
     def unload(self):
         # Stop the watchdog and clear.
@@ -219,13 +305,96 @@ class Controller():
                 self.filename))
             return
 
-        self.status.update_results(issues)
-        self.update_regions(issues)
-        self.update_phantoms(issues)
-        self.show_regions()
-        self.issues = issues
+        log.debug("Got indexing {}".format(issues))
 
-    def indexing_done_callback(self, complete, error=None):
+        for key in issues:
+            if key not in self.issues:
+                self.issues[key] = []
+            self.issues[key] = issues[key]
+
+        warning_count = 0
+        if 'warning' in self.issues:
+            warning_count = len(self.issues['warning'])
+
+        error_count = 0
+        if 'error' in self.issues:
+            error_count = len(self.issues['error'])
+
+        self.status.update_results(error_count, warning_count)
+
+        self.update_regions(self.issues)
+        self.update_phantoms(self.issues)
+        self.show_regions()
+
+    def fixits_callback(self, future):
+        log.debug("Fixits callback hit")
+
+        if not future.done():
+            log.warning("Fixits failed")
+            return
+
+        if future.cancelled():
+            log.warning(("Fixits aborted"))
+            return
+
+        (job_id,  out, error) = future.result()
+
+        log.debug("Fixits received: {}".format(out))
+
+        def out_to_fixit(line):
+            (line_, column_, length_, message_) = re.findall(
+                r'(\d+):(\d+) (\d+) (.*)',
+                line)[0]
+
+            line = int(line_)
+            column = int(column_)
+            length = int(length_)
+            message = message_.strip()
+
+            content = None
+
+            fixit = {}
+
+            if line > 0 and column > 0:
+                if length > 0 and len(message):
+                    context = Controller.substring(
+                        self.view, line, column, length)
+                    content = "Replace '{}' with '{}'!".format(context, message)
+                elif length > 0:
+                    context = Controller.substring(
+                        self.view, line, column, length)
+                    content = "Remove '{}'!".format(context)
+                elif len(message) > 0:
+                    content = "Add '{}'!".format(message)
+
+            fixit['file'] = self.filename
+            fixit['line'] = line
+            fixit['length'] = length
+            fixit['column'] = column
+            fixit['message'] = content
+            fixit['type'] = 'fixit'
+            fixit['link'] = "{}:{}:{}:{}:{}".format(
+                self.filename,
+                line,
+                column,
+                length,
+                message)
+
+            return fixit
+
+        issues = {}
+        issues['fixit'] = list(map(out_to_fixit, out.decode('utf-8').splitlines()))
+
+        log.debug("Got fixits to send")
+
+        sublime.active_window().active_view().run_command(
+            'rtags_fixit',
+            {
+                'filename': self.filename,
+                'issues': issues
+            })
+
+    def indexing_callback(self, complete, error=None):
         log.debug("Indexing callback hit")
 
         self.status.progress.stop()
@@ -234,8 +403,12 @@ class Controller():
 
         self.status.update_status(error)
 
-        if not complete:
+        if not complete or error:
             log.debug("Indexing not completed")
+            return
+
+        if not self.supported:
+            log.debug("No diagnostics requested")
             return
 
         log.debug("Triggering diagnosis for the indexed file")
@@ -253,12 +426,20 @@ class Controller():
             ),
             indicator=self.status.progress)
 
+        if 'fixit' in settings.get("validation_display_types"):
+            jobs.JobController.run_async(
+                jobs.RTagsJob(
+                    "RTFixitsJob" + jobs.JobController.next_id(),
+                    [
+                        '--fixits', self.filename
+                    ],
+                    **{'view': self.view}
+                ),
+                self.fixits_callback,
+                indicator=self.status.progress)
+
     def reindex(self, saved):
         log.debug("Reindex hit {} {} {}".format(self, self.view, saved))
-
-        if not self.supported:
-            log.debug("Fixits are disabled")
-            return
 
         if self.reindex_job_id:
             log.debug("Reindex already requested")
@@ -268,7 +449,9 @@ class Controller():
 
         self.status.progress.start()
 
-        jobs.JobController.run_async(jobs.MonitorJob("RTMonitorJob"))
+        if self.supported:
+            log.debug("Expecting indexing results for {}".format(self.filename))
+            jobs.JobController.run_async(jobs.MonitorJob("RTMonitorJob"))
 
         text = b''
 
@@ -289,6 +472,4 @@ class Controller():
         )
 
         # Start a watchdog that polls if we were still indexing.
-        self.watchdog.start(self.indexing_done_callback)
-
-        log.debug("Expecting indexing results for {}".format(self.filename))
+        self.watchdog.start(self.indexing_callback)

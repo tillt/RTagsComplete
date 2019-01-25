@@ -46,13 +46,8 @@ class StatusController():
 
         self.view.erase_status(self.results_key)
 
-    def update_results(self, issues):
-        log.debug("Update results with issues={}".format(issues))
-
+    def update_results(self, error_count, warning_count):
         results = []
-
-        error_count = len(issues['error'])
-        warning_count = len(issues['warning'])
 
         if error_count > 0:
             results.append("⛔: {}".format(error_count))

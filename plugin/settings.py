@@ -40,7 +40,7 @@ def update_templates():
     # Init templates.
     templates = {}
     types = {
-        "phantom": ["error", "warning"],
+        "phantom": ["error", "warning", "fixit", "note"],
         "popup": ["error", "info"]
     }
 
@@ -69,7 +69,7 @@ def update():
     templates = None
 
 
-def template_as_html(category, typename, message):
+def template_as_html(category, typename, *args):
     global templates
 
     if not templates:
@@ -84,7 +84,7 @@ def template_as_html(category, typename, message):
     padded = template.replace('{', '{{').replace('}', '}}')
     substituted = padded.replace('[', '{').replace(']', '}')
 
-    return substituted.format(message)
+    return substituted.format(*args)
 
 
 def get(key, default=None):
