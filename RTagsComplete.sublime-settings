@@ -26,10 +26,14 @@
   // Autocompletion triggers on top of those already used (and needed).
   "triggers" : [ ".", "->", "::", " ", "  ", "(", "[" ],
 
-  // Enable displaying fixits, warnings and errors.
-  "fixits": true,
+  // Enable code validation.
+  "validation": true,
 
-  // Enable hover symbol info - needs at least RTags V2.5.
+  // Selectively enable displaying validation fixits, warnings, errors
+  // and notes. Depends on enabled 'validation'.
+  "validation_display_types": ["error", "warning", "fixit", "note"],
+
+  // Enable hover symbol info.
   "hover": true,
 
   // Enable enhanced, rather verbose logging for troubleshooting.

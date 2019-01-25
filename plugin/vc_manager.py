@@ -197,22 +197,5 @@ def close_all():
 
 
 def on_post_updated(view):
-    # Reindex if we support fixits.
-    if not view_controller(view).fixits.supported:
-        log.debug("Fixits are disabled")
-        # Run rc --check-reindex to reindex just saved files.
-        # We do this manually even though rtags SHOULD watch
-        # all our files and reindex accordingly. However on macOS
-        # this feature is broken.
-        # See https://github.com/Andersbakken/rtags/issues/1052
-        jobs.JobsController.run_async(
-            jobs.ReindexJob(
-                "RTPostSaveReindex" + jobs.JobController.next_id(),
-                view.file_name(),
-                b'',
-                view),
-            indicator=view_controller(view).status.progress)
-        return
-
     view_controller(view).idle.sleep()
     view_controller(view).fixits.reindex(saved=True)

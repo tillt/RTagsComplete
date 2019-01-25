@@ -657,7 +657,7 @@ def update_settings():
     # Initialize settings with their defaults.
     settings.get('rc_timeout', 0.5)
     settings.get('rc_path', "/usr/local/bin/rc")
-    settings.get('fixits', False)
+    settings.get('validation', False)
     settings.get('hover', False)
     settings.get('auto_reindex', False)
     settings.get('auto_reindex_threshold', 30)

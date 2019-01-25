@@ -321,6 +321,14 @@ class MonitorJob(RTagsJob):
 
         brackets_open = 0
 
+        mapping = {
+            'warning': 'warning',
+            'error': 'error',
+            'fixit': 'error'
+        }
+
+        display_types = settings.get('validation_display_types')
+
         for line in iter(process.stdout.readline, b''):
             line = line.decode('utf-8')
 
@@ -342,12 +350,6 @@ class MonitorJob(RTagsJob):
                 if 'checkStyle' in dictionary:
                     checkstyle = dictionary['checkStyle']
 
-                    mapping = {
-                        'warning': 'warning',
-                        'error': 'error',
-                        'fixit': 'error'
-                    }
-
                     issues = {
                         'warning': [],
                         'error': [],
@@ -357,8 +359,13 @@ class MonitorJob(RTagsJob):
                     for file in checkstyle.keys():
                         for error in checkstyle[file]:
                             if not error['type'] in mapping.keys():
+                                log.debug("Unexpected diagnostics type {}"
+                                          .format(error['type']))
                                 continue
-
+                            if not mapping[error['type']] in display_types:
+                                log.debug("Skipping validation type {}"
+                                          .format(mapping[error['type']]))
+                                continue
                             issue = {}
                             issue['type'] = mapping[error['type']]
                             issue['line'] = int(error['line'])
@@ -368,7 +375,7 @@ class MonitorJob(RTagsJob):
                             issue['message'] = error['message']
                             issue['subissues'] = []
 
-                            if 'children' in error.keys():
+                            if 'note' in display_types and 'children' in error.keys():
                                 for child in error['children']:
                                     if not child['type'] == 'note':
                                         log.warning(

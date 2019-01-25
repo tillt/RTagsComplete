@@ -407,6 +407,10 @@ class Controller():
             log.debug("Indexing not completed")
             return
 
+        if not self.supported:
+            log.debug("No diagnostics requested")
+            return
+
         log.debug("Triggering diagnosis for the indexed file")
 
         # For some bizarre reason a reindexed file that does not have any
@@ -422,23 +426,20 @@ class Controller():
             ),
             indicator=self.status.progress)
 
-        jobs.JobController.run_async(
-            jobs.RTagsJob(
-                "RTFixitsJob" + jobs.JobController.next_id(),
-                [
-                    '--fixits', self.filename
-                ],
-                **{'view': self.view}
-            ),
-            self.fixits_callback,
-            indicator=self.status.progress)
+        if 'fixit' in settings.get("validation_display_types"):
+            jobs.JobController.run_async(
+                jobs.RTagsJob(
+                    "RTFixitsJob" + jobs.JobController.next_id(),
+                    [
+                        '--fixits', self.filename
+                    ],
+                    **{'view': self.view}
+                ),
+                self.fixits_callback,
+                indicator=self.status.progress)
 
     def reindex(self, saved):
         log.debug("Reindex hit {} {} {}".format(self, self.view, saved))
-
-        if not self.supported:
-            log.debug("Fixits are disabled")
-            return
 
         if self.reindex_job_id:
             log.debug("Reindex already requested")
@@ -448,7 +449,9 @@ class Controller():
 
         self.status.progress.start()
 
-        jobs.JobController.run_async(jobs.MonitorJob("RTMonitorJob"))
+        if self.supported:
+            log.debug("Expecting indexing results for {}".format(self.filename))
+            jobs.JobController.run_async(jobs.MonitorJob("RTMonitorJob"))
 
         text = b''
 
@@ -470,5 +473,3 @@ class Controller():
 
         # Start a watchdog that polls if we were still indexing.
         self.watchdog.start(self.indexing_callback)
-
-        log.debug("Expecting indexing results for {}".format(self.filename))
