@@ -119,6 +119,6 @@ class Utilities:
                                 col,
                                 file))
 
-                with open(file, 'w') as out_file:
-                    for line in file_lines:
-                        out_file.write("{}\n".format(line))
+        with open(file, 'w') as out_file:
+            for line in file_lines:
+                out_file.write("{}\n".format(line))
