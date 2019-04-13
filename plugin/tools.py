@@ -47,12 +47,20 @@ class Utilities:
 
     @staticmethod
     def html_escape(text):
+        """Replaces control characters with HTML code."""
+        replacemap = {
+            '\n': "<br />",
+            '\a': "<pre>",
+            '\b': "</pre>",
+            '\v': "<i>",
+            '\f': "</i>"
+        }
+
         escaped = html.escape(text, False)
-        escaped = escaped.replace('\n', "<br />")
-        escaped = escaped.replace('\a', "<pre>")
-        escaped = escaped.replace('\b', "</pre>")
-        escaped = escaped.replace('\v', "<i>")
-        escaped = escaped.replace('\f', "</i>")
+
+        for character in replacemap.keys():
+            escaped = escaped.replace(character, replacemap[character])
+
         return escaped
 
     @staticmethod
