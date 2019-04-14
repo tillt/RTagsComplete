@@ -1,5 +1,4 @@
 """Tests for Job Controller."""
-import logging
 import time
 import uuid
 import os

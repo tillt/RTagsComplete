@@ -46,13 +46,21 @@ class Utilities:
     """Random utilities."""
 
     @staticmethod
-    def html_escape(text):
+    def html(text):
+        """Replaces control characters with HTML code."""
+        replacemap = {
+            '\n': "<br />",
+            '\a': "<pre>",
+            '\b': "</pre>",
+            '\v': "<i>",
+            '\f': "</i>"
+        }
+
         escaped = html.escape(text, False)
-        escaped = escaped.replace('\n', "<br />")
-        escaped = escaped.replace('\a', "<pre>")
-        escaped = escaped.replace('\b', "</pre>")
-        escaped = escaped.replace('\v', "<i>")
-        escaped = escaped.replace('\f', "</i>")
+
+        for character in replacemap.keys():
+            escaped = escaped.replace(character, replacemap[character])
+
         return escaped
 
     @staticmethod
@@ -65,11 +73,13 @@ class Utilities:
             file_lines = in_file.read().splitlines()
 
             if line > len(file_lines):
-                log.error("Line index {} exceeds line count {}".format(line, len(file_lines)))
+                log.error("Line index {} exceeds line count {}".format(
+                    line, len(file_lines)))
                 return ""
 
             if column > len(file_lines[line - 1]):
-                log.error("Column index {} exceeds line size {}".format(column, len(file_lines[line - 1])))
+                log.error("Column index {} exceeds line size {}".format(
+                    column, len(file_lines[line - 1])))
                 return ""
 
             if length == 0 and column == 1:
@@ -115,10 +125,8 @@ class Utilities:
                         log.error(
                             "Symbol name does not match,"
                             " skipping line {} column {} in file {}".format(
-                                row,
-                                col,
-                                file))
+                                row, col, file))
 
-                with open(file, 'w') as out_file:
-                    for line in file_lines:
-                        out_file.write("{}\n".format(line))
+        with open(file, 'w') as out_file:
+            for line in file_lines:
+                out_file.write("{}\n".format(line))

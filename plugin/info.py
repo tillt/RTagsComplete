@@ -358,8 +358,8 @@ class Controller:
     def display_items(item):
         return "<div class=\"info\"><span class=\"header\">{}</span>" \
                "<br /><span class=\"info\">{}</span></div>".format(
-                    tools.Utilities.html_escape(item[0]),
-                    tools.Utilities.html_escape(item[1]))
+                    tools.Utilities.html(item[0]),
+                    tools.Utilities.html(item[1]))
 
     @staticmethod
     def symbol_location_callback(

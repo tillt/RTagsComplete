@@ -7,5 +7,6 @@
   {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
   {"keys": ["ctrl+shift+h"], "command": "rtags_show_history"},
   {"keys": ["alt+super+shift+d"], "command": "rtags_file", "args": {"switches": ["--absolute-path", "--find-dead-functions"]} },
-  {"keys": ["ctrl+i"], "command": "rtags_get_include" }
+  {"keys": ["ctrl+i"], "command": "rtags_get_include" },
+  {"keys": ["ctrl+shift+a"], "command": "rtags_auto_expand" }
 ]
