@@ -11,8 +11,6 @@ import sublime
 import logging
 import re
 
-from functools import partial
-
 from . import jobs
 from . import settings
 from . import tools
@@ -202,12 +200,12 @@ class Controller():
                     issue['type'],
                     'phantom',
                     issue['link'],
-                    tools.Utilities.html_escape(issue['message']))
+                    tools.Utilities.html(issue['message']))
             else:
                 html = settings.template_as_html(
                     issue['type'],
                     'phantom',
-                    tools.Utilities.html_escape(issue['message']))
+                    tools.Utilities.html(issue['message']))
 
             return sublime.Phantom(
                 sublime.Region(start, start+1),

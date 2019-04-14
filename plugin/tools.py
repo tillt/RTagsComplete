@@ -46,7 +46,7 @@ class Utilities:
     """Random utilities."""
 
     @staticmethod
-    def html_escape(text):
+    def html(text):
         """Replaces control characters with HTML code."""
         replacemap = {
             '\n': "<br />",
@@ -73,11 +73,13 @@ class Utilities:
             file_lines = in_file.read().splitlines()
 
             if line > len(file_lines):
-                log.error("Line index {} exceeds line count {}".format(line, len(file_lines)))
+                log.error("Line index {} exceeds line count {}".format(
+                    line, len(file_lines)))
                 return ""
 
             if column > len(file_lines[line - 1]):
-                log.error("Column index {} exceeds line size {}".format(column, len(file_lines[line - 1])))
+                log.error("Column index {} exceeds line size {}".format(
+                    column, len(file_lines[line - 1])))
                 return ""
 
             if length == 0 and column == 1:
@@ -123,9 +125,7 @@ class Utilities:
                         log.error(
                             "Symbol name does not match,"
                             " skipping line {} column {} in file {}".format(
-                                row,
-                                col,
-                                file))
+                                row, col, file))
 
         with open(file, 'w') as out_file:
             for line in file_lines:

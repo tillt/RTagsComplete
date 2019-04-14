@@ -1,7 +1,5 @@
 """Tests for VC Manager."""
 
-import collections
-
 from os import path
 
 from RTagsComplete.plugin import vc_manager
