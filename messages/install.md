@@ -21,6 +21,7 @@ Thanks for installing RTagsComplete!
 - Symbol navigation -                                  `F2`
 - Find usages / references -                 `CTRL+Shift+u`
 - Rename symbol -                        `CTRL+Shift+Alt+u`
+- Expand auto -                              `CTRL+Shift+a`
 - Find virtual function re-implementations - `CTRL+Shift+x`
 - Symbol information -                       `CTRL+Shift+i`
 - Use `Alt+/` explicitly for auto-completion

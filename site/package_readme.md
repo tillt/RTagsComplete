@@ -20,6 +20,8 @@ Sublime Text 3 C/C++ and Objective C code completion, navigation and validation 
 
 - Code completion
 
+- Expand auto
+
 - Code validation - shows errors and warnings inline
 
 - Get include file for symbol
