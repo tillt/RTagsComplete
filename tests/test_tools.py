@@ -14,9 +14,13 @@ class TestTools(TestCase):
         """Test file string replace function."""
 
         name = ""
+
         with tempfile.NamedTemporaryFile(delete=False) as out_file:
             name = out_file.name
-            out_file.write(b'echo foo && sleep 1\n')
+
+            contents = b'echo foo && sleep 1\n'
+
+            out_file.write(contents)
             out_file.close()
 
         tools.Utilities.replace_in_file(
