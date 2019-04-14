@@ -8,7 +8,6 @@ import collections
 import logging
 import sublime
 
-from . import jobs
 from . import settings
 from . import vc
 
@@ -68,9 +67,12 @@ def view_controller(view):
 
     if not view:
         return None
+
     view_id = view.id()
+
     if view_id not in controllers.keys():
         controllers[view_id] = vc.ViewController(view)
+
     return controllers[view_id]
 
 

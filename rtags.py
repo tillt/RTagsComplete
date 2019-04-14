@@ -222,6 +222,7 @@ class RtagsBaseCommand(sublime_plugin.TextCommand):
 
     def _action(self, out, **kwargs):
         # Get current cursor location.
+        # Called by the completion handler of the RTags command execution.
         cursorLine, cursorCol = self.view.rowcol(self.view.sel()[0].a)
         vc_manager.push_history(
             self.view.file_name(),
@@ -312,6 +313,7 @@ class RtagsGetIncludeCommand(RtagsBaseCommand):
 
     def _action(self, out, **kwargs):
         # Pretty format the results.
+        # Called by the completion handler of the RTags command execution.
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
         log.debug("Got items from command: {}".format(items))
 
@@ -533,6 +535,7 @@ class RtagsSymbolInfoCommand(RtagsLocationCommand):
     def _action(self, out, **kwargs):
         # Hover will give us coordinates here, keyboard-called symbol-
         # info will not give us coordinates, so we need to get em now.
+        # Called by the completion handler of the RTags command execution.
         if 'col' in kwargs:
             row = kwargs['row']
             col = kwargs['col']
