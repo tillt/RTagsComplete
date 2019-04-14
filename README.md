@@ -55,6 +55,10 @@ Allows to refactor symbols. Select a symbol with your cursor, activate the funct
 
 Finds the include file for the symbol under the cursor. If any are found, shows a quick panel that copies the selected include into the clipboard when hitting return.
 
+## Expand auto
+
+Replaces the 'auto' keyword with the type retrieved from RTags, if possible.
+
 ## Symbol information
 
 Shows a popup containing information about the symbol under the cursor.
@@ -94,6 +98,7 @@ The default key bindings were originally inspired by Qt Creator.
 + Error, fixit and warning navigation - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>e</kbd>
 + Find unused functions - <kbd>Alt</kbd>+<kbd>Super</kbd>+<kbd>Shift</kbd>+<kbd>d</kbd>
 + Find include file for symbol - <kbd>CTRL</kbd>+<kbd>i</kbd>
++ Expand auto type for symbol - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>a</kbd>
 + Show navigation history - <kbd>CTRL</kbd>+<kbd>Shift</kbd>+<kbd>h</kbd>
 
 # Customization

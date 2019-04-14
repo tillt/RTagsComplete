@@ -12,6 +12,7 @@ Some code lifted from EasyClangComplete by Igor Bogoslavskyi.
 import sublime
 import sublime_plugin
 
+import json
 import logging
 import re
 
@@ -351,6 +352,54 @@ class RtagsGetIncludeCommand(RtagsBaseCommand):
             vc_manager.view_controller(self.view).status.progress)
 
 
+class RtagsAutoExpandCommand(RtagsLocationCommand):
+
+    def run(self, edit):
+        # Do nothing if not called from supported code.
+        if not supported_view(self.view):
+            return
+
+        (_, out, error) = jobs.JobController.run_sync(
+            jobs.RTagsJob(
+                "RTAutoExpandSymbolInfo" + jobs.JobController.next_id(),
+                ['--absolute-path', '--json', '--symbol-info', self._query()]))
+
+        if error:
+            log.error("Symbol info failed: {}".format(error.message))
+            return
+
+        symbol = json.loads(out.decode("utf-8"))
+
+        log.debug("Got symbol info: {}".format(symbol))
+
+        if "auto" not in symbol or not symbol['auto']:
+            log.error("Symbol is not auto typed")
+            return
+
+        if "type" not in symbol:
+            log.error("Symbol has no type")
+            return
+
+        pos = self.view.sel()
+        if len(pos) < 1:
+            log.error("Cursor is weird")
+            return
+
+        line_region = self.view.line(pos[0].a)
+
+        # Locate "auto" keyword.
+        auto_region = self.view.find(r'(auto)\s*', line_region.a)
+
+        if not auto_region:
+            log.error("Could not locate auto keyword")
+            return
+
+        # Replace "auto " with the type.
+        self.view.replace(edit, auto_region, symbol['type'] + " ")
+
+        log.info("Expanded 'auto' towards '{}'".format(symbol['type']))
+
+
 class RtagsShowHistory(sublime_plugin.TextCommand):
 
     def run(self, edit):
@@ -466,6 +515,7 @@ class RtagsGoBackwardCommand(sublime_plugin.TextCommand):
 class RtagsSymbolRenameCommand(RtagsLocationCommand):
 
     def _action(self, out, **kwargs):
+        # Called by the completion handler of the RTags command execution.
 
         items = list(map(lambda x: x.decode('utf-8'), out.splitlines()))
 
