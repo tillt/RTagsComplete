@@ -6,7 +6,8 @@
   {"keys": ["f2"], "command": "rtags_location", "args": {"switches": ["--absolute-path", "-f"]} },
   {"keys": ["ctrl+shift+b"], "command": "rtags_go_backward" },
   {"keys": ["ctrl+shift+h"], "command": "rtags_show_history"},
-  {"keys": ["alt+super+shift+d"], "command": "rtags_file", "args": {"switches": ["--absolute-path", "--find-dead-functions"]} },
+  {"keys": ["ctrl+shift+e"], "command": "rtags_show_fixits" },
   {"keys": ["ctrl+i"], "command": "rtags_get_include" },
+  {"keys": ["alt+super+shift+d"], "command": "rtags_file", "args": {"switches": ["--absolute-path", "--find-dead-functions"]} },
   {"keys": ["ctrl+shift+a"], "command": "rtags_auto_expand" }
 ]
