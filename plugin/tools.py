@@ -16,6 +16,9 @@ import sys
 
 PKG_NAME = path.basename(path.dirname(path.dirname(__file__)))
 
+if PKG_NAME.endswith(".sublime-package"):
+	PKG_NAME = PKG_NAME[:len(PKG_NAME) - 16]
+
 log = logging.getLogger("RTags")
 
 
