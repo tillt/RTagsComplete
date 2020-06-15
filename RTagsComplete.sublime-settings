@@ -2,6 +2,9 @@
   // Path to rc utility if not found in $PATH.
   "rc_path": "/usr/local/bin/rc",
 
+  // Path to a socket file
+  // "rdm_socket": "/tmp/rdm/rdm.socket",
+
   // Seconds for rc utility communication timeout default.
   "rc_timeout": 30,
 

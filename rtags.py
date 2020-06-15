@@ -710,6 +710,7 @@ def update_settings():
     # Initialize settings with their defaults.
     settings.get('rc_timeout', 0.5)
     settings.get('rc_path', "/usr/local/bin/rc")
+    settings.get('rdm_socket', "")
     settings.get('validation', False)
     settings.get('hover', False)
     settings.get('auto_reindex', False)
@@ -723,6 +724,7 @@ def update_settings():
 
     settings.add_on_change('rc_timeout')
     settings.add_on_change('rc_path')
+    settings.add_on_change('rdm_socket')
     settings.add_on_change('auto_complete')
 
     settings.add_on_change('results_key')
