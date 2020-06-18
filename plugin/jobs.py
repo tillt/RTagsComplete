@@ -100,7 +100,11 @@ class RTagsJob():
         self.command_active = futures.Future()
 
     def prepare_command(self):
-        return [settings.get('rc_path')] + self.command_info
+        cmd = [settings.get('rc_path')]
+        if settings.get('rdm_socket'):
+            cmd.append('--socket-file')
+            cmd.append(settings.get('rdm_socket'))
+        return cmd + self.command_info
 
     def active(self):
         return self.p.done()
